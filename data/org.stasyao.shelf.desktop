@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Shelf
+GenericName=Файловый менеджер
+Comment=Просмотр и управление файлами
+Exec=shelf %U
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileTools;FileManager;Utility;Core;
+MimeType=inode/directory;
+StartupWMClass=org.stasyao.shelf
+Keywords=shelf;полка;файлы;папки;проводник;files;folder;explorer;
