@@ -3,7 +3,8 @@ Type=Application
 Name=Shelf
 GenericName=Файловый менеджер
 Comment=Просмотр и управление файлами
-Exec=shelf %U
+# Полный путь: у Hyprland в PATH нет ~/.local/bin, лаунчеры шелла запускают через него
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/shelf %U
 Icon=system-file-manager
 Terminal=false
 Categories=System;FileTools;FileManager;Utility;Core;

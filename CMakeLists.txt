@@ -46,4 +46,5 @@ target_compile_options(shelf PRIVATE -Wall -Wextra)
 
 include(GNUInstallDirs)
 install(TARGETS shelf RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES data/org.stasyao.shelf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+configure_file(data/org.stasyao.shelf.desktop.in org.stasyao.shelf.desktop @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.stasyao.shelf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
