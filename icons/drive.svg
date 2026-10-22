@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Встроенный диск: стеклянный корпус, поверх — пластина с вырезом под головку
+     и панель с индикатором. Приём тот же, что у остального набора:
+     заливка белым 0.6→0.3 по диагонали и светлая кромка толщиной 0.5 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">
+	<defs>
+		<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+		<linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="0.4927" stop-color="#FFFFFF" stop-opacity="0"/>
+			<stop offset="0.9971" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+	</defs>
+	<!-- Корпус -->
+	<rect x="4.5" y="2" width="15" height="20" rx="2.5" fill="url(#fill)"/>
+	<rect x="4.75" y="2.25" width="14.5" height="19.5" rx="2.25" fill="none" stroke="url(#edge)" stroke-width="0.5"/>
+	<!-- Детали поверх корпуса: второй слой того же стекла делает их светлее -->
+	<g fill="url(#fill)">
+		<!-- Пластина с вырезом вниз-влево -->
+		<path d="M12,9.2 L7.735,10.923 A4.6,4.6 0 1 1 8.922,12.618 Z"/>
+		<!-- Панель с индикатором (индикатор — отверстие, сквозь него виден корпус) -->
+		<path fill-rule="evenodd" d="M8.25,15.25 H15.75 A2.25,2.25 0 0 1 15.75,19.75 H8.25 A2.25,2.25 0 0 1 8.25,15.25 Z
+			M16.4,17.5 m-0.85,0 a0.85,0.85 0 1 0 1.7,0 a0.85,0.85 0 1 0 -1.7,0 Z"/>
+	</g>
+	<g fill="none" stroke="url(#edge)" stroke-width="0.5">
+		<path d="M12,9.2 L7.967,10.830 A4.35,4.35 0 1 1 9.089,12.433 Z"/>
+		<path d="M8.25,15.5 H15.75 A2,2 0 0 1 15.75,19.5 H8.25 A2,2 0 0 1 8.25,15.5 Z"/>
+	</g>
+</svg>

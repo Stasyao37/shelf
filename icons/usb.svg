@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Флешка: стеклянный корпус и разъём с двумя окошками. Разъём начинается
+     ровно у прямого участка правой стенки корпуса, чтобы стекло не накладывалось.
+     Заливка белым 0.6→0.3, кромка 0.5 — как у всего набора -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">
+	<defs>
+		<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+		<linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="0.4927" stop-color="#FFFFFF" stop-opacity="0"/>
+			<stop offset="0.9971" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+	</defs>
+	<!-- Разъём; окошки — вырезы -->
+	<path fill="url(#fill)" fill-rule="evenodd" d="M15.5,7.5 H21.25 A1.25,1.25 0 0 1 22.5,8.75 V15.25 A1.25,1.25 0 0 1 21.25,16.5 H15.5 Z
+		M18.6,9.6 h1.6 v1.6 h-1.6 Z M18.6,12.8 h1.6 v1.6 h-1.6 Z"/>
+	<path fill="none" stroke="url(#edge)" stroke-width="0.5" d="M15.5,7.75 H21.25 A1,1 0 0 1 22.25,8.75 V15.25 A1,1 0 0 1 21.25,16.25 H15.5"/>
+	<!-- Корпус -->
+	<rect x="1.5" y="5" width="14" height="14" rx="2.5" fill="url(#fill)"/>
+	<rect x="1.75" y="5.25" width="13.5" height="13.5" rx="2.25" fill="none" stroke="url(#edge)" stroke-width="0.5"/>
+</svg>

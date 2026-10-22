@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Effects
 import Shelf
 
 // Список файлов (сетка или строки) с выделением и управлением с клавиатуры.
@@ -242,6 +243,7 @@ FocusScope {
             required property string sizeText
             required property string dateText
             required property string mimeComment
+            required property string mimeType
             required property string icon
 
             readonly property bool selected: pane.isSelected(path)
@@ -265,14 +267,25 @@ FocusScope {
                 Behavior on color { ColorAnimation { duration: 90 } }
             }
 
-            Image {
-                id: iconImg
-                source: "image://icon/" + cell.icon
-                sourceSize: pane.gridMode ? Qt.size(56, 56) : Qt.size(22, 22)
-                width: sourceSize.width; height: sourceSize.height
-                asynchronous: true
+            Item {
+                id: iconBox
+                readonly property int size: pane.gridMode ? 56 : 22
+                width: size; height: size
                 x: pane.gridMode ? (parent.width - width) / 2 : 8
                 y: pane.gridMode ? 10 : (parent.height - height) / 2
+
+                FolderIcon {
+                    visible: cell.isDir
+                    size: iconBox.size
+                    iconName: cell.icon
+                    open: ma.containsMouse || cell.selected
+                }
+                FileIcon {
+                    visible: !cell.isDir
+                    size: iconBox.size
+                    mimeType: cell.mimeType
+                    fileName: cell.name
+                }
 
                 Text {
                     visible: cell.isLink
@@ -406,11 +419,28 @@ FocusScope {
         }
     }
 
+    // Пустая корзина — с картинкой, остальное — просто текстом
+    readonly property bool inTrash: pane.model.path === Places.trashPath
+    Image {
+        id: emptyIcon
+        visible: pane.model.count === 0 && pane.inTrash && pane.model.searchQuery.length === 0
+        anchors.horizontalCenter: view.horizontalCenter
+        anchors.bottom: emptyText.top
+        anchors.bottomMargin: 14
+        source: Qt.resolvedUrl("icons/trash-can.svg")
+        sourceSize: Qt.size(96, 96)
+        layer.enabled: Theme.light
+        layer.effect: MultiEffect {
+            colorization: 1.0
+            colorizationColor: Qt.darker(Theme.accent, 1.6)
+        }
+    }
     Text {
+        id: emptyText
         anchors.centerIn: view
         visible: pane.model.count === 0
         text: pane.model.error.length > 0 ? pane.model.error
-            : pane.model.searchQuery.length === 0 ? "Папка пуста"
+            : pane.model.searchQuery.length === 0 ? (pane.inTrash ? "Корзина пуста" : "Папка пуста")
             : pane.model.searching ? "Ищу…" : "Ничего не найдено"
         color: Theme.subtext0
         font.family: Theme.fontFamily

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="#fff">
+<!-- Рисуется поверх folder.svg во весь размер: язычок молнии упирается в край передней стенки -->
+<path d="M14.6 5h3.2v1.7a.5.5 0 0 1-.5.5h-2.2a.5.5 0 0 1-.5-.5z"/>
+<rect x="15" y="8" width="2.4" height="1.6" rx=".5"/>
+<path fill-rule="evenodd" d="M15 10.1h2.4l1.2 3.9a2.7 2.7 0 1 1-4.8 0zM16.2 14.2a1 1 0 1 0 0 2a1 1 0 1 0 0-2z"/>
+</svg>

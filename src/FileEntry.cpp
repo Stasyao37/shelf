@@ -30,6 +30,23 @@ QString folderIcon(const QString &path)
     return special.value(path, QStringLiteral("folder")) + QStringLiteral(",folder");
 }
 
+QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db)
+{
+    // По расширению — без чтения содержимого, иначе большие папки тормозят
+    QMimeType mt = db.mimeTypeForFile(fi, QMimeDatabase::MatchExtension);
+    // Незнакомое расширение (.db, без расширения) — смотрим сигнатуру
+    // в начале файла; таких файлов мало, папку это не тормозит
+    if (mt.isDefault() && fi.size() > 0)
+        mt = db.mimeTypeForFile(fi, QMimeDatabase::MatchContent);
+    // shared-mime-info знает только *.sqlite3, а базы часто зовут иначе
+    static const QStringList sqliteSuffixes = {
+        QStringLiteral("sqlite"), QStringLiteral("db"), QStringLiteral("db3"),
+        QStringLiteral("sqlitedb")};
+    if (mt.isDefault() && sqliteSuffixes.contains(fi.suffix(), Qt::CaseInsensitive))
+        mt = db.mimeTypeForName(QStringLiteral("application/vnd.sqlite3"));
+    return mt;
+}
+
 FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool countChildren)
 {
     FileEntry e;
@@ -48,8 +65,7 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
             e.childCount = int(QDir(e.path).count()) - 2; // без . и ..
     } else {
         e.size = fi.size();
-        // По расширению — без чтения содержимого, иначе большие папки тормозят
-        const QMimeType mt = db.mimeTypeForFile(fi, QMimeDatabase::MatchExtension);
+        const QMimeType mt = mimeForFile(fi, db);
         e.mimeType = mt.name();
         e.mimeComment = mt.comment();
         e.icon = mt.iconName() + QLatin1Char(',') + mt.genericIconName();

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- База данных: три «плиты» в стиле стеклянного набора (заливка белым 0.6→0.3, светлая кромка) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">
+	<defs>
+		<!-- Один градиент на всю иконку — плиты выглядят как одно стекло -->
+		<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+		<linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="0.4927" stop-color="#FFFFFF" stop-opacity="0"/>
+			<stop offset="0.9971" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+	</defs>
+	<g fill="url(#fill)">
+		<rect x="3" y="2.5" width="18" height="5.6667" rx="1.75"/>
+		<rect x="3" y="9.1667" width="18" height="5.6667" rx="1.75"/>
+		<rect x="3" y="15.8333" width="18" height="5.6667" rx="1.75"/>
+	</g>
+	<!-- Кромка внутри контура, толщиной 0.5 — как у папки и листа -->
+	<g fill="none" stroke="url(#edge)" stroke-width="0.5">
+		<rect x="3.25" y="2.75" width="17.5" height="5.1667" rx="1.5"/>
+		<rect x="3.25" y="9.4167" width="17.5" height="5.1667" rx="1.5"/>
+		<rect x="3.25" y="16.0833" width="17.5" height="5.1667" rx="1.5"/>
+	</g>
+</svg>

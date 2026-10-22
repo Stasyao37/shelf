@@ -382,8 +382,9 @@ QVariantMap FileOps::info(const QString &path)
         m[QStringLiteral("size")] = (truncated ? QStringLiteral("больше ") : QString()) + formatSize(total);
         m[QStringLiteral("contents")] = QStringLiteral("%1 файлов, %2 папок").arg(files).arg(dirs);
     } else {
-        const QMimeType mt = QMimeDatabase().mimeTypeForFile(fi);
+        const QMimeType mt = mimeForFile(fi, QMimeDatabase());
         m[QStringLiteral("type")] = QStringLiteral("%1 (%2)").arg(mt.comment(), mt.name());
+        m[QStringLiteral("mimeType")] = mt.name();
         m[QStringLiteral("size")] = QStringLiteral("%1 (%2 байт)").arg(formatSize(fi.size()), QLocale(QLocale::Russian).toString(fi.size()));
     }
     return m;

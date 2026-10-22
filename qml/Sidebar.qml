@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Effects
 import Shelf
 
 Rectangle {
@@ -38,15 +39,78 @@ Rectangle {
                  : ma.containsMouse ? Theme.hoverFill : "transparent"
             Behavior on color { ColorAnimation { duration: 90 } }
         }
-        Text {
+        // Те же стеклянные иконки, что в сетке: папки — с эмблемами,
+        // корзина и диски — своими картинками из icons/
+        Item {
             id: glyph
-            x: 18; width: 20
+            x: 16; width: 22; height: 22
             anchors.verticalCenter: parent.verticalCenter
-            horizontalAlignment: Text.AlignHCenter
-            text: item.modelData.icon
-            color: item.current ? Theme.activeFg(Theme.accent) : Theme.subtext1
-            font.family: Theme.iconFont
-            font.pixelSize: Theme.fontSize
+            // У XDG-мест — одна эмблема без папки: на 22 px внутри папки её не разглядеть
+            readonly property string src: {
+                const n = item.modelData.icon
+                if (n === "folder")
+                    return ""
+                if (n === "trash")
+                    return "icons/trash-can.svg"
+                if (n === "drive" || n === "usb")
+                    return "icons/" + n + ".svg"
+                return "icons/emblems/" + n + ".svg"
+            }
+            readonly property bool emblem: src.indexOf("/emblems/") > 0
+
+            FolderIcon {
+                visible: glyph.src === ""
+                anchors.fill: parent
+                size: 22
+                open: ma.containsMouse || item.current
+            }
+            Image {
+                visible: glyph.src !== "" && !glyph.emblem
+                anchors.fill: parent
+                source: visible ? Qt.resolvedUrl(glyph.src) : ""
+                sourceSize: Qt.size(22, 22)
+                layer.enabled: Theme.light
+                layer.effect: MultiEffect {
+                    colorization: 1.0
+                    colorizationColor: Qt.darker(Theme.accent, 1.6)
+                }
+            }
+
+            // Эмблема рисовалась плоским белым силуэтом для папки. Здесь она
+            // служит маской для того же стекла, что у корзины и дисков: белый
+            // по диагонали из левого верхнего угла. Линии тоньше сплошных фигур
+            // и без кромки, поэтому альфа чуть выше, чем 0.6→0.3 у набора
+            Image {
+                id: emblemMask
+                visible: false
+                anchors.centerIn: parent
+                width: 19; height: 19
+                source: glyph.emblem ? Qt.resolvedUrl(glyph.src) : ""
+                sourceSize: Qt.size(width, height)
+                layer.enabled: true
+            }
+            Item {
+                visible: glyph.emblem
+                anchors.fill: emblemMask
+                clip: true
+                layer.enabled: visible
+                layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskSource: emblemMask
+                }
+                Rectangle {
+                    id: glassFill
+                    // Повёрнутый квадрат с вертикальным градиентом даёт диагональный
+                    width: parent.width * 1.5; height: width
+                    anchors.centerIn: parent
+                    rotation: -45
+                    readonly property color base: Theme.light ? Qt.darker(Theme.accent, 1.6) : "white"
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.alpha(glassFill.base, 0.75) }
+                        GradientStop { position: 1.0; color: Qt.alpha(glassFill.base, 0.4) }
+                    }
+                }
+            }
         }
         Text {
             anchors { left: glyph.right; leftMargin: 10; right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }

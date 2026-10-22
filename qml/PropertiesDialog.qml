@@ -41,10 +41,16 @@ Popup {
 
         Row {
             spacing: 14
-            Image {
-                source: dlg.icon ? "image://icon/" + dlg.icon : ""
-                sourceSize: Qt.size(48, 48)
-                width: 48; height: 48
+            FolderIcon {
+                visible: dlg.info.type === "Папка"
+                size: 48
+                iconName: dlg.icon
+            }
+            FileIcon {
+                visible: dlg.info.type !== "Папка"
+                size: 48
+                mimeType: dlg.info.mimeType || ""
+                fileName: dlg.info.name || ""
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter

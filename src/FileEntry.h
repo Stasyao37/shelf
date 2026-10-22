@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QFileInfo>
+#include <QMimeType>
 #include <QString>
 
 class QMimeDatabase;
@@ -27,5 +28,7 @@ struct FileEntry {
 
 QString formatSize(qint64 bytes);
 QString formatDate(const QDateTime &dt);
+// Тип файла: по расширению, для незнакомых — по содержимому
+QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db);
 // Имя иконки папки: у XDG-папок свои (folder-download, user-home…)
 QString folderIcon(const QString &path);

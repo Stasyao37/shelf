@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Образ диска: стеклянная пластина с отверстием; кольцо у центра и два блика
+     вторым слоем того же стекла. Заливка белым 0.6→0.3, кромка 0.5 — как у всего набора -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">
+	<defs>
+		<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+		<linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="0.4927" stop-color="#FFFFFF" stop-opacity="0"/>
+			<stop offset="0.9971" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+	</defs>
+	<!-- Пластина; отверстие — вырез, сквозь него виден фон -->
+	<path fill="url(#fill)" fill-rule="evenodd" d="M12,2 A10,10 0 1 1 12,22 A10,10 0 1 1 12,2 Z M12,10 A2,2 0 1 0 12,14 A2,2 0 1 0 12,10 Z"/>
+	<path fill="none" stroke="url(#edge)" stroke-width="0.5" d="M12,2.25 A9.75,9.75 0 1 1 12,21.75 A9.75,9.75 0 1 1 12,2.25 Z M12,9.75 A2.25,2.25 0 1 0 12,14.25 A2.25,2.25 0 1 0 12,9.75 Z"/>
+	<!-- Кольцо у отверстия и блики -->
+	<g fill="url(#fill)">
+		<path fill-rule="evenodd" d="M12,7.5 A4.5,4.5 0 1 1 12,16.5 A4.5,4.5 0 1 1 12,7.5 Z M12,10 A2,2 0 1 0 12,14 A2,2 0 1 0 12,10 Z"/>
+		<path d="M16.695,3.171 A10,10 0 0 1 21.272,8.254 L16.172,10.314 A4.5,4.5 0 0 0 14.113,8.027 Z"/>
+		<path d="M7.305,20.829 A10,10 0 0 1 2.728,15.746 L7.828,13.686 A4.5,4.5 0 0 0 9.887,15.973 Z"/>
+	</g>
+	<circle cx="12" cy="12" r="4.25" fill="none" stroke="url(#edge)" stroke-width="0.5"/>
+</svg>

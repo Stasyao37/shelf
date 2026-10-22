@@ -24,19 +24,19 @@ QVariantMap item(const QString &name, const QString &path, const QString &icon)
 Places::Places(QObject *parent)
     : QObject(parent)
 {
-    m_places << item(QStringLiteral("Домашняя"), QDir::homePath(), QStringLiteral(""));
+    m_places << item(QStringLiteral("Домашняя"), QDir::homePath(), QStringLiteral("user-home"));
     auto add = [this](QStandardPaths::StandardLocation loc, const QString &name, const QString &icon) {
         const QString p = QStandardPaths::writableLocation(loc);
         if (!p.isEmpty() && p != QDir::homePath() && QFileInfo(p).isDir())
             m_places << item(name, p, icon);
     };
-    add(QStandardPaths::DesktopLocation, QStringLiteral("Рабочий стол"), QStringLiteral(""));
-    add(QStandardPaths::DocumentsLocation, QStringLiteral("Документы"), QStringLiteral(""));
-    add(QStandardPaths::DownloadLocation, QStringLiteral("Загрузки"), QStringLiteral(""));
-    add(QStandardPaths::PicturesLocation, QStringLiteral("Изображения"), QStringLiteral(""));
-    add(QStandardPaths::MusicLocation, QStringLiteral("Музыка"), QStringLiteral(""));
-    add(QStandardPaths::MoviesLocation, QStringLiteral("Видео"), QStringLiteral(""));
-    m_places << item(QStringLiteral("Корзина"), trashPath(), QStringLiteral(""));
+    add(QStandardPaths::DesktopLocation, QStringLiteral("Рабочий стол"), QStringLiteral("user-desktop"));
+    add(QStandardPaths::DocumentsLocation, QStringLiteral("Документы"), QStringLiteral("folder-documents"));
+    add(QStandardPaths::DownloadLocation, QStringLiteral("Загрузки"), QStringLiteral("folder-download"));
+    add(QStandardPaths::PicturesLocation, QStringLiteral("Изображения"), QStringLiteral("folder-pictures"));
+    add(QStandardPaths::MusicLocation, QStringLiteral("Музыка"), QStringLiteral("folder-music"));
+    add(QStandardPaths::MoviesLocation, QStringLiteral("Видео"), QStringLiteral("folder-videos"));
+    m_places << item(QStringLiteral("Корзина"), trashPath(), QStringLiteral("trash"));
 
     // Редакторы пишут файл через замену — следим и за папкой
     m_watcher.addPath(QFileInfo(bookmarksFile()).absolutePath());
@@ -84,7 +84,7 @@ void Places::loadBookmarks()
                         [&path](const QVariant &v) { return v.toMap().value(QStringLiteral("path")) == path; }))
             continue;
         const QString name = sp < 0 ? QFileInfo(path).fileName() : line.mid(sp + 1);
-        list << item(name, path, QStringLiteral(""));
+        list << item(name, path, QStringLiteral("folder"));
     }
     if (list != m_bookmarks) {
         m_bookmarks = list;
@@ -131,7 +131,7 @@ void Places::removeBookmark(const QString &path)
 void Places::refreshDevices()
 {
     QVariantList list;
-    list << item(QStringLiteral("Файловая система"), QStringLiteral("/"), QStringLiteral(""));
+    list << item(QStringLiteral("Файловая система"), QStringLiteral("/"), QStringLiteral("drive"));
     for (const QStorageInfo &si : QStorageInfo::mountedVolumes()) {
         const QString root = si.rootPath();
         if (!si.isValid() || !si.isReady())
@@ -141,7 +141,9 @@ void Places::refreshDevices()
             continue;
         const QString name = si.displayName().isEmpty() || si.displayName() == root ? QFileInfo(root).fileName()
                                                                                     : si.displayName();
-        QVariantMap m = item(name, root, QStringLiteral(""));
+        // /run/media и /media — то, что монтирует udisks (флешки), /mnt — обычно разделы дисков
+        const bool usb = !root.startsWith(QLatin1String("/mnt/"));
+        QVariantMap m = item(name, root, usb ? QStringLiteral("usb") : QStringLiteral("drive"));
         m[QStringLiteral("removable")] = true;
         list << m;
     }
