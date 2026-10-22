@@ -1,9 +1,11 @@
 #include "FileEntry.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QHash>
 #include <QLocale>
 #include <QMimeDatabase>
+#include <QSet>
 #include <QStandardPaths>
 
 QString folderIcon(const QString &path)
@@ -25,9 +27,29 @@ QString folderIcon(const QString &path)
         add(QStandardPaths::TemplatesLocation, "folder-templates");
         add(QStandardPaths::PublicShareLocation, "folder-publicshare");
         h.insert(QDir::homePath(), QStringLiteral("user-home"));
+        h.insert(QDir::homePath() + QStringLiteral("/Projects"), QStringLiteral("folder-projects"));
         return h;
     }();
-    return special.value(path, QStringLiteral("folder")) + QStringLiteral(",folder");
+    // Служебные папки сборки и зависимостей — блёклые, чтобы не цепляли взгляд
+    static const QSet<QString> dimmed = {
+        QStringLiteral("node_modules"), QStringLiteral("build"), QStringLiteral(".cache"),
+        QStringLiteral("__pycache__"), QStringLiteral("target"), QStringLiteral("dist"),
+        QStringLiteral(".venv"), QStringLiteral("venv"), QStringLiteral(".gradle")};
+    static const QSet<QString> config = {QStringLiteral(".config"), QStringLiteral(".local")};
+
+    QString icon = special.value(path);
+    if (icon.isEmpty()) {
+        const QString name = path.mid(path.lastIndexOf(QLatin1Char('/')) + 1);
+        if (dimmed.contains(name))
+            icon = QStringLiteral("folder-dim");
+        else if (config.contains(name))
+            icon = QStringLiteral("folder-config");
+        else if (QFileInfo::exists(path + QStringLiteral("/.git")))
+            icon = QStringLiteral("folder-git");
+        else
+            icon = QStringLiteral("folder");
+    }
+    return icon + QStringLiteral(",folder");
 }
 
 QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db)
@@ -56,6 +78,8 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
     e.isDir = fi.isDir();
     e.isHidden = e.name.startsWith(QLatin1Char('.'));
     e.isLink = fi.isSymLink();
+    const bool readable = fi.isReadable() && (!fi.isDir() || fi.isExecutable());
+    e.isLocked = !readable || (!fi.isWritable() && QFileInfo(fi.absolutePath()).isWritable());
     e.mtime = fi.lastModified();
     if (e.isDir) {
         e.icon = folderIcon(e.path);

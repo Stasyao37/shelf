@@ -240,6 +240,7 @@ FocusScope {
             required property bool isDir
             required property bool isHidden
             required property bool isLink
+            required property bool isLocked
             required property string sizeText
             required property string dateText
             required property string mimeComment
@@ -287,15 +288,18 @@ FocusScope {
                     fileName: cell.name
                 }
 
-                Text {
+                // Ссылка — слева внизу, замок — справа внизу: оба могут быть сразу
+                Badge {
                     visible: cell.isLink
-                    anchors { right: parent.right; bottom: parent.bottom }
-                    text: "\u{f0c1}"
-                    color: Theme.text
-                    font.family: Theme.iconFont
-                    font.pixelSize: pane.gridMode ? 13 : 9
-                    style: Text.Outline
-                    styleColor: Theme.base
+                    name: "link"
+                    size: pane.gridMode ? 20 : 11
+                    anchors { left: parent.left; bottom: parent.bottom; leftMargin: pane.gridMode ? -2 : -3 }
+                }
+                Badge {
+                    visible: cell.isLocked
+                    name: "lock"
+                    size: pane.gridMode ? 20 : 11
+                    anchors { right: parent.right; bottom: parent.bottom; rightMargin: pane.gridMode ? -2 : -3 }
                 }
             }
 

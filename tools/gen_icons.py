@@ -217,3 +217,49 @@ steam = unary_union([LineString(bezier(*p)).buffer(0.75, quad_segs=16) for p in 
 import os
 os.makedirs(f"{OUT}/lang", exist_ok=True)
 write_flat("lang/java", "Java: чашка с паром на блюдце", unary_union([cup, saucer, steam]))
+
+
+# Корзина: бак как у trash-can.svg (icons8). Полная — без крышки, над краем
+# торчат лист и скомканная бумага; они за стеклом бака, поэтому рисуются первыми
+def can_body():
+    raw = Polygon([(4.1, 6.8), (19.9, 6.8), (18.0, 22), (6.0, 22)])
+    return raw.buffer(-2.2, quad_segs=16).buffer(2.2, quad_segs=16)
+
+
+papers = unary_union([
+    # Веером и повыше: на 22 px в боковой панели иначе читается как крышка
+    rotate(rrect(5.0, 0.8, 5.4, 8.4, 0.9), -24, origin=(8.0, 8)),
+    rotate(rrect(13.2, 1.6, 5.2, 7.6, 0.9), 22, origin=(15.6, 8)),
+    circle(12, 5.6, 2.3),
+])
+write("trash-full", "Корзина с мусором: над краем бака торчат бумаги", [papers, can_body()])
+
+
+# Значки в углу иконки: плоские силуэты, кружок-подложку рисует Badge.qml
+os.makedirs(f"{OUT}/badges", exist_ok=True)
+arrow_stem = LineString(bezier((5.5, 19.0), (5.5, 12.0), (9.0, 8.6), (14.6, 8.6))).buffer(1.6, quad_segs=16)
+arrow_head = Polygon([(13.2, 3.4), (20.4, 8.6), (13.2, 13.8)]).buffer(-0.6).buffer(0.9, quad_segs=16)
+write_flat("badges/link", "Ссылка: изогнутая стрелка", unary_union([arrow_stem, arrow_head]))
+
+shackle = circle(12, 9.6, 5.0).difference(circle(12, 9.6, 2.9)).intersection(box(0, 0, 24, 11))
+shackle = unary_union([shackle, box(7.0, 9.6, 9.1, 12), box(14.9, 9.6, 17.0, 12)])
+lock_body = rrect(4.8, 11, 14.4, 10.4, 2.4).difference(
+    unary_union([circle(12, 15.2, 1.6), rrect(11.3, 15.2, 1.4, 3.6, 0.7)]))
+write_flat("badges/lock", "Нет доступа или только чтение: замок", unary_union([shackle, lock_body]))
+
+
+# Эмблемы особых папок: плоские силуэты, стекло накладывает GlassEmblem
+os.makedirs(f"{OUT}/emblems", exist_ok=True)
+git = unary_union([
+    circle(7.5, 5.0, 2.6), circle(7.5, 19.0, 2.6), circle(16.5, 7.5, 2.6),
+    line([(7.5, 5.0), (7.5, 19.0)], 2.2),
+    LineString(bezier((16.5, 7.5), (16.5, 13.0), (7.5, 11.5), (7.5, 16.5))).buffer(1.1, quad_segs=16),
+])
+write_flat("emblems/folder-git", "Репозиторий git: ветка", git)
+write_flat("emblems/folder-projects", "Проекты: </>", unary_union([
+    LineString([(8.2, 6.0), (2.8, 12.0), (8.2, 18.0)]).buffer(1.4, quad_segs=16),
+    LineString([(15.8, 6.0), (21.2, 12.0), (15.8, 18.0)]).buffer(1.4, quad_segs=16),
+    line([(13.8, 4.4), (10.2, 19.6)], 2.6)]))
+cog_tooth = rrect(10.2, 1.2, 3.6, 5.0, 1.0)
+cog = unary_union([circle(12, 12, 8.0)] + [rotate(cog_tooth, a, origin=(12, 12)) for a in range(0, 360, 45)])
+write_flat("emblems/folder-config", "Настройки: шестерёнка", cog.difference(circle(12, 12, 3.4)))

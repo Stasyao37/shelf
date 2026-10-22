@@ -37,6 +37,7 @@ public:
         IsDirRole,
         IsHiddenRole,
         IsLinkRole,
+        IsLockedRole,
         SizeRole,
         SizeTextRole,
         DateTextRole,

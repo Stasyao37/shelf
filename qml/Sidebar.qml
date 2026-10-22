@@ -51,7 +51,7 @@ Rectangle {
                 if (n === "folder")
                     return ""
                 if (n === "trash")
-                    return "icons/trash-can.svg"
+                    return Places.trashFull ? "icons/trash-full.svg" : "icons/trash-can.svg"
                 if (n === "drive" || n === "usb")
                     return "icons/" + n + ".svg"
                 return "icons/emblems/" + n + ".svg"

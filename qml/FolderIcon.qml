@@ -18,13 +18,17 @@ Item {
     width: size
     height: size
 
-    // Эмблемы для XDG-папок лежат в icons/emblems/<имя иконки>.svg
+    // Эмблемы для XDG- и особых папок (git, проекты, настройки) — в icons/emblems/<имя иконки>.svg
     readonly property string emblem: {
         const n = iconName.split(",")[0]
         return ["user-home", "user-desktop", "folder-documents", "folder-download",
                 "folder-pictures", "folder-music", "folder-videos",
-                "folder-templates", "folder-publicshare"].includes(n) ? n : ""
+                "folder-templates", "folder-publicshare",
+                "folder-projects", "folder-git", "folder-config"].includes(n) ? n : ""
     }
+    // Папки сборки и зависимостей (node_modules, build, .cache…) — блёклые
+    readonly property bool dim: iconName.startsWith("folder-dim")
+    opacity: dim ? 0.45 : 1.0
 
     // 0 — закрыта, 1 — открыта
     property real openness: open ? 1 : 0

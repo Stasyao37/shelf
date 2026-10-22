@@ -51,6 +51,26 @@ Places::Places(QObject *parent)
     connect(&m_devTimer, &QTimer::timeout, this, &Places::refreshDevices);
     m_devTimer.start();
     refreshDevices();
+
+    // Полная или пустая корзина — для иконки. Следим и за самой Trash: files/ может
+    // появиться позже, при первом удалении
+    connect(&m_trashWatcher, &QFileSystemWatcher::directoryChanged, this, &Places::updateTrash);
+    updateTrash();
+}
+
+void Places::updateTrash()
+{
+    const QString files = trashPath();
+    const QString root = QFileInfo(files).absolutePath();
+    for (const QString &p : {root, files}) {
+        if (QFileInfo(p).isDir() && !m_trashWatcher.directories().contains(p))
+            m_trashWatcher.addPath(p);
+    }
+    const bool full = QFileInfo(files).isDir() && !QDir(files).isEmpty(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
+    if (full != m_trashFull) {
+        m_trashFull = full;
+        emit trashFullChanged();
+    }
 }
 
 QString Places::trashPath() const

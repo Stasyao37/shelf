@@ -63,6 +63,7 @@ QVariant DirModel::data(const QModelIndex &index, int role) const
     case IsDirRole: return e.isDir;
     case IsHiddenRole: return e.isHidden;
     case IsLinkRole: return e.isLink;
+    case IsLockedRole: return e.isLocked;
     case SizeRole: return e.size;
     case SizeTextRole:
         if (!e.isDir)
@@ -82,6 +83,7 @@ QHash<int, QByteArray> DirModel::roleNames() const
         {NameRole, "name"},         {PathRole, "path"},
         {DirRole, "dir"},           {IsDirRole, "isDir"},
         {IsHiddenRole, "isHidden"}, {IsLinkRole, "isLink"},
+        {IsLockedRole, "isLocked"},
         {SizeRole, "size"},         {SizeTextRole, "sizeText"},
         {DateTextRole, "dateText"}, {MimeTypeRole, "mimeType"},
         {MimeCommentRole, "mimeComment"}, {IconRole, "icon"},

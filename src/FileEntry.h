@@ -22,6 +22,9 @@ struct FileEntry {
     bool isDir = false;
     bool isHidden = false;
     bool isLink = false;
+    // Нельзя прочитать, или только чтение в папке, куда писать можно
+    // (в /usr и других системных папках замок был бы на каждом файле)
+    bool isLocked = false;
 
     static FileEntry fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool countChildren);
 };

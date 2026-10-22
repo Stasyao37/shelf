@@ -26,6 +26,7 @@ set(QML_FILES
     qml/FolderIcon.qml
     qml/FileIcon.qml
     qml/GlassEmblem.qml
+    qml/Badge.qml
 )
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Файлы лежат в qml/, но в модуле — в корне: иначе синглтон Theme
@@ -44,13 +45,15 @@ qt_add_qml_module(shelf
     QML_FILES ${QML_FILES}
     RESOURCES
         icons/folder.svg icons/folder-open.svg icons/file.svg icons/document.svg
-        icons/image.svg icons/picture.svg icons/trash.svg icons/trash-can.svg icons/database.svg icons/drive.svg icons/disc.svg icons/usb.svg
+        icons/image.svg icons/picture.svg icons/trash.svg icons/trash-can.svg icons/trash-full.svg
+        icons/badges/link.svg icons/badges/lock.svg icons/database.svg icons/drive.svg icons/disc.svg icons/usb.svg
         icons/pdf.svg icons/spreadsheet.svg icons/presentation.svg icons/package.svg icons/script.svg
         icons/config.svg icons/certificate.svg icons/key.svg icons/html.svg
         icons/audio.svg icons/video.svg icons/font.svg icons/book.svg icons/code.svg icons/executable.svg icons/exe.svg
         icons/emblems/user-home.svg icons/emblems/user-desktop.svg icons/emblems/folder-documents.svg
         icons/emblems/folder-download.svg icons/emblems/folder-pictures.svg icons/emblems/folder-music.svg
-        icons/emblems/folder-videos.svg icons/emblems/folder-templates.svg icons/emblems/folder-publicshare.svg icons/emblems/archive.svg
+        icons/emblems/folder-videos.svg icons/emblems/folder-templates.svg icons/emblems/folder-publicshare.svg icons/emblems/archive.svg icons/emblems/folder-projects.svg
+        icons/emblems/folder-git.svg icons/emblems/folder-config.svg
         ${LANG_ICONS}
     SOURCES
         src/DirModel.h src/DirModel.cpp
