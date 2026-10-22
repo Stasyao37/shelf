@@ -241,6 +241,7 @@ FocusScope {
             required property bool isHidden
             required property bool isLink
             required property bool isLocked
+            required property double mtime
             required property string sizeText
             required property string dateText
             required property string mimeComment
@@ -282,10 +283,19 @@ FocusScope {
                     open: ma.containsMouse || cell.selected
                 }
                 FileIcon {
-                    visible: !cell.isDir
+                    visible: !cell.isDir && !thumb.ready
                     size: iconBox.size
                     mimeType: cell.mimeType
                     fileName: cell.name
+                }
+                Thumbnail {
+                    id: thumb
+                    size: iconBox.size
+                    video: cell.mimeType.startsWith("video/")
+                    // revision и mtime — чтобы перечитать, когда tumbler закончит или файл изменится.
+                    // Они в самом выражении: голые строки-зависимости компилятор QML выбрасывает
+                    source: cell.isDir || Thumbnailer.revision < 0 || cell.mtime < 0
+                            ? "" : Thumbnailer.thumbnail(cell.path, cell.mimeType)
                 }
 
                 // Ссылка — слева внизу, замок — справа внизу: оба могут быть сразу

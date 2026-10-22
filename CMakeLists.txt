@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set_property(GLOBAL PROPERTY JOB_POOLS compile=4)
 set(CMAKE_JOB_POOL_COMPILE compile)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent DBus)
 qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(shelf src/main.cpp)
@@ -27,6 +27,7 @@ set(QML_FILES
     qml/FileIcon.qml
     qml/GlassEmblem.qml
     qml/Badge.qml
+    qml/Thumbnail.qml
 )
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Файлы лежат в qml/, но в модуле — в корне: иначе синглтон Theme
@@ -46,7 +47,7 @@ qt_add_qml_module(shelf
     RESOURCES
         icons/folder.svg icons/folder-open.svg icons/file.svg icons/document.svg
         icons/image.svg icons/picture.svg icons/trash.svg icons/trash-can.svg icons/trash-full.svg
-        icons/badges/link.svg icons/badges/lock.svg icons/database.svg icons/drive.svg icons/disc.svg icons/usb.svg
+        icons/badges/link.svg icons/badges/lock.svg icons/badges/play.svg icons/database.svg icons/drive.svg icons/disc.svg icons/usb.svg
         icons/pdf.svg icons/spreadsheet.svg icons/presentation.svg icons/package.svg icons/script.svg
         icons/config.svg icons/certificate.svg icons/key.svg icons/html.svg
         icons/audio.svg icons/video.svg icons/font.svg icons/book.svg icons/code.svg icons/executable.svg icons/exe.svg
@@ -62,10 +63,11 @@ qt_add_qml_module(shelf
         src/ThemeSource.h src/ThemeSource.cpp
         src/IconProvider.h
         src/FileEntry.h src/FileEntry.cpp
+        src/Thumbnailer.h src/Thumbnailer.cpp
 )
 
 target_include_directories(shelf PRIVATE src)
-target_link_libraries(shelf PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent)
+target_link_libraries(shelf PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Qt6::DBus)
 target_compile_options(shelf PRIVATE -Wall -Wextra)
 
 include(GNUInstallDirs)

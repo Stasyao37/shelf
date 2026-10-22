@@ -38,6 +38,7 @@ public:
         IsHiddenRole,
         IsLinkRole,
         IsLockedRole,
+        MtimeRole,
         SizeRole,
         SizeTextRole,
         DateTextRole,

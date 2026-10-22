@@ -263,3 +263,5 @@ write_flat("emblems/folder-projects", "Проекты: </>", unary_union([
 cog_tooth = rrect(10.2, 1.2, 3.6, 5.0, 1.0)
 cog = unary_union([circle(12, 12, 8.0)] + [rotate(cog_tooth, a, origin=(12, 12)) for a in range(0, 360, 45)])
 write_flat("emblems/folder-config", "Настройки: шестерёнка", cog.difference(circle(12, 12, 3.4)))
+write_flat("badges/play", "Видео поверх миниатюры: треугольник воспроизведения",
+           Polygon([(8.0, 5.0), (8.0, 19.0), (19.5, 12.0)]).buffer(-0.8).buffer(1.6, quad_segs=16))
