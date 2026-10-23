@@ -19,8 +19,9 @@ BuildRequires:  desktop-file-utils
 # SVG грузит плагин изображений, а не ссылка на библиотеку — сам он не подтянется
 Requires:       qt6-qtsvg%{?_isa}
 Requires:       qt6-qtdeclarative%{?_isa}
-# gio — открывать файлы и запускать программы; xdg-utils — xdg-open, xdg-mime
-Requires:       glib2
+# gio — открывать файлы и запускать программы (нужна программа, а не библиотека);
+# xdg-utils — xdg-open, xdg-mime
+Requires:       /usr/bin/gio
 Requires:       xdg-utils
 Requires:       hicolor-icon-theme
 # Миниатюры картинок, PDF и видео
@@ -30,7 +31,7 @@ Recommends:     ffmpegthumbnailer
 %description
 Shelf is a simple file manager for Hyprland written in Qt 6 / QML, styled like
 the glass Quickshell shell. It takes its palette from Quickshell or matugen (or
-uses built-in light and dark themes) and recolours itself when the wallpaper
+uses built-in light and dark themes) and recolors itself when the wallpaper
 changes. Tabs, drag and drop, trash with restore, thumbnails, "open with" and a
 first-run setup that checks the environment.
 
@@ -38,7 +39,8 @@ first-run setup that checks the environment.
 %autosetup -n %{name}-%{version}
 
 %build
-%cmake -G Ninja
+# Системному пакету путь поиска библиотек рядом с бинарником ($ORIGIN) не нужен
+%cmake -G Ninja -DCMAKE_SKIP_INSTALL_RPATH=ON
 %cmake_build
 
 %install
