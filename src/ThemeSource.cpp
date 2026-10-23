@@ -215,10 +215,30 @@ QVariantMap ThemeSource::glassSettings()
     return s;
 }
 
+bool ThemeSource::glassOverridden() const
+{
+    const QSettings own;
+    return own.contains(QStringLiteral("theme/glass")) || own.contains(QStringLiteral("theme/glassAlpha"));
+}
+
+double ThemeSource::iconTint() const
+{
+    return QSettings().value(QStringLiteral("theme/iconTint"), 0.55).toDouble();
+}
+
+void ThemeSource::setIconTint(double amount)
+{
+    if (qFuzzyCompare(amount + 1, iconTint() + 1))
+        return;
+    QSettings().setValue(QStringLiteral("theme/iconTint"), amount);
+    emit changed();
+}
+
 void ThemeSource::setGlass(bool on)
 {
     QSettings().setValue(QStringLiteral("theme/glass"), on);
     load();
+    emit changed();
 }
 
 void ThemeSource::setGlassAlpha(double alpha)
@@ -233,6 +253,7 @@ void ThemeSource::resetGlass()
     own.remove(QStringLiteral("theme/glass"));
     own.remove(QStringLiteral("theme/glassAlpha"));
     load();
+    emit changed(); // флаг glassOverridden сменился, даже если стекло осталось тем же
 }
 
 void ThemeSource::readSystemScheme()

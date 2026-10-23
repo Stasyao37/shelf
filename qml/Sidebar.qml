@@ -12,6 +12,7 @@ Rectangle {
     signal trashMenu(real x, real y)
     signal filesDropped(var paths, string dest, bool move)
     signal openInNewTab(string path)
+    signal openSettings()
 
     color: Theme.material ? Theme.surface0 : Qt.rgba(0, 0, 0, Theme.light ? 0.04 : 0.14)
 
@@ -158,7 +159,7 @@ Rectangle {
     }
 
     Flickable {
-        anchors.fill: parent
+        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: settingsBtn.top; bottomMargin: 4 }
         contentHeight: column.height + 12
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -186,5 +187,16 @@ Rectangle {
                 PlaceItem {}
             }
         }
+    }
+
+    // Настройки — небольшая шестерёнка внизу слева, как в других программах
+    GlassButton {
+        id: settingsBtn
+        anchors { left: parent.left; bottom: parent.bottom; leftMargin: 8; bottomMargin: 6 }
+        implicitWidth: 28; implicitHeight: 26
+        text: "\u{f013}"
+        iconSize: Theme.fontSize - 2
+        tooltip: "Настройки (Ctrl+,)"
+        onClicked: side.openSettings()
     }
 }

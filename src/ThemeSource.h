@@ -30,6 +30,10 @@ class ThemeSource : public QObject
     Q_PROPERTY(QString source READ source NOTIFY changed)
     Q_PROPERTY(QString sourceSetting READ sourceSetting WRITE setSourceSetting NOTIFY changed)
     Q_PROPERTY(QVariantList sources READ sources NOTIFY changed)
+    // Своя настройка стекла перекрывает шелл / Hyprland
+    Q_PROPERTY(bool glassOverridden READ glassOverridden NOTIFY changed)
+    // Сила оттенка палитры на стеклянных иконках, 0 — без оттенка
+    Q_PROPERTY(double iconTint READ iconTint WRITE setIconTint NOTIFY changed)
 
 public:
     explicit ThemeSource(QObject *parent = nullptr);
@@ -41,6 +45,10 @@ public:
     void setSourceSetting(const QString &id);
     // [{ id, name, available }] — для окна настроек
     QVariantList sources() const;
+
+    bool glassOverridden() const;
+    double iconTint() const;
+    void setIconTint(double amount);
 
     Q_INVOKABLE void setGlass(bool on);
     Q_INVOKABLE void setGlassAlpha(double alpha);

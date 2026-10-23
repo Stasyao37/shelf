@@ -60,11 +60,28 @@ Terminal::Terminal(QObject *parent)
 {
 }
 
+QString Terminal::chosen()
+{
+    return QSettings().value(QStringLiteral("apps/terminal")).toString();
+}
+
+void Terminal::setChosen(const QString &exe)
+{
+    if (exe == chosen())
+        return;
+    QSettings s;
+    if (exe.isEmpty())
+        s.remove(QStringLiteral("apps/terminal"));
+    else
+        s.setValue(QStringLiteral("apps/terminal"), exe);
+    emit changed();
+}
+
 QString Terminal::current()
 {
-    const QString chosen = QSettings().value(QStringLiteral("apps/terminal")).toString();
-    if (!chosen.isEmpty() && installed(chosen))
-        return chosen;
+    const QString picked = chosen();
+    if (!picked.isEmpty() && installed(picked))
+        return picked;
     const QString env = fromEnv();
     if (!env.isEmpty() && installed(env))
         return env;

@@ -97,7 +97,7 @@ QtObject {
     // Палитра тёмной темы пастельная: на белом стекле такой оттенок почти не виден,
     // поэтому оттенок берём из палитры, а насыщенность — свою. Документы чуть
     // спокойнее папок: secondary у Material того же тона, что primary
-    readonly property real iconTintAmount: 0.55
+    readonly property real iconTintAmount: ThemeSource.iconTint
     // Светлый насыщенный оттенок: эффект умножает его на яркость стекла,
     // тёмный оттенок сделал бы стекло мутным, а не цветным
     function _vivid(c, sat) { return Qt.hsla(c.hslHue, Math.max(c.hslSaturation, sat), 0.8, 1) }
@@ -107,15 +107,16 @@ QtObject {
         if (group === "media")  return _vivid(teal, 0.9)
         return "transparent"
     }
-    function iconTinted(group) { return light || iconTint(group).a > 0 }
+    function iconTinted(group) { return light || (iconTintAmount > 0 && iconTint(group).a > 0) }
     function iconColorization(group) { return light ? 1.0 : iconTintAmount }
     // Окраска чуть приглушает стекло — возвращаем яркость (только тёмная тема)
-    function iconBrightness(group) { return light || iconTint(group).a === 0 ? 0 : 0.14 }
+    function iconBrightness(group) { return light || iconTint(group).a === 0 ? 0 : 0.14 * iconTintAmount / 0.55 }
     function iconColor(group) {
         var c = iconTint(group)
         if (!light) return c
         // На светлом стекле краска тёмная — той же глубины, что прежний Qt.darker(accent, 1.6)
-        return c.a > 0 ? Qt.hsla(c.hslHue, c.hslSaturation * 0.7, 0.34, 1) : Qt.darker(accent, 1.6)
+        // Оттенок выключен — всё одной краской акцента, как до подкраски
+        return c.a > 0 && iconTintAmount > 0 ? Qt.hsla(c.hslHue, c.hslSaturation * 0.7, 0.34, 1) : Qt.darker(accent, 1.6)
     }
 
     // ── Размеры ─────────────────────────────────────────────────────

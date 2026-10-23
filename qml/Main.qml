@@ -419,6 +419,8 @@ Window {
             { text: Places.isBookmarked(dir.path) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}", shortcut: "Ctrl+D",
               act: function () { toggleBookmark(dir.path) } },
             { text: "Свойства папки", icon: "\u{f05a}", act: function () { props.showFor(dir.path, "folder") } },
+            { separator: true },
+            { text: "Настройки Shelf", icon: "\u{f013}", shortcut: "Ctrl+,", act: function () { settingsDlg.open() } },
         ]))
     }
 
@@ -452,6 +454,7 @@ Window {
     Shortcut { sequence: "Ctrl+T"; onActivated: win.newTab(dir.path, true) }
     Shortcut { sequence: "Ctrl+W"; onActivated: win.closeTab(win.current) }
     Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    Shortcut { sequence: "Ctrl+,"; onActivated: settingsDlg.open() }
     Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: win.cycleTab(1) }
     Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+PgUp"]; onActivated: win.cycleTab(-1) }
     // Alt+1…8 — вкладка по номеру, Alt+9 — последняя
@@ -494,6 +497,7 @@ Window {
             currentPath: dir.searchQuery ? "" : dir.path
             onNavigate: (p) => win.go(p)
             onOpenInNewTab: (p) => win.newTab(p, false)
+            onOpenSettings: settingsDlg.open()
             onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
             onTrashMenu: (x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
@@ -833,6 +837,11 @@ Window {
     PropertiesDialog { id: props; parent: win.contentItem }
     ConfirmDialog {
         id: confirm
+        parent: win.contentItem
+        onClosed: pane.focusView()
+    }
+    SettingsDialog {
+        id: settingsDlg
         parent: win.contentItem
         onClosed: pane.focusView()
     }
