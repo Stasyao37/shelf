@@ -1,13 +1,15 @@
 [Desktop Entry]
 Type=Application
 Name=Shelf
-GenericName=Файловый менеджер
-Comment=Просмотр и управление файлами
+GenericName=File Manager
+GenericName[ru]=Файловый менеджер
+Comment=Browse and manage files
+Comment[ru]=Просмотр и управление файлами
 # Полный путь: у Hyprland в PATH нет ~/.local/bin, лаунчеры шелла запускают через него
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/shelf %U
 Icon=org.stasyao.shelf
 Terminal=false
-Categories=System;FileTools;FileManager;Utility;Core;
+Categories=System;FileTools;FileManager;Core;
 MimeType=inode/directory;
 StartupWMClass=org.stasyao.shelf
 Keywords=shelf;полка;файлы;папки;проводник;files;folder;explorer;

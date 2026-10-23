@@ -85,12 +85,25 @@ GlassDialog {
                 width: dlg.width - 40
                 spacing: 4
 
-                Text {
-                    text: "Настройки"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize + 2
-                    font.weight: Font.DemiBold
+                // Заголовок и версия — одной строкой
+                Item {
+                    width: parent.width
+                    height: titleText.implicitHeight
+                    Text {
+                        id: titleText
+                        text: "Настройки"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize + 2
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        anchors { right: parent.right; baseline: titleText.baseline }
+                        text: "Shelf " + Qt.application.version
+                        color: Theme.overlay1
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 4
+                    }
                 }
 
                 SectionTitle { text: "ЦВЕТА" }

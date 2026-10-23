@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <QTextStream>
 
 namespace {
 // Тема иконок та же, что у GTK-приложений
@@ -32,6 +33,12 @@ int main(int argc, char *argv[])
     app.setApplicationName(QStringLiteral("shelf"));
     app.setOrganizationName(QStringLiteral("shelf"));
     app.setApplicationDisplayName(QStringLiteral("Shelf"));
+    app.setApplicationVersion(QStringLiteral(SHELF_VERSION));
+
+    if (app.arguments().contains(QStringLiteral("--version"))) {
+        QTextStream(stdout) << "Shelf " << app.applicationVersion() << '\n';
+        return 0;
+    }
     // Становится app_id окна в Wayland — по нему Hyprland и .desktop узнают приложение
     app.setDesktopFileName(QStringLiteral("org.stasyao.shelf"));
 
