@@ -12,7 +12,8 @@
 namespace {
 QString bookmarksFile()
 {
-    return QDir::homePath() + QStringLiteral("/.config/gtk-3.0/bookmarks");
+    // Как у GTK: с учётом XDG_CONFIG_HOME
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/gtk-3.0/bookmarks");
 }
 
 QVariantMap item(const QString &name, const QString &path, const QString &icon)
