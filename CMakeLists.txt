@@ -34,6 +34,9 @@ set(QML_FILES
     qml/FolderTab.qml
     qml/TabStrip.qml
     qml/SettingsDialog.qml
+    qml/ChoiceRow.qml
+    qml/ToggleSwitch.qml
+    qml/FirstRun.qml
 )
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Файлы лежат в qml/, но в модуле — в корне: иначе синглтон Theme
@@ -63,6 +66,7 @@ qt_add_qml_module(shelf
         icons/emblems/folder-git.svg icons/emblems/folder-config.svg
         ${LANG_ICONS}
         fonts/ShelfIcons.ttf fonts/ShelfIconsPropo.ttf
+        data/matugen/shelf-colors.json data/icons/org.stasyao.shelf.svg
     SOURCES
         src/DirModel.h src/DirModel.cpp
         src/FileOps.h src/FileOps.cpp
@@ -75,6 +79,7 @@ qt_add_qml_module(shelf
         src/Trash.h src/Trash.cpp
         src/Session.h src/Session.cpp
         src/Terminal.h src/Terminal.cpp
+        src/Environment.h src/Environment.cpp
 )
 
 target_include_directories(shelf PRIVATE src)

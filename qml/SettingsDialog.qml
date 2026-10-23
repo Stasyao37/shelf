@@ -9,12 +9,14 @@ import Shelf
 Popup {
     id: dlg
 
+    signal firstRunRequested()
+
     anchors.centerIn: parent
     modal: true
     focus: true
     padding: 0
     width: 500
-    height: Math.min(content.implicitHeight + 40, parent ? parent.height - 48 : 600)
+    height: Math.min(content.implicitHeight + 90, parent ? parent.height - 48 : 600)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.25) }
@@ -33,95 +35,6 @@ Popup {
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize - 3
         font.weight: Font.DemiBold
-    }
-
-    // Строка выбора одного из вариантов
-    component Choice: Item {
-        id: choice
-        property string label
-        property string note
-        property bool checked: false
-        property bool available: true
-        signal picked()
-        width: parent ? parent.width : 0
-        height: 34
-        opacity: available ? 1 : 0.45
-
-        Rectangle {
-            anchors.fill: parent
-            radius: Theme.btnRadius(height, false, Theme.widgetRadius)
-            color: choice.checked ? Theme.activeFill(Theme.accent) : choiceMa.containsMouse ? Theme.hoverFill : "transparent"
-            border.width: choice.checked ? 1 : 0
-            border.color: Theme.edge(Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, Theme.activeBorderAlpha))
-        }
-        // Кружок-отметка
-        Rectangle {
-            id: dot
-            x: 12
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16; height: 16; radius: 8
-            color: "transparent"
-            border.width: 1.5
-            border.color: choice.checked ? Theme.accent : Theme.ink(0.3)
-            Rectangle {
-                anchors.centerIn: parent
-                width: 8; height: 8; radius: 4
-                visible: choice.checked
-                color: Theme.accent
-            }
-        }
-        Text {
-            id: choiceLabel
-            anchors { left: dot.right; leftMargin: 12; verticalCenter: parent.verticalCenter }
-            text: choice.label
-            color: choice.checked ? Theme.activeFg(Theme.accent) : Theme.text
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize - 1
-        }
-        Text {
-            anchors { left: choiceLabel.right; leftMargin: 10; right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-            text: choice.note
-            elide: Text.ElideRight
-            color: Theme.overlay1
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize - 4
-        }
-        MouseArea {
-            id: choiceMa
-            anchors.fill: parent
-            hoverEnabled: true
-            enabled: choice.available
-            cursorShape: Qt.PointingHandCursor
-            onClicked: choice.picked()
-        }
-    }
-
-    // Переключатель-таблетка
-    component Toggle: Item {
-        id: tog
-        property bool checked: false
-        signal toggled(bool on)
-        width: 38; height: 22
-        Rectangle {
-            anchors.fill: parent
-            radius: height / 2
-            color: tog.checked ? Theme.activeFill(Theme.accent) : Theme.ink(0.08)
-            border.width: 1
-            border.color: tog.checked ? Theme.accent : Theme.ink(0.25)
-            Behavior on color { ColorAnimation { duration: 140 } }
-        }
-        Rectangle {
-            width: 14; height: 14; radius: 7
-            anchors.verticalCenter: parent.verticalCenter
-            x: tog.checked ? parent.width - width - 4 : 4
-            color: tog.checked ? Theme.accent : Theme.subtext0
-            Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-        }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: tog.toggled(!tog.checked)
-        }
     }
 
     // Ползунок; moved — пока тянут, released — отпустили (тогда и сохраняем)
@@ -169,160 +82,174 @@ Popup {
     }
 
     // ── Содержимое ──────────────────────────────────────────────────
-    contentItem: Flickable {
-        clip: true
-        contentHeight: content.implicitHeight + 40
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+    contentItem: Item {
+        // Кнопки закреплены внизу — видны, даже если список пришлось прокручивать
+        Flickable {
+            anchors { left: parent.left; right: parent.right; top: parent.top; bottom: footer.top; bottomMargin: 10 }
+            clip: true
+            contentHeight: content.implicitHeight + 24
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        Column {
-            id: content
-            x: 20; y: 20
-            width: dlg.width - 40
-            spacing: 4
+            Column {
+                id: content
+                x: 20; y: 20
+                width: dlg.width - 40
+                spacing: 4
 
-            Text {
-                text: "Настройки"
-                color: Theme.text
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize + 2
-                font.weight: Font.DemiBold
-            }
-
-            SectionTitle { text: "ЦВЕТА" }
-            Repeater {
-                model: ThemeSource.sources
-                Choice {
-                    required property var modelData
-                    label: modelData.name
-                    available: modelData.available
-                    checked: ThemeSource.sourceSetting === modelData.id
-                    note: !modelData.available ? "не найден"
-                        : modelData.id === "auto" ? "сейчас: " + dlg.sourceName(ThemeSource.source) : ""
-                    onPicked: ThemeSource.sourceSetting = modelData.id
-                }
-            }
-
-            SectionTitle { text: "СТЕКЛО" }
-            Item {
-                width: parent.width
-                height: 34
                 Text {
-                    x: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Стеклянный вид"
+                    text: "Настройки"
                     color: Theme.text
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 1
+                    font.pixelSize: Theme.fontSize + 2
+                    font.weight: Font.DemiBold
                 }
-                Toggle {
-                    anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                    checked: !Theme.material
-                    onToggled: (on) => ThemeSource.setGlass(on)
+
+                SectionTitle { text: "ЦВЕТА" }
+                Repeater {
+                    model: ThemeSource.sources
+                    ChoiceRow {
+                        required property var modelData
+                        label: modelData.name
+                        available: modelData.available
+                        checked: ThemeSource.sourceSetting === modelData.id
+                        note: !modelData.available ? "не найден"
+                            : modelData.id === "auto" ? "сейчас: " + dlg.sourceName(ThemeSource.source) : ""
+                        onPicked: ThemeSource.sourceSetting = modelData.id
+                    }
                 }
-            }
-            Item {
-                width: parent.width
-                height: 34
-                visible: !Theme.material
+
+                SectionTitle { text: "СТЕКЛО" }
+                Item {
+                    width: parent.width
+                    height: 34
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Стеклянный вид"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    ToggleSwitch {
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        checked: !Theme.material
+                        onToggled: (on) => ThemeSource.setGlass(on)
+                    }
+                }
+                Item {
+                    width: parent.width
+                    height: 34
+                    visible: !Theme.material
+                    Text {
+                        id: alphaLabel
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Плотность"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Slide {
+                        id: alphaSlide
+                        anchors { left: parent.left; leftMargin: 130; right: alphaValue.left; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        from: 0.2; to: 1.0
+                        value: ThemeSource.settings.glassAlpha ?? 0.62
+                        onMoved: (v) => value = v
+                        onReleased: (v) => ThemeSource.setGlassAlpha(v)
+                    }
+                    Text {
+                        id: alphaValue
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        width: 40
+                        horizontalAlignment: Text.AlignRight
+                        text: Math.round(alphaSlide.value * 100) + " %"
+                        color: Theme.subtext0
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 3
+                    }
+                }
                 Text {
-                    id: alphaLabel
-                    x: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Плотность"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 1
-                }
-                Slide {
-                    id: alphaSlide
-                    anchors { left: parent.left; leftMargin: 130; right: alphaValue.left; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                    from: 0.2; to: 1.0
-                    value: ThemeSource.settings.glassAlpha ?? 0.62
-                    onMoved: (v) => value = v
-                    onReleased: (v) => ThemeSource.setGlassAlpha(v)
-                }
-                Text {
-                    id: alphaValue
-                    anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                    width: 40
-                    horizontalAlignment: Text.AlignRight
-                    text: Math.round(alphaSlide.value * 100) + " %"
-                    color: Theme.subtext0
+                    visible: ThemeSource.glassOverridden
+                    leftPadding: 12
+                    text: "Вернуть как у шелла"
+                    color: resetMa.containsMouse ? Theme.accent : Theme.subtext0
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 3
+                    MouseArea {
+                        id: resetMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: ThemeSource.resetGlass()
+                    }
                 }
-            }
-            Text {
-                visible: ThemeSource.glassOverridden
-                leftPadding: 12
-                text: "Вернуть как у шелла"
-                color: resetMa.containsMouse ? Theme.accent : Theme.subtext0
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize - 3
-                MouseArea {
-                    id: resetMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: ThemeSource.resetGlass()
-                }
-            }
 
-            SectionTitle { text: "ИКОНКИ" }
-            Item {
-                width: parent.width
-                height: 34
-                Text {
-                    x: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Оттенок палитры"
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 1
+                SectionTitle { text: "ИКОНКИ" }
+                Item {
+                    width: parent.width
+                    height: 34
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Оттенок палитры"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Slide {
+                        id: tintSlide
+                        anchors { left: parent.left; leftMargin: 160; right: tintValue.left; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        from: 0; to: 1
+                        value: ThemeSource.iconTint
+                        // Иконки перекрашиваются прямо пока тянешь
+                        onMoved: (v) => ThemeSource.iconTint = v
+                        onReleased: (v) => ThemeSource.iconTint = v
+                    }
+                    Text {
+                        id: tintValue
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        width: 40
+                        horizontalAlignment: Text.AlignRight
+                        text: tintSlide.value === 0 ? "нет" : Math.round(tintSlide.value * 100) + " %"
+                        color: Theme.subtext0
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 3
+                    }
                 }
-                Slide {
-                    id: tintSlide
-                    anchors { left: parent.left; leftMargin: 160; right: tintValue.left; rightMargin: 14; verticalCenter: parent.verticalCenter }
-                    from: 0; to: 1
-                    value: ThemeSource.iconTint
-                    // Иконки перекрашиваются прямо пока тянешь
-                    onMoved: (v) => ThemeSource.iconTint = v
-                    onReleased: (v) => ThemeSource.iconTint = v
-                }
-                Text {
-                    id: tintValue
-                    anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                    width: 40
-                    horizontalAlignment: Text.AlignRight
-                    text: tintSlide.value === 0 ? "нет" : Math.round(tintSlide.value * 100) + " %"
-                    color: Theme.subtext0
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 3
-                }
-            }
 
-            SectionTitle { text: "ТЕРМИНАЛ" }
-            Choice {
-                label: "Автоматически"
-                note: Terminal.chosen === "" ? (Terminal.current ? "сейчас: " + Terminal.current : "терминал не найден") : ""
-                checked: Terminal.chosen === ""
-                onPicked: Terminal.chosen = ""
-            }
-            Repeater {
-                model: Terminal.available
-                Choice {
-                    required property string modelData
-                    label: modelData
-                    checked: Terminal.chosen === modelData
-                    onPicked: Terminal.chosen = modelData
+                SectionTitle { text: "ТЕРМИНАЛ" }
+                ChoiceRow {
+                    label: "Автоматически"
+                    note: Terminal.chosen === "" ? (Terminal.current ? "сейчас: " + Terminal.current : "терминал не найден") : ""
+                    checked: Terminal.chosen === ""
+                    onPicked: Terminal.chosen = ""
+                }
+                Repeater {
+                    model: Terminal.available
+                    ChoiceRow {
+                        required property string modelData
+                        label: modelData
+                        checked: Terminal.chosen === modelData
+                        onPicked: Terminal.chosen = modelData
+                    }
                 }
             }
+        }
 
-            Item { width: 1; height: 8 }
-            Row {
+        Item {
+            id: footer
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 20; rightMargin: 20; bottomMargin: 16 }
+            height: 34
+            TextButton {
+                text: "Первая настройка…"
+                onClicked: { dlg.close(); dlg.firstRunRequested() }
+            }
+            TextButton {
                 anchors.right: parent.right
-                TextButton { text: "Готово"; primary: true; onClicked: dlg.close() }
+                text: "Готово"
+                primary: true
+                onClicked: dlg.close()
             }
         }
     }

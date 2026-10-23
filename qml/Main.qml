@@ -39,6 +39,13 @@ Window {
     onSortKeyChanged: tabs.forEach(function (t) { t.dir.sortKey = sortKey })
     onSortDescChanged: tabs.forEach(function (t) { t.dir.sortDesc = sortDesc })
 
+    // Первая настройка показывается один раз
+    Settings {
+        id: setupState
+        category: "setup"
+        property bool done: false
+    }
+
     Settings {
         category: "view"
         property alias gridMode: win.gridMode
@@ -844,6 +851,16 @@ Window {
         id: settingsDlg
         parent: win.contentItem
         onClosed: pane.focusView()
+        onFirstRunRequested: firstRun.open()
+    }
+    FirstRun {
+        id: firstRun
+        parent: win.contentItem
+        onFinished: (message) => {
+            setupState.done = true
+            if (message) win.toast(message)
+            pane.focusView()
+        }
     }
     OpenWithDialog {
         id: openWithDlg
@@ -858,5 +875,6 @@ Window {
         // Одна вкладка там же, где открылись сейчас, — предлагать нечего
         var o = Session.takeOrphan()
         if (o.paths && !(o.paths.length === 1 && o.paths[0] === dir.path)) restoreOffer = o
+        if (!setupState.done) firstRun.open()
     }
 }

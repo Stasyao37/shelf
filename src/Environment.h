@@ -1,0 +1,54 @@
+#pragma once
+
+#include <QObject>
+#include <QString>
+#include <QtQml/qqmlregistration.h>
+
+// Что есть в системе — для первой настройки: оболочка, matugen, миниатюры, утилиты.
+// И подключение Shelf к matugen: свой шаблон + блок в ~/.config/matugen/config.toml.
+class Environment : public QObject
+{
+    Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
+
+    Q_PROPERTY(bool hyprland READ hyprland CONSTANT)
+    Q_PROPERTY(bool quickshell READ quickshell CONSTANT)
+    Q_PROPERTY(bool matugen READ matugen CONSTANT)
+    Q_PROPERTY(bool matugenConnected READ matugenConnected NOTIFY changed)
+    Q_PROPERTY(bool blur READ blur CONSTANT)
+    Q_PROPERTY(bool tumbler READ tumbler CONSTANT)
+    Q_PROPERTY(bool ffmpegthumbnailer READ ffmpegthumbnailer CONSTANT)
+    Q_PROPERTY(bool gio READ gio CONSTANT)
+    Q_PROPERTY(bool xdgUtils READ xdgUtils CONSTANT)
+    Q_PROPERTY(QString distro READ distro CONSTANT)
+
+public:
+    explicit Environment(QObject *parent = nullptr);
+
+    bool hyprland() const;
+    bool quickshell() const;
+    bool matugen() const;
+    bool matugenConnected() const;
+    bool blur() const;
+    bool tumbler() const;
+    bool ffmpegthumbnailer() const;
+    bool gio() const;
+    bool xdgUtils() const;
+    QString distro() const { return m_distro; }
+
+    // Команда установки пакета для этого дистрибутива (для подсказки, сами не ставим)
+    Q_INVOKABLE QString installCommand(const QString &package) const;
+    // Возвращает пустую строку при успехе, иначе текст ошибки
+    Q_INVOKABLE QString connectMatugen();
+
+    static QString matugenConfig();
+
+signals:
+    void changed();
+
+private:
+    QString m_distro;     // ID из os-release
+    QString m_distroLike; // ID_LIKE
+    mutable int m_blur = -1;
+};
