@@ -8,13 +8,21 @@ Popup {
 
     property var items: []
 
+    // Высота по самим пунктам: Column пересчитывает свою лениво, к моменту show()
+    // у него ещё размер прошлого меню
+    function heightOf(list) {
+        var h = topPadding + bottomPadding
+        for (var i = 0; i < list.length; ++i) h += list[i].separator === true ? 9 : 32
+        return h
+    }
     function show(px, py, list) {
         items = list
-        // Не вылезать за край окна
         var w = parent ? parent.width : 0
         var h = parent ? parent.height : 0
-        x = Math.min(px, w - implicitWidth - 4)
-        y = Math.min(py, h - implicitHeight - 4)
+        var mw = implicitWidth, mh = heightOf(list)
+        // Не влезает ниже или правее курсора — открываем выше или левее, как в других программах
+        x = px + mw + 4 <= w ? px : Math.max(4, px - mw)
+        y = py + mh + 4 <= h ? py : Math.max(4, py - mh)
         open()
     }
 
