@@ -4,7 +4,7 @@
 между контуром и контуром, сдвинутым внутрь на 0.5, как у остального набора."""
 import sys
 from shapely.geometry import Point, LineString, Polygon, box
-from shapely.affinity import translate
+from shapely.affinity import scale, translate
 from shapely.ops import unary_union
 
 OUT = sys.argv[1]
@@ -64,12 +64,47 @@ def layer(g, fill="fill"):
             f'\t<path fill="url(#edge)" fill-rule="evenodd" d="{path(edge)}"/>\n')
 
 
-def write(name, comment, layers):
-    body = "".join(layer(g) for g in layers)
+# Плотное стекло для крупных деталей, которые иначе сливаются с основой
+# (горы на картинке): то же стекло, но белее. Попадает только в файлы, где нужно
+DETAIL = """	<defs>
+		<linearGradient id="detail" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.55"/>
+		</linearGradient>
+	</defs>"""
+
+
+def overlay(g, n):
+    """Деталь поверх основы: без зазора и без кромки, светлее основы, со своим
+    диагональным градиентом по собственному размеру — так строки, горы и передняя
+    стенка папки не обводятся тёмной щелью, а лежат на стекле светлым слоем."""
+    x0, y0, x1, y1 = g.bounds
+    grad = (f'\t\t<linearGradient id="ov{n}" gradientUnits="userSpaceOnUse" '
+            f'x1="{x0:.3f}" y1="{y0:.3f}" x2="{x1:.3f}" y2="{y1:.3f}">\n'
+            '\t\t\t<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>\n'
+            '\t\t\t<stop offset="0.52" stop-color="#FFFFFF" stop-opacity="0.45"/>\n'
+            '\t\t\t<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.55"/>\n'
+            '\t\t</linearGradient>\n')
+    return grad, f'\t<path fill="url(#ov{n})" fill-rule="evenodd" d="{path(g)}"/>\n'
+
+
+def write(name, comment, layers, viewbox="0 0 24 24"):
+    """layers — фигуры shapely или пары (фигура, "detail" | "overlay")."""
+    body, grads = "", ""
+    for l in layers:
+        if isinstance(l, tuple) and l[1] == "overlay":
+            g, p = overlay(l[0], len(grads.split("<linearGradient")) - 1)
+            grads += g
+            body += p
+        else:
+            body += layer(*l) if isinstance(l, tuple) else layer(l)
+    defs = DEFS + ("\n" + DETAIL if "url(#detail)" in body else "")
+    if grads:
+        defs += "\n\t<defs>\n" + grads + "\t</defs>"
     svg = (f'<?xml version="1.0" encoding="UTF-8"?>\n<!-- {comment}\n'
            f'     Сгенерировано: стекло белым 0.6→0.3, кромка 0.5; детали — второй слой того же стекла -->\n'
-           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">\n'
-           f'{DEFS}\n{body}</svg>\n')
+           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{viewbox}" width="48px" height="48px">\n'
+           f'{defs}\n{body}</svg>\n')
     open(f"{OUT}/{name}.svg", "w").write(svg)
 
 
@@ -219,7 +254,7 @@ os.makedirs(f"{OUT}/lang", exist_ok=True)
 write_flat("lang/java", "Java: чашка с паром на блюдце", unary_union([cup, saucer, steam]))
 
 
-# Корзина: бак как у trash-can.svg (icons8). Полная — без крышки, над краем
+# Корзина: бак общий с trash-can.svg (ниже). Полная — без крышки, над краем
 # торчат лист и скомканная бумага; они за стеклом бака, поэтому рисуются первыми
 def can_body():
     raw = Polygon([(4.1, 6.8), (19.9, 6.8), (18.0, 22), (6.0, 22)])
@@ -232,7 +267,68 @@ papers = unary_union([
     rotate(rrect(13.2, 1.6, 5.2, 7.6, 0.9), 22, origin=(15.6, 8)),
     circle(12, 5.6, 2.3),
 ])
-write("trash-full", "Корзина с мусором: над краем бака торчат бумаги", [papers, can_body()])
+# Бумаги за баком: видна только часть над краем — сквозь стекло бака они не просвечивают
+write("trash-full", "Корзина с мусором: над краем бака торчат бумаги",
+      [papers.difference(can_body().buffer(0.45, quad_segs=16)), can_body()])
+
+
+# Основа набора: папки, листы, картинки, звук, корзина — свои фигуры, в том же приёме
+
+# Папка: задняя стенка с ушком одна у закрытой и открытой — FolderIcon плавно
+# перетекает между ними, и откидывается только передняя стенка
+folder_back = unary_union([rrect(2.5, 3.5, 8.6, 5.0, 1.6), rrect(2.5, 5.6, 19.0, 14.4, 2.4)])
+folder_front = rrect(2.5, 8.4, 19.0, 11.6, 2.4)
+write("folder", "Папка: задняя стенка с ушком и передняя стенка", [folder_back, (folder_front, "overlay")])
+# Открытая: передняя стенка ниже и шире сверху — откинута к зрителю
+folder_front_open = Polygon([(1.6, 10.6), (22.4, 10.6), (20.7, 20.0), (3.3, 20.0)]).buffer(-1.3, quad_segs=16).buffer(1.3, quad_segs=16)
+write("folder-open", "Открытая папка: та же задняя стенка, передняя откинута",
+      [folder_back, (folder_front_open, "overlay")])
+# Для FolderIcon — по частям: задняя стенка и передняя отдельно. Переднюю QML откидывает
+# проективным преобразованием прямоугольник → трапеция, эмблема едет вместе с ней
+write("folder-back", "Папка по частям: задняя стенка с ушком", [folder_back])
+# Кадр с полями 0.5 вокруг стенки: под перспективой края стенки сглаживаются по её
+# собственной альфе, а не по краю текстуры (тот при искажении идёт ступеньками)
+write("folder-front", "Папка по частям: передняя стенка (кадр — её прямоугольник 2.5, 8.4, 19 × 11.6 и поля 0.5)",
+      [(folder_front, "overlay")], viewbox="2 7.9 20 12.6")
+
+write("file", "Файл: лист с загнутым углом", [sheet(), (dogear(), "overlay")])
+
+text_lines = unary_union([line([(8.0, 13.2), (16.0, 13.2)], 1.5), line([(8.0, 16.8), (13.4, 16.8)], 1.5)])
+write("document", "Документ: лист с загнутым углом и две строки", [sheet(), (dogear(), "overlay"), (text_lines, "overlay")])
+
+# Горы и солнце — общие для файла-картинки и рамки
+def landscape(x0, y0, w, h):
+    """Две горы и солнце в прямоугольнике (x0, y0, w, h)."""
+    base = y0 + h
+    # Горы — сплошной массой до нижнего края, вершины скруглены
+    hills = unary_union([
+        Polygon([(x0 - 1, base + 1), (x0 + w * 0.34, y0 + h * 0.3), (x0 + w * 0.72, base + 1)]),
+        Polygon([(x0 + w * 0.38, base + 1), (x0 + w * 0.7, y0 + h * 0.5), (x0 + w + 1, base + 1)]),
+    ]).buffer(-0.6, quad_segs=16).buffer(1.0, quad_segs=16).intersection(box(x0, y0, x0 + w, base))
+    sun = circle(x0 + w * 0.82, y0 + h * 0.2, min(w, h) * 0.15)
+    return unary_union([hills, sun])
+
+# Пейзаж вписан в лист / рамку и срезан по её внутреннему контуру
+img_sheet = sheet()
+scene = landscape(5.4, 9.6, 13.2, 9.8).intersection(img_sheet.buffer(-1.3))
+write("image", "Картинка: лист с загнутым углом, горы и солнце",
+      [img_sheet, (dogear(), "overlay"), (scene, "overlay")])
+
+frame = rrect(2.5, 4.5, 19.0, 15.0, 2.6)
+view = landscape(4.2, 6.4, 15.6, 11.8).intersection(frame.buffer(-1.3))
+write("picture", "Изображение: рамка с горами и солнцем", [frame, (view, "overlay")])
+
+# Звук: одна нота — наклонная овальная головка, штиль и плавный флажок.
+# Стыки скруглены: объединение раздувается и сжимается обратно
+note_head = rotate(scale(Point(8.6, 17.6).buffer(1, quad_segs=32), 3.7, 2.8), -24, origin=(8.6, 17.6))
+note_stem = line([(11.85, 16.6), (11.85, 4.2)], 2.0)
+note_flag = LineString(bezier((11.85, 4.0), (14.6, 5.0), (18.4, 7.4), (16.8, 12.6), 40)).buffer(1.05, quad_segs=16)
+note = unary_union([note_head, note_stem, note_flag]).buffer(0.7, quad_segs=16).buffer(-0.7, quad_segs=16)
+write("audio", "Звук: нота с наклонной головкой и плавным флажком", [note])
+
+# Корзина: тот же бак, что у «корзины с мусором», с крышкой и ручкой
+lid = unary_union([rrect(2.8, 4.0, 18.4, 2.6, 1.3), rrect(9.0, 2.0, 6.0, 2.6, 1.3)])
+write("trash-can", "Корзина: бак с крышкой и ручкой", [can_body(), (lid, "overlay")])
 
 
 # Значки в углу иконки: плоские силуэты, кружок-подложку рисует Badge.qml

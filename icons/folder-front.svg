@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Папка по частям: передняя стенка (кадр — её прямоугольник 2.5, 8.4, 19 × 11.6 и поля 0.5)
+     Сгенерировано: стекло белым 0.6→0.3, кромка 0.5; детали — второй слой того же стекла -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 7.9 20 12.6" width="48px" height="48px">
+	<defs>
+		<linearGradient id="fill" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+		<linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="2.5" y1="2.5" x2="20" y2="21.5">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
+			<stop offset="0.4927" stop-color="#FFFFFF" stop-opacity="0"/>
+			<stop offset="0.9971" stop-color="#FFFFFF" stop-opacity="0.3"/>
+		</linearGradient>
+	</defs>
+	<defs>
+		<linearGradient id="ov0" gradientUnits="userSpaceOnUse" x1="2.500" y1="8.400" x2="21.500" y2="20.000">
+			<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
+			<stop offset="0.52" stop-color="#FFFFFF" stop-opacity="0.45"/>
+			<stop offset="1" stop-color="#FFFFFF" stop-opacity="0.55"/>
+		</linearGradient>
+	</defs>
+	<path fill="url(#ov0)" fill-rule="evenodd" d="M19.100,8.400 L4.900,8.400 L4.665,8.412 L4.432,8.446 L4.203,8.503 L3.982,8.583 L3.769,8.683 L3.567,8.804 L3.377,8.945 L3.203,9.103 L3.045,9.277 L2.904,9.467 L2.783,9.669 L2.683,9.882 L2.603,10.103 L2.546,10.332 L2.512,10.565 L2.500,10.800 L2.500,17.600 L2.512,17.835 L2.546,18.068 L2.603,18.297 L2.683,18.518 L2.783,18.731 L2.904,18.933 L3.045,19.123 L3.203,19.297 L3.377,19.455 L3.567,19.596 L3.769,19.717 L3.982,19.817 L4.203,19.897 L4.432,19.954 L4.665,19.988 L4.900,20.000 L19.100,20.000 L19.335,19.988 L19.568,19.954 L19.797,19.897 L20.018,19.817 L20.231,19.717 L20.433,19.596 L20.623,19.455 L20.797,19.297 L20.955,19.123 L21.096,18.933 L21.217,18.731 L21.317,18.518 L21.397,18.297 L21.454,18.068 L21.488,17.835 L21.500,17.600 L21.500,10.800 L21.488,10.565 L21.454,10.332 L21.397,10.103 L21.317,9.882 L21.217,9.669 L21.096,9.467 L20.955,9.277 L20.797,9.103 L20.623,8.945 L20.433,8.804 L20.231,8.683 L20.018,8.583 L19.797,8.503 L19.568,8.446 L19.335,8.412 Z"/>
+</svg>

@@ -156,19 +156,21 @@ icons/emblems/  эмблемы стандартных папок и архиво
 icons/lang/     логотипы языков программирования
 icons/badges/   значки ссылки и замка
 fonts/          вшитые символы значков интерфейса (из JetBrainsMono Nerd Font)
-tools/          gen_icons.py — генератор иконок, subset_icons.py — сборка шрифта значков
+tools/          gen_icons.py — генератор иконок, preview_icons.py — превью набора,
+                subset_icons.py — сборка шрифта значков
 data/           шаблон .desktop-файла, иконка приложения, шаблон matugen
 ```
 
 ### Как рисуются иконки
 
-Большую часть набора строит `tools/gen_icons.py`: фигуры описываются парой строк
+Набор строит `tools/gen_icons.py`: фигуры описываются парой строк
 (скруглённые прямоугольники, круги, линии), [shapely](https://shapely.readthedocs.io) объединяет
 их и сам считает кромки и зазоры между предметами.
 
 ```sh
-pip install shapely
+pip install shapely cairosvg pillow
 python tools/gen_icons.py icons
+python tools/preview_icons.py docs/icons.png   # картинка набора для README
 ```
 
 Эмблемы и логотипы — плоские белые силуэты; матовое стекло на них накладывает
@@ -177,7 +179,15 @@ python tools/gen_icons.py icons
 
 ## 📜 Благодарности
 
-- Стиль иконок и часть исходных SVG — [Icons8](https://icons8.com)
+- Стиль набора вдохновлён стеклянными иконками [Icons8](https://icons8.com); все SVG нарисованы
+  заново генератором `tools/gen_icons.py`
 - Логотипы языков — [Simple Icons](https://simpleicons.org) (CC0); чашка Java нарисована отдельно
 - Значки интерфейса — из [JetBrainsMono Nerd Font](https://www.nerdfonts.com) (OFL / MIT),
   вшиты в программу (`fonts/`)
+
+## 📄 Лицензия
+
+Shelf распространяется под [GNU GPL v3](LICENSE) или более поздней версией (GPL-3.0-or-later).
+
+- Шрифт значков `fonts/` — SIL Open Font License 1.1 (`fonts/OFL.txt`), значки Nerd Fonts — MIT / OFL
+- Логотипы языков в `icons/lang/` — CC0 ([Simple Icons](https://simpleicons.org))

@@ -55,8 +55,8 @@ qt_add_qml_module(shelf
     VERSION 1.0
     QML_FILES ${QML_FILES}
     RESOURCES
-        icons/folder.svg icons/folder-open.svg icons/file.svg icons/document.svg
-        icons/image.svg icons/picture.svg icons/trash.svg icons/trash-can.svg icons/trash-full.svg
+        icons/folder.svg icons/folder-open.svg icons/folder-back.svg icons/folder-front.svg icons/file.svg icons/document.svg
+        icons/image.svg icons/picture.svg icons/trash-can.svg icons/trash-full.svg
         icons/badges/link.svg icons/badges/lock.svg icons/badges/play.svg icons/database.svg icons/drive.svg icons/disc.svg icons/usb.svg
         icons/pdf.svg icons/spreadsheet.svg icons/presentation.svg icons/package.svg icons/script.svg
         icons/config.svg icons/certificate.svg icons/key.svg icons/html.svg
