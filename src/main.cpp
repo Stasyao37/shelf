@@ -38,7 +38,9 @@ int main(int argc, char *argv[])
     if (!iconTheme.isEmpty())
         QIcon::setThemeName(iconTheme);
     QIcon::setFallbackThemeName(QStringLiteral("Adwaita"));
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("system-file-manager")));
+    // Своя иконка из hicolor; до установки — та, что в теме
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.stasyao.shelf"),
+                                       QIcon::fromTheme(QStringLiteral("system-file-manager"))));
 
     // Свои контролы рисуем сами; Basic не тянет вид qt6ct/kvantum
     QQuickStyle::setStyle(QStringLiteral("Basic"));

@@ -5,7 +5,7 @@ GenericName=Файловый менеджер
 Comment=Просмотр и управление файлами
 # Полный путь: у Hyprland в PATH нет ~/.local/bin, лаунчеры шелла запускают через него
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/shelf %U
-Icon=system-file-manager
+Icon=org.stasyao.shelf
 Terminal=false
 Categories=System;FileTools;FileManager;Utility;Core;
 MimeType=inode/directory;
