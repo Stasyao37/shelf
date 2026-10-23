@@ -40,10 +40,11 @@ Item {
 
     Item {
         anchors.fill: parent
-        layer.enabled: Theme.light
+        layer.enabled: Theme.iconTinted("folder")
         layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: Qt.darker(Theme.accent, 1.6)
+            colorization: Theme.iconColorization("folder")
+            colorizationColor: Theme.iconColor("folder")
+            brightness: Theme.iconBrightness("folder")
         }
 
         Image {

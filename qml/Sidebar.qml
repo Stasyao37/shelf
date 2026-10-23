@@ -71,51 +71,34 @@ Rectangle {
                 size: 22
                 open: ma.containsMouse || item.current || item.dropHere
             }
-            Image {
-                visible: glyph.src !== "" && !glyph.emblem
-                anchors.fill: parent
-                source: visible ? Qt.resolvedUrl(glyph.src) : ""
-                sourceSize: Qt.size(22, 22)
-                layer.enabled: Theme.light
-                layer.effect: MultiEffect {
-                    colorization: 1.0
-                    colorizationColor: Qt.darker(Theme.accent, 1.6)
-                }
-            }
-
-            // Эмблема рисовалась плоским белым силуэтом для папки. Здесь она
-            // служит маской для того же стекла, что у корзины и дисков: белый
-            // по диагонали из левого верхнего угла. Линии тоньше сплошных фигур
-            // и без кромки, поэтому альфа чуть выше, чем 0.6→0.3 у набора
-            Image {
-                id: emblemMask
-                visible: false
-                anchors.centerIn: parent
-                width: 19; height: 19
-                source: glyph.emblem ? Qt.resolvedUrl(glyph.src) : ""
-                sourceSize: Qt.size(width, height)
-                layer.enabled: true
-            }
+            // Корзина, диски и эмблемы мест — тот же оттенок палитры, что у папок.
+            // FolderIcon подкрашивает себя сам
             Item {
-                visible: glyph.emblem
-                anchors.fill: emblemMask
-                clip: true
-                layer.enabled: visible
+                anchors.fill: parent
+                layer.enabled: Theme.iconTinted("folder")
+                layer.smooth: true
                 layer.effect: MultiEffect {
-                    maskEnabled: true
-                    maskSource: emblemMask
+                    colorization: Theme.iconColorization("folder")
+                    colorizationColor: Theme.iconColor("folder")
+                    brightness: Theme.iconBrightness("folder")
                 }
-                Rectangle {
-                    id: glassFill
-                    // Повёрнутый квадрат с вертикальным градиентом даёт диагональный
-                    width: parent.width * 1.5; height: width
+
+                Image {
+                    visible: glyph.src !== "" && !glyph.emblem
+                    anchors.fill: parent
+                    source: visible ? Qt.resolvedUrl(glyph.src) : ""
+                    // Вдвое крупнее и со сглаживанием — края мягкие при любом масштабе экрана
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    smooth: true
+                    mipmap: true
+                }
+                // Эмблема — та же вставка из матового стекла, что на папках в сетке:
+                // мягкая маска без ступенек, вертикальная заливка, лёгкая тень
+                GlassEmblem {
+                    visible: glyph.emblem
                     anchors.centerIn: parent
-                    rotation: -45
-                    readonly property color base: Theme.light ? Qt.darker(Theme.accent, 1.6) : "white"
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.alpha(glassFill.base, 0.75) }
-                        GradientStop { position: 1.0; color: Qt.alpha(glassFill.base, 0.4) }
-                    }
+                    width: 19; height: 19
+                    source: glyph.emblem ? Qt.resolvedUrl(glyph.src) : ""
                 }
             }
         }

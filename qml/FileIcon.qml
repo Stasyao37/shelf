@@ -18,6 +18,9 @@ Item {
 
     // [картинка из icons/, эмблема из icons/emblems (во весь размер) или lang/<язык>]
     readonly property var kind: classify(mimeType, fileName)
+    // Группа для оттенка палитры (Theme.iconTint)
+    readonly property string group: ["document", "pdf", "book", "spreadsheet", "presentation", "html"].includes(kind[0]) ? "doc"
+        : ["image", "picture", "video", "audio", "font"].includes(kind[0]) ? "media" : "other"
 
     // Код на известном языке — пустой лист с логотипом языка (icons/lang, Simple Icons, CC0).
     // По имени, а не по MIME: у многих языков своего типа нет, а .ts Qt считает видео
@@ -83,10 +86,11 @@ Item {
         anchors.fill: parent
         source: Qt.resolvedUrl("icons/" + root.kind[0] + ".svg")
         sourceSize: Qt.size(root.size, root.size)
-        layer.enabled: Theme.light
+        layer.enabled: Theme.iconTinted(root.group)
         layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: Qt.darker(Theme.accent, 1.6)
+            colorization: Theme.iconColorization(root.group)
+            colorizationColor: Theme.iconColor(root.group)
+            brightness: Theme.iconBrightness(root.group)
         }
     }
 

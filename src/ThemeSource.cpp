@@ -17,6 +17,13 @@ const QString kPortalService = QStringLiteral("org.freedesktop.portal.Desktop");
 const QString kPortalPath = QStringLiteral("/org/freedesktop/portal/desktop");
 const QString kPortalSettings = QStringLiteral("org.freedesktop.portal.Settings");
 
+// Своё подключение к шине: первый запрос к порталу привязывает подключение к приложению,
+// и Qt на общем подключении потом не может зарегистрировать app ID у портала
+QDBusConnection portalBus()
+{
+    return QDBusConnection::connectToBus(QDBusConnection::SessionBus, QStringLiteral("shelf-theme"));
+}
+
 QString stateDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation);
@@ -90,7 +97,7 @@ ThemeSource::ThemeSource(QObject *parent)
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_debounce, qOverload<>(&QTimer::start));
 
     readSystemScheme();
-    QDBusConnection::sessionBus().connect(kPortalService, kPortalPath, kPortalSettings, QStringLiteral("SettingChanged"),
+    portalBus().connect(kPortalService, kPortalPath, kPortalSettings, QStringLiteral("SettingChanged"),
                                           this, SLOT(portalSettingChanged(QString, QString, QDBusVariant)));
     load();
 }
@@ -230,7 +237,7 @@ void ThemeSource::resetGlass()
 
 void ThemeSource::readSystemScheme()
 {
-    QDBusInterface portal(kPortalService, kPortalPath, kPortalSettings);
+    QDBusInterface portal(kPortalService, kPortalPath, kPortalSettings, portalBus());
     portal.setTimeout(500);
     // 1 — тёмная, 2 — светлая, 0 — без предпочтения (берём тёмную, как у шелла)
     QDBusReply<QDBusVariant> one = portal.call(QStringLiteral("ReadOne"), QStringLiteral("org.freedesktop.appearance"),

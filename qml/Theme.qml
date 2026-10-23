@@ -90,6 +90,34 @@ QtObject {
         return material ? (pressed ? h * 0.28 : h / 2) : glassR
     }
 
+    // ── Подкраска стеклянных иконок ─────────────────────────────────
+    // Стекло белое, поверх — мягкий оттенок палитры по группе файлов: папки — основной
+    // цвет, документы — второй, медиа — третий; служебное (код, программы, архивы)
+    // остаётся чистым стеклом. В светлой теме — та же группа, но тёмной краской.
+    // Палитра тёмной темы пастельная: на белом стекле такой оттенок почти не виден,
+    // поэтому оттенок берём из палитры, а насыщенность — свою. Документы чуть
+    // спокойнее папок: secondary у Material того же тона, что primary
+    readonly property real iconTintAmount: 0.55
+    // Светлый насыщенный оттенок: эффект умножает его на яркость стекла,
+    // тёмный оттенок сделал бы стекло мутным, а не цветным
+    function _vivid(c, sat) { return Qt.hsla(c.hslHue, Math.max(c.hslSaturation, sat), 0.8, 1) }
+    function iconTint(group) {
+        if (group === "folder") return _vivid(lavender, 1.0)
+        if (group === "doc")    return _vivid(blue, 0.55)
+        if (group === "media")  return _vivid(teal, 0.9)
+        return "transparent"
+    }
+    function iconTinted(group) { return light || iconTint(group).a > 0 }
+    function iconColorization(group) { return light ? 1.0 : iconTintAmount }
+    // Окраска чуть приглушает стекло — возвращаем яркость (только тёмная тема)
+    function iconBrightness(group) { return light || iconTint(group).a === 0 ? 0 : 0.14 }
+    function iconColor(group) {
+        var c = iconTint(group)
+        if (!light) return c
+        // На светлом стекле краска тёмная — той же глубины, что прежний Qt.darker(accent, 1.6)
+        return c.a > 0 ? Qt.hsla(c.hslHue, c.hslSaturation * 0.7, 0.34, 1) : Qt.darker(accent, 1.6)
+    }
+
     // ── Размеры ─────────────────────────────────────────────────────
     readonly property int widgetRadius: material ? 12 : 8
     readonly property string fontFamily: material ? "Google Sans Flex" : "JetBrainsMono Nerd Font"
