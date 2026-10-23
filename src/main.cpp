@@ -2,6 +2,7 @@
 #include "IconProvider.h"
 
 #include <QDir>
+#include <QFontDatabase>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QIcon>
@@ -41,6 +42,10 @@ int main(int argc, char *argv[])
     // Своя иконка из hicolor; до установки — та, что в теме
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.stasyao.shelf"),
                                        QIcon::fromTheme(QStringLiteral("system-file-manager"))));
+
+    // Значки интерфейса — вшитые символы Nerd Font: не зависим от установленных шрифтов
+    QFontDatabase::addApplicationFont(QStringLiteral(":/qt/qml/Shelf/fonts/ShelfIcons.ttf"));
+    QFontDatabase::addApplicationFont(QStringLiteral(":/qt/qml/Shelf/fonts/ShelfIconsPropo.ttf"));
 
     // Свои контролы рисуем сами; Basic не тянет вид qt6ct/kvantum
     QQuickStyle::setStyle(QStringLiteral("Basic"));

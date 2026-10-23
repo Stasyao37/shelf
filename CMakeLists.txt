@@ -61,6 +61,7 @@ qt_add_qml_module(shelf
         icons/emblems/folder-videos.svg icons/emblems/folder-templates.svg icons/emblems/folder-publicshare.svg icons/emblems/archive.svg icons/emblems/folder-projects.svg
         icons/emblems/folder-git.svg icons/emblems/folder-config.svg
         ${LANG_ICONS}
+        fonts/ShelfIcons.ttf fonts/ShelfIconsPropo.ttf
     SOURCES
         src/DirModel.h src/DirModel.cpp
         src/FileOps.h src/FileOps.cpp

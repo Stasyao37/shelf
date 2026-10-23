@@ -93,7 +93,8 @@ QtObject {
     // ── Размеры ─────────────────────────────────────────────────────
     readonly property int widgetRadius: material ? 12 : 8
     readonly property string fontFamily: material ? "Google Sans Flex" : "JetBrainsMono Nerd Font"
-    readonly property string iconFont:   material ? "JetBrainsMono Nerd Font Propo" : fontFamily
+    // Вшитые в программу (fonts/), вырезаны из тех же JetBrainsMono Nerd Font и Propo
+    readonly property string iconFont:   material ? "Shelf Icons Propo" : "Shelf Icons"
     readonly property int    fontSize:   14
     readonly property int    animDuration: 200
 }
