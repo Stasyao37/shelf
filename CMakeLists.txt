@@ -84,4 +84,9 @@ include(GNUInstallDirs)
 install(TARGETS shelf RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 configure_file(data/org.stasyao.shelf.desktop.in org.stasyao.shelf.desktop @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.stasyao.shelf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES data/org.stasyao.shelf.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+# Иконка приложения: подробная — везде, включая меню лаунчеров;
+# упрощённый силуэт — только для 16 px (трей), где детали уже не различить
+install(FILES data/icons/org.stasyao.shelf.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+install(FILES data/icons/org.stasyao.shelf-small.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/16x16/apps
+        RENAME org.stasyao.shelf.svg)

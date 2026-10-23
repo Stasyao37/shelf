@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="icons/shelf.svg">
-  <img src="docs/shelf-light.svg" alt="" width="112">
-</picture>
+<img src="data/icons/org.stasyao.shelf.svg" alt="" width="112">
 
 # Shelf
 
