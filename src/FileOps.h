@@ -37,6 +37,12 @@ public:
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
     Q_INVOKABLE QString trash(const QStringList &paths);
+    // Возвращает { error, paths } — куда вернулись объекты (имя могло получить « (2)»)
+    Q_INVOKABLE QVariantMap restore(const QStringList &paths);
+    // Безвозвратно, в фоне; только для того, что лежит в корзине
+    Q_INVOKABLE void deleteForever(const QStringList &paths);
+    Q_INVOKABLE void emptyTrash();
+    Q_INVOKABLE QVariantMap trashInfo(const QString &path);
     Q_INVOKABLE QString rename(const QString &path, const QString &newName);
     // Новая папка с уникальным именем; возвращает её путь или пустую строку
     Q_INVOKABLE QString makeDir(const QString &dir, const QString &baseName);
@@ -60,6 +66,7 @@ signals:
 private:
     void readClipboard();
     void setProgress(double p, const QString &text);
+    void removeInBackground(const QStringList &paths, const QString &text);
     void finishJob(const QStringList &created, const QString &error, bool cancelled);
 
     bool m_busy = false;

@@ -138,8 +138,11 @@ FocusScope {
         }
 
         HeaderCell { label: "Имя"; key: "name"; x: 0; width: parent.width - pane.nameRight }
-        HeaderCell { label: "Тип"; key: "type"; x: parent.width - 330; width: 120; visible: pane.wideList }
-        HeaderCell { label: pane.model.searchQuery && !pane.wideList ? "Где" : "Изменён"; key: "date"; x: parent.width - 210; width: 120 }
+        HeaderCell { label: pane.model.trashRoot ? "Откуда" : "Тип"; key: "type"; x: parent.width - 330; width: 120; visible: pane.wideList }
+        HeaderCell {
+            label: pane.model.searchQuery && !pane.wideList ? "Где" : pane.model.trashRoot ? "Удалён" : "Изменён"
+            key: "date"; x: parent.width - 210; width: 120
+        }
         HeaderCell { label: "Размер"; key: "size"; x: parent.width - 90; width: 90; align: Text.AlignRight }
     }
 
@@ -247,6 +250,7 @@ FocusScope {
             required property string mimeComment
             required property string mimeType
             required property string icon
+            required property string origin
 
             readonly property bool selected: pane.isSelected(path)
             readonly property bool renaming: pane.renamingPath === path
@@ -337,11 +341,13 @@ FocusScope {
                 x: parent.width - 330; width: 116
                 height: parent.height
                 verticalAlignment: Text.AlignVCenter
-                text: cell.searchMode ? cell.dir.replace(/^\/home\/[^/]+/, "~") : cell.mimeComment
+                readonly property bool showsPath: cell.searchMode || cell.origin.length > 0
+                text: cell.searchMode ? cell.dir.replace(/^\/home\/[^/]+/, "~")
+                    : cell.origin ? cell.origin.replace(/^\/home\/[^/]+/, "~") : cell.mimeComment
                 color: Theme.subtext0
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize - 3
-                elide: cell.searchMode ? Text.ElideLeft : Text.ElideRight
+                elide: showsPath ? Text.ElideLeft : Text.ElideRight
             }
             Text {
                 visible: !pane.gridMode

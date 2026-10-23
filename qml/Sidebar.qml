@@ -9,6 +9,7 @@ Rectangle {
     property string currentPath: ""
     signal navigate(string path)
     signal bookmarkMenu(string path, real x, real y)
+    signal trashMenu(real x, real y)
 
     color: Theme.material ? Theme.surface0 : Qt.rgba(0, 0, 0, Theme.light ? 0.04 : 0.14)
 
@@ -128,10 +129,11 @@ Rectangle {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: (m) => {
                 if (m.button === Qt.RightButton) {
-                    if (item.isBookmark) {
-                        var p = mapToItem(side, m.x, m.y)
+                    var p = mapToItem(side, m.x, m.y)
+                    if (item.isBookmark)
                         side.bookmarkMenu(item.modelData.path, p.x, p.y)
-                    }
+                    else if (item.modelData.path === Places.trashPath)
+                        side.trashMenu(p.x, p.y)
                     return
                 }
                 side.navigate(item.modelData.path)

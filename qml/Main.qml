@@ -97,6 +97,8 @@ Window {
 
     // ── Действия ─────────────────────────────────────────────────────
     readonly property bool inTrash: dir.path === Places.trashPath || dir.path.startsWith(Places.trashPath + "/")
+    function many(n) { return n + " " + (n % 10 === 1 && n % 100 !== 11 ? "объект"
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "объекта" : "объектов") }
 
     function openRow(row) {
         if (row < 0) return
@@ -112,14 +114,54 @@ Window {
     function trashSelected() {
         var paths = pane.selectedPaths()
         if (paths.length === 0) return
-        if (inTrash) { toast("Из корзины удалять пока нельзя — очистите её через Thunar"); return }
+        if (inTrash) { deleteForever(paths); return }
         win.pendingRow = dir.indexOfPath(paths[0])
         var err = FileOps.trash(paths)
         if (err) toast(err)
         else toast(paths.length === 1 ? "В корзине: " + folderName(paths[0]) : "В корзине: " + paths.length + " объектов")
         dir.reload()
     }
+    // ── Корзина ──────────────────────────────────────────────────────
+    function deleteForever(paths) {
+        confirm.ask(paths.length === 1 ? "Удалить «" + folderName(paths[0]) + "» навсегда?"
+                                       : "Удалить навсегда " + many(paths.length) + "?",
+                    "Это действие нельзя отменить.", "Удалить", function () {
+            win.pendingRow = dir.indexOfPath(paths[0])
+            FileOps.deleteForever(paths)
+        })
+    }
+    function restoreSelected() {
+        var paths = pane.selectedPaths()
+        if (paths.length === 0 || !dir.trashRoot) return
+        win.pendingRow = dir.indexOfPath(paths[0])
+        var res = FileOps.restore(paths)
+        if (res.error) toast(res.error)
+        else if (res.paths.length === 1) {
+            var p = res.paths[0]
+            toast("Восстановлено в " + (p.substring(0, p.lastIndexOf("/")) || "/").replace(/^\/home\/[^/]+/, "~"))
+        } else toast("Восстановлено: " + many(res.paths.length))
+        dir.reload()
+    }
+    function emptyTrash() {
+        if (!Places.trashFull) { toast("Корзина уже пуста"); return }
+        confirm.ask("Очистить корзину?", "Всё, что в ней лежит, будет удалено навсегда.", "Очистить",
+                    function () { FileOps.emptyTrash() })
+    }
+    function openWith() {
+        var paths = pane.selectedPaths()
+        if (paths.length === 0) return
+        var row = dir.indexOfPath(paths[0])
+        openWithDlg.showFor(paths, dir.mimeTypeAt(row), dir.mimeCommentAt(row))
+    }
+    function paste(target) {
+        if (target === Places.trashPath || target.startsWith(Places.trashPath + "/")) {
+            toast("В корзину файлы убирают клавишей Del"); return
+        }
+        FileOps.paste(target)
+    }
+
     function renameSelected() {
+        if (inTrash) return
         var paths = pane.selectedPaths()
         if (paths.length === 1) pane.renamingPath = paths[0]
     }
@@ -132,6 +174,7 @@ Window {
         pane.focusView()
     }
     function newFolder() {
+        if (inTrash) return
         if (dir.searchQuery) searchField.text = ""
         var p = FileOps.makeDir(dir.path, "Новая папка")
         if (!p) { toast("Не удалось создать папку"); return }
@@ -142,6 +185,8 @@ Window {
     function copySelected(cut) {
         var paths = pane.selectedPaths()
         if (paths.length === 0) return
+        // Вырезанное из корзины потеряло бы запись, откуда оно, — только «Восстановить»
+        if (cut && inTrash) { toast("Из корзины — через «Восстановить» или копированием"); return }
         FileOps.copyToClipboard(paths, cut)
         toast((cut ? "Вырезано: " : "Скопировано: ") + (paths.length === 1 ? folderName(paths[0]) : paths.length + " объектов"))
     }
@@ -155,13 +200,30 @@ Window {
         else { Places.addBookmark(path); toast("Добавлено в закладки") }
     }
 
+    function trashFileMenu(x, y) {
+        var paths = pane.selectedPaths()
+        var single = paths.length === 1
+        menu.show(x, y, [
+            { text: "Открыть", icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
+            { text: "Восстановить", icon: "\u{f0e2}", enabled: dir.trashRoot, act: restoreSelected },
+            { separator: true },
+            { text: "Копировать", icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } },
+            { text: "Копировать путь", icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast("Путь скопирован") } },
+            { separator: true },
+            { text: "Удалить навсегда", icon: "\u{f1f8}", shortcut: "Del", danger: true, act: function () { deleteForever(paths) } },
+            { separator: true },
+            { text: "Свойства", icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties },
+        ])
+    }
     function fileMenu(row, x, y) {
+        if (inTrash) { trashFileMenu(x, y); return }
         var paths = pane.selectedPaths()
         var single = paths.length === 1
         var isDir = single && dir.isDirAt(row)
         var p = paths[0]
         var items = [
             { text: "Открыть", icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
+            { text: "Открыть с помощью…", icon: "\u{f1b2}", act: openWith },
         ]
         if (dir.searchQuery)
             items.push({ text: "Показать в папке", icon: "\u{f07b}", enabled: single, act: function () {
@@ -176,14 +238,14 @@ Window {
         items.push({ text: "Копировать", icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } })
         if (isDir)
             items.push({ text: "Вставить в папку", icon: "\u{f0ea}", enabled: FileOps.clipboardHasFiles,
-                         act: function () { FileOps.paste(p) } })
+                         act: function () { paste(p) } })
         items.push({ text: "Копировать путь", icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast("Путь скопирован") } })
         items.push({ separator: true })
         items.push({ text: "Переименовать", icon: "\u{f040}", shortcut: "F2", enabled: single, act: renameSelected })
         if (isDir)
             items.push({ text: Places.isBookmarked(p) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}",
                          shortcut: "Ctrl+D", act: function () { toggleBookmark(p) } })
-        items.push({ text: "В корзину", icon: "\u{f1f8}", shortcut: "Del", danger: true, enabled: !inTrash, act: trashSelected })
+        items.push({ text: "В корзину", icon: "\u{f1f8}", shortcut: "Del", danger: true, act: trashSelected })
         items.push({ separator: true })
         items.push({ text: "Свойства", icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties })
         menu.show(x, y, items)
@@ -195,12 +257,17 @@ Window {
                 else { dir.sortKey = key; dir.sortDesc = false }
             } }
         }
-        menu.show(x, y, [
+        var top = inTrash ? [
+            { text: "Очистить корзину", icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: emptyTrash },
+            { separator: true },
+        ] : [
             { text: "Новая папка", icon: "\u{f07b}", shortcut: "Ctrl+Shift+N", act: newFolder },
             { text: "Вставить", icon: "\u{f0ea}", shortcut: "Ctrl+V", enabled: FileOps.clipboardHasFiles,
-              act: function () { FileOps.paste(dir.path) } },
+              act: function () { paste(dir.path) } },
             { text: "Открыть в терминале", icon: "\u{f120}", shortcut: "F4", act: function () { FileOps.openTerminal(dir.path) } },
             { separator: true },
+        ]
+        menu.show(x, y, top.concat([
             sortItem("По имени", "name"), sortItem("По дате", "date"), sortItem("По размеру", "size"), sortItem("По типу", "type"),
             { separator: true },
             { text: "Скрытые файлы", checked: dir.showHidden, icon: "\u{f070}", shortcut: "Ctrl+H",
@@ -208,7 +275,7 @@ Window {
             { text: Places.isBookmarked(dir.path) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}", shortcut: "Ctrl+D",
               act: function () { toggleBookmark(dir.path) } },
             { text: "Свойства папки", icon: "\u{f05a}", act: function () { props.showFor(dir.path, "folder") } },
-        ])
+        ]))
     }
 
     function toast(text) {
@@ -231,7 +298,7 @@ Window {
     Shortcut { sequence: "Delete"; onActivated: win.trashSelected() }
     Shortcut { sequence: StandardKey.Copy; onActivated: win.copySelected(false) }
     Shortcut { sequence: StandardKey.Cut; onActivated: win.copySelected(true) }
-    Shortcut { sequence: StandardKey.Paste; onActivated: FileOps.paste(dir.path) }
+    Shortcut { sequence: StandardKey.Paste; onActivated: win.paste(dir.path) }
     Shortcut { sequence: StandardKey.SelectAll; onActivated: pane.selectAll() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: win.newFolder() }
     Shortcut { sequence: "Ctrl+D"; onActivated: win.toggleBookmark(dir.path) }
@@ -266,6 +333,14 @@ Window {
             Layout.fillHeight: true
             currentPath: dir.searchQuery ? "" : dir.path
             onNavigate: (p) => win.go(p)
+            onTrashMenu: (x, y) => {
+                var pt = mapToItem(win.contentItem, x, y)
+                menu.show(pt.x, pt.y, [
+                    { text: "Открыть", icon: "\u{f07c}", act: function () { win.go(Places.trashPath) } },
+                    { separator: true },
+                    { text: "Очистить корзину", icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: win.emptyTrash },
+                ])
+            }
             onBookmarkMenu: (p, x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
                 menu.show(pt.x, pt.y, [
@@ -390,6 +465,59 @@ Window {
                 }
             }
 
+            // В корзине: что можно сделать с её содержимым
+            Rectangle {
+                visible: win.inTrash
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 6
+                Layout.preferredHeight: 40
+                radius: Theme.btnRadius(height, false, Theme.widgetRadius)
+                color: Theme.material ? Theme.surface0 : Theme.ink(0.04)
+                border.width: 1
+                border.color: Theme.restBorder
+
+                Text {
+                    id: trashIcon
+                    x: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "\u{f1f8}"
+                    color: Theme.subtext0
+                    font.family: Theme.iconFont
+                    font.pixelSize: Theme.fontSize - 1
+                }
+                Text {
+                    anchors { left: trashIcon.right; leftMargin: 10; right: trashButtons.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                    text: !dir.trashRoot ? "Внутри удалённой папки — восстановить её можно из корня корзины"
+                        : Places.trashFull ? "Del удаляет навсегда, «Восстановить» возвращает на прежнее место"
+                        : "Корзина пуста"
+                    elide: Text.ElideRight
+                    color: Theme.subtext0
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize - 3
+                }
+                Row {
+                    id: trashButtons
+                    anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                    spacing: 4
+                    TextButton {
+                        implicitHeight: 32
+                        text: "Восстановить"
+                        visible: dir.trashRoot
+                        enabled: pane.selectedCount > 0
+                        onClicked: win.restoreSelected()
+                    }
+                    TextButton {
+                        implicitHeight: 32
+                        text: "Очистить корзину"
+                        danger: true
+                        enabled: Places.trashFull && !FileOps.busy
+                        onClicked: win.emptyTrash()
+                    }
+                }
+            }
+
             FilePane {
                 id: pane
                 Layout.fillWidth: true
@@ -498,6 +626,17 @@ Window {
 
     ContextMenu { id: menu; parent: win.contentItem }
     PropertiesDialog { id: props; parent: win.contentItem }
+    ConfirmDialog {
+        id: confirm
+        parent: win.contentItem
+        onClosed: pane.focusView()
+    }
+    OpenWithDialog {
+        id: openWithDlg
+        parent: win.contentItem
+        onFailed: (m) => win.toast(m)
+        onClosed: pane.focusView()
+    }
 
     Component.onCompleted: {
         go(startPath || Places.places[0].path)

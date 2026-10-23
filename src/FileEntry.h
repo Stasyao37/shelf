@@ -17,6 +17,8 @@ struct FileEntry {
     QString mimeComment;
     QString icon;       // "имя,запасное" для image://icon/
     QDateTime mtime;
+    QString origin;     // в корзине: папка, откуда удалён
+    QDateTime deleted;  // в корзине: когда удалён
     qint64 size = 0;
     int childCount = -1; // только для папок в обычном листинге
     bool isDir = false;

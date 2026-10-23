@@ -28,6 +28,9 @@ set(QML_FILES
     qml/GlassEmblem.qml
     qml/Badge.qml
     qml/Thumbnail.qml
+    qml/TextButton.qml
+    qml/ConfirmDialog.qml
+    qml/OpenWithDialog.qml
 )
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Файлы лежат в qml/, но в модуле — в корне: иначе синглтон Theme
@@ -64,6 +67,8 @@ qt_add_qml_module(shelf
         src/IconProvider.h
         src/FileEntry.h src/FileEntry.cpp
         src/Thumbnailer.h src/Thumbnailer.cpp
+        src/Apps.h src/Apps.cpp
+        src/Trash.h src/Trash.cpp
 )
 
 target_include_directories(shelf PRIVATE src)

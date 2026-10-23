@@ -28,6 +28,8 @@ class DirModel : public QAbstractListModel
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QString freeSpace READ freeSpace NOTIFY pathChanged)
+    // Открыт корень корзины: вместо типа — «Откуда», вместо даты изменения — дата удаления
+    Q_PROPERTY(bool trashRoot READ trashRoot NOTIFY pathChanged)
 
 public:
     enum Role {
@@ -45,6 +47,7 @@ public:
         MimeTypeRole,
         MimeCommentRole,
         IconRole,
+        OriginRole,
     };
 
     explicit DirModel(QObject *parent = nullptr);
@@ -68,12 +71,15 @@ public:
     int count() const { return int(m_rows.size()); }
     QString error() const { return m_error; }
     QString freeSpace() const;
+    bool trashRoot() const;
 
     Q_INVOKABLE void reload();
     Q_INVOKABLE int indexOfPath(const QString &path) const;
     Q_INVOKABLE QString pathAt(int row) const;
     Q_INVOKABLE bool isDirAt(int row) const;
     Q_INVOKABLE QString iconAt(int row) const;
+    Q_INVOKABLE QString mimeTypeAt(int row) const;
+    Q_INVOKABLE QString mimeCommentAt(int row) const;
     Q_INVOKABLE QString sizeOf(const QStringList &paths) const;
     Q_INVOKABLE static QString expandPath(const QString &path);
 

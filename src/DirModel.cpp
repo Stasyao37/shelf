@@ -1,5 +1,7 @@
 #include "DirModel.h"
 
+#include "Trash.h"
+
 #include <QDir>
 #include <QDirIterator>
 #include <QElapsedTimer>
@@ -70,10 +72,11 @@ QVariant DirModel::data(const QModelIndex &index, int role) const
         if (!e.isDir)
             return formatSize(e.size);
         return e.childCount < 0 ? QString() : QStringLiteral("%1 эл.").arg(e.childCount);
-    case DateTextRole: return formatDate(e.mtime);
+    case DateTextRole: return formatDate(e.deleted.isValid() ? e.deleted : e.mtime);
     case MimeTypeRole: return e.mimeType;
     case MimeCommentRole: return e.mimeComment;
     case IconRole: return e.icon;
+    case OriginRole: return e.origin;
     }
     return {};
 }
@@ -88,6 +91,7 @@ QHash<int, QByteArray> DirModel::roleNames() const
         {SizeRole, "size"},         {SizeTextRole, "sizeText"},
         {DateTextRole, "dateText"}, {MimeTypeRole, "mimeType"},
         {MimeCommentRole, "mimeComment"}, {IconRole, "icon"},
+        {OriginRole, "origin"},
     };
 }
 
@@ -192,8 +196,16 @@ void DirModel::listDir()
     const QFileInfoList infos = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
     m_all.clear();
     m_all.reserve(infos.size());
-    for (const QFileInfo &fi : infos)
-        m_all.append(FileEntry::fromInfo(fi, m_mime, true));
+    const bool inTrash = trashRoot();
+    for (const QFileInfo &fi : infos) {
+        FileEntry e = FileEntry::fromInfo(fi, m_mime, true);
+        if (inTrash) {
+            const Trash::Info info = Trash::readInfo(e.path);
+            e.origin = QFileInfo(info.origPath).absolutePath();
+            e.deleted = info.deleted;
+        }
+        m_all.append(e);
+    }
     applyFilterAndSort();
 }
 
@@ -204,8 +216,12 @@ bool DirModel::lessThan(const FileEntry &a, const FileEntry &b) const
     int c = 0;
     if (m_sortKey == QLatin1String("size"))
         c = a.isDir ? (a.childCount - b.childCount) : (a.size < b.size ? -1 : a.size > b.size ? 1 : 0);
-    else if (m_sortKey == QLatin1String("date"))
-        c = a.mtime < b.mtime ? -1 : a.mtime > b.mtime ? 1 : 0;
+    else if (m_sortKey == QLatin1String("date")) {
+        const QDateTime &x = a.deleted.isValid() ? a.deleted : a.mtime;
+        const QDateTime &y = b.deleted.isValid() ? b.deleted : b.mtime;
+        c = x < y ? -1 : x > y ? 1 : 0;
+    } else if (m_sortKey == QLatin1String("type") && trashRoot())
+        c = m_collator.compare(a.origin, b.origin);
     else if (m_sortKey == QLatin1String("type"))
         c = m_collator.compare(a.mimeComment, b.mimeComment);
     if (c == 0)
@@ -403,6 +419,16 @@ QString DirModel::iconAt(int row) const
     return row >= 0 && row < m_rows.size() ? m_rows.at(row).icon : QString();
 }
 
+QString DirModel::mimeTypeAt(int row) const
+{
+    return row >= 0 && row < m_rows.size() ? m_rows.at(row).mimeType : QString();
+}
+
+QString DirModel::mimeCommentAt(int row) const
+{
+    return row >= 0 && row < m_rows.size() ? m_rows.at(row).mimeComment : QString();
+}
+
 QString DirModel::sizeOf(const QStringList &paths) const
 {
     qint64 total = 0;
@@ -417,6 +443,11 @@ QString DirModel::sizeOf(const QStringList &paths) const
             total += m_rows.at(i).size;
     }
     return onlyFiles && total > 0 ? formatSize(total) : QString();
+}
+
+bool DirModel::trashRoot() const
+{
+    return m_path == Trash::filesDir();
 }
 
 QString DirModel::freeSpace() const

@@ -1,6 +1,7 @@
 #include "FileOps.h"
 
 #include "FileEntry.h"
+#include "Trash.h"
 
 #include <QClipboard>
 #include <QDir>
@@ -115,6 +116,23 @@ bool copyTree(const QString &src, const QString &dst, CopyCtx &ctx)
     return true;
 }
 
+// Из папки без права записи (кэш Go, распакованные архивы) файлы не удалить —
+// перед удалением навсегда возвращаем владельцу запись на все папки
+void makeWritable(const QString &path)
+{
+    const QFileInfo fi(path);
+    if (!fi.isDir() || fi.isSymLink())
+        return;
+    QFile::setPermissions(path, fi.permissions() | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    QDirIterator it(path, QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System | QDir::NoSymLinks,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QFileInfo d = it.nextFileInfo();
+        if (!(d.permissions() & QFileDevice::WriteOwner) || !(d.permissions() & QFileDevice::ExeOwner))
+            QFile::setPermissions(d.absoluteFilePath(), d.permissions() | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+    }
+}
+
 bool removeTree(const QString &path)
 {
     const QFileInfo fi(path);
@@ -155,6 +173,103 @@ QString FileOps::trash(const QStringList &paths)
         if (!QFile::moveToTrash(p))
             failed << QFileInfo(p).fileName();
     return failed.isEmpty() ? QString() : QStringLiteral("Не удалось убрать в корзину: %1").arg(failed.join(QStringLiteral(", ")));
+}
+
+QVariantMap FileOps::restore(const QStringList &paths)
+{
+    QStringList restored, failed;
+    for (const QString &p : paths) {
+        const QString name = QFileInfo(p).fileName();
+        const Trash::Info info = Trash::isTopLevel(p) ? Trash::readInfo(p) : Trash::Info{};
+        if (!info.valid()) {
+            failed << name;
+            continue;
+        }
+        const QFileInfo orig(info.origPath);
+        // Папку, где лежал файл, могли удалить — создаём заново
+        if (!QDir().mkpath(orig.absolutePath())) {
+            failed << name;
+            continue;
+        }
+        const QFileInfo fi(p);
+        const QString target = uniquePath(orig.absolutePath(), orig.fileName(), fi.isDir() && !fi.isSymLink());
+        if (!QDir().rename(p, target)) {
+            failed << name;
+            continue;
+        }
+        Trash::forget(p);
+        restored << target;
+    }
+    QVariantMap res;
+    res[QStringLiteral("paths")] = restored;
+    if (!failed.isEmpty())
+        res[QStringLiteral("error")] = QStringLiteral("Не удалось восстановить: %1").arg(failed.join(QStringLiteral(", ")));
+    return res;
+}
+
+void FileOps::deleteForever(const QStringList &paths)
+{
+    for (const QString &p : paths)
+        if (!Trash::contains(p)) {
+            emit failed(QStringLiteral("Удалять навсегда можно только из корзины"));
+            return;
+        }
+    removeInBackground(paths, QStringLiteral("Удаление…"));
+}
+
+void FileOps::emptyTrash()
+{
+    QStringList paths;
+    for (const QFileInfo &fi : QDir(Trash::filesDir()).entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System))
+        paths << fi.absoluteFilePath();
+    // .trashinfo без файла (файл удалили руками) тоже убираем
+    for (const QFileInfo &fi : QDir(Trash::root() + QStringLiteral("/info")).entryInfoList({QStringLiteral("*.trashinfo")}, QDir::Files | QDir::Hidden))
+        if (!QFileInfo::exists(Trash::filesDir() + QLatin1Char('/') + fi.completeBaseName()))
+            QFile::remove(fi.absoluteFilePath());
+    if (paths.isEmpty())
+        return;
+    removeInBackground(paths, QStringLiteral("Очистка корзины…"));
+}
+
+void FileOps::removeInBackground(const QStringList &paths, const QString &text)
+{
+    if (m_busy) {
+        emit failed(QStringLiteral("Дождитесь окончания текущей операции"));
+        return;
+    }
+    m_cancel = std::make_shared<std::atomic_bool>(false);
+    m_busy = true;
+    emit busyChanged();
+    setProgress(0, text);
+
+    auto cancel = m_cancel;
+    m_job = QtConcurrent::run([this, paths, text, cancel] {
+        QStringList failed;
+        for (int i = 0; i < paths.size() && !cancel->load(); ++i) {
+            const QString &p = paths.at(i);
+            makeWritable(p);
+            if (!removeTree(p) && QFileInfo::exists(p))
+                failed << QFileInfo(p).fileName();
+            else if (Trash::isTopLevel(p))
+                Trash::forget(p);
+            const double progress = double(i + 1) / double(paths.size());
+            QMetaObject::invokeMethod(this, [this, progress, text] { setProgress(progress, text); }, Qt::QueuedConnection);
+        }
+        const QString error = failed.isEmpty() ? QString()
+                                               : QStringLiteral("Не удалось удалить: %1").arg(failed.join(QStringLiteral(", ")));
+        const bool cancelled = cancel->load();
+        QMetaObject::invokeMethod(this, [this, error, cancelled] { finishJob({}, error, cancelled); }, Qt::QueuedConnection);
+    });
+}
+
+QVariantMap FileOps::trashInfo(const QString &path)
+{
+    const Trash::Info info = Trash::isTopLevel(path) ? Trash::readInfo(path) : Trash::Info{};
+    if (!info.valid())
+        return {};
+    return {{QStringLiteral("origPath"), info.origPath},
+            {QStringLiteral("origDir"), QFileInfo(info.origPath).absolutePath()},
+            {QStringLiteral("deleted"), info.deleted.toString(QStringLiteral("dd.MM.yyyy HH:mm"))}};
 }
 
 QString FileOps::rename(const QString &path, const QString &newName)

@@ -9,7 +9,7 @@ Popup {
     property string icon: ""
 
     function showFor(path, iconName) {
-        info = FileOps.info(path)
+        info = Object.assign(FileOps.info(path), FileOps.trashInfo(path))
         icon = iconName
         open()
     }
@@ -32,7 +32,8 @@ Popup {
 
     readonly property var rows: [
         ["Тип", info.type], ["Размер", info.size], ["Содержимое", info.contents],
-        ["Где", (info.dir || "").replace(/^\/home\/[^/]+/, "~")], ["Ссылка на", info.link],
+        [info.origDir ? "Откуда" : "Где", (info.origDir || info.dir || "").replace(/^\/home\/[^/]+/, "~")],
+        ["Удалён", info.deleted], ["Ссылка на", info.link],
         ["Изменён", info.modified], ["Владелец", info.owner], ["Права", info.permissions]
     ].filter(function (r) { return r[1] })
 
