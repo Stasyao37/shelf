@@ -9,8 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set_property(GLOBAL PROPERTY JOB_POOLS compile=4)
 set(CMAKE_JOB_POOL_COMPILE compile)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent DBus)
-qt_standard_project_setup(REQUIRES 6.5)
+# 6.7 — из-за QStandardPaths::GenericStateLocation (~/.local/state)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent DBus)
+qt_standard_project_setup(REQUIRES 6.7)
 
 qt_add_executable(shelf src/main.cpp)
 

@@ -4,10 +4,10 @@
 
 # Shelf
 
-**Простой файловый менеджер на Qt 6 / QML в стиле стеклянного шелла Quickshell**
+**Простой файловый менеджер на Qt 6 / QML для Hyprland — в стиле стеклянного шелла Quickshell**
 
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
-![Qt 6](https://img.shields.io/badge/Qt-6.5%2B-41CD52?style=for-the-badge&logo=qt&logoColor=white)
+![Qt 6](https://img.shields.io/badge/Qt-6.7%2B-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![QML](https://img.shields.io/badge/QML-Qt%20Quick-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-3.21%2B-064F8C?style=for-the-badge&logo=cmake&logoColor=white)
 ![Ninja](https://img.shields.io/badge/Ninja-build-555555?style=for-the-badge)
@@ -28,25 +28,33 @@
 
 Thunar и Nautilus остаются GNOME-приложениями даже после перекраски GTK-темы. Shelf — отдельное
 приложение (свой процесс, `app_id` и `.desktop`), которое выглядит как остальной рабочий стол:
-берёт палитру и настройки стекла у шелла [Quickshell](https://quickshell.org) и перекрашивается
-вместе с ним при смене обоев, без перезапуска.
+берёт палитру и настройки стекла у шелла [Quickshell](https://quickshell.org) или у
+[matugen](https://github.com/InioX/matugen) и перекрашивается вместе с ними при смене обоев, без
+перезапуска. Без них — встроенная светлая или тёмная тема по системной схеме.
 
 ## 🧩 Возможности
 
 - **Навигация** — сетка и список, история назад/вперёд, хлебные крошки с вводом пути, скрытые файлы
+- **Вкладки** — у каждой своя папка, история и поиск; перетаскиваются мышью, средняя кнопка
+  открывает папку в новой вкладке. После выключения компьютера или сбоя Shelf предложит вернуть вкладки
+- **Перетаскивание** — внутри окна, между вкладками и в другие программы (браузер, мессенджер,
+  терминал) и обратно; подержать файлы над папкой — она откроется
 - **Боковая панель** — XDG-папки, закладки GTK (общие с Thunar и Nautilus), диски и флешки, корзина
 - **Операции** — копирование, перемещение и вставка с прогрессом и отменой, переименование на месте,
-  удаление в корзину, новая папка, окно свойств, «открыть в терминале»
+  удаление в корзину, новая папка, окно свойств, «открыть в терминале», «открыть с помощью»
+  (по `mimeapps.list`, с выбором приложения по умолчанию)
+- **Корзина** — восстановление на прежнее место, удаление навсегда, очистка; в списке видно,
+  откуда и когда удалён файл
 - **Буфер обмена** совместим с GNOME-приложениями (`x-special/gnome-copied-files`)
 - **Поиск** — рекурсивный, в фоновом потоке, результаты приходят по мере нахождения
 - **Миниатюры** картинок, видео, PDF и обложек аудио — из общего кэша `~/.cache/thumbnails`
   (тот же, что у Thunar и Nautilus); недостающие делает [tumbler](https://docs.xfce.org/xfce/tumbler/start) по D-Bus
 - **Стеклянные иконки** — у каждого типа файла своя, папки приоткрываются при наведении,
-  у стандартных папок и архивов — эмблемы из матового стекла
+  у стандартных папок и архивов — эмблемы из матового стекла. Мягкий оттенок из палитры:
+  папки, документы и медиа — каждые своим цветом
 - **Особые папки** — эмблемы у git-репозиториев, `~/Projects`, `.config` и `.local`;
   `node_modules`, `build`, `.cache` и прочие служебные папки приглушены
 - **Значки** — стрелка у ссылок, замок у файлов без доступа или только для чтения
-- **Корзина** в боковой панели показывает, есть ли в ней что-то
 - **Логотипы языков** на файлах кода: Python, C/C++, Rust, Go, JS/TS, Qt/QML и ещё три десятка
 
 ## ⌨️ Горячие клавиши
@@ -65,24 +73,43 @@ Thunar и Nautilus остаются GNOME-приложениями даже по
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> | Новая папка |
 | <kbd>Ctrl</kbd>+<kbd>D</kbd> | В закладки |
 | <kbd>Alt</kbd>+<kbd>Enter</kbd> | Свойства |
-| <kbd>F4</kbd> | Терминал (kitty) в текущей папке |
+| <kbd>F4</kbd> | Терминал в текущей папке |
+| <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> | Новая вкладка / закрыть вкладку |
+| <kbd>Ctrl</kbd>+<kbd>Tab</kbd>, <kbd>Ctrl</kbd>+<kbd>PgDn</kbd> / <kbd>PgUp</kbd> | Следующая / предыдущая вкладка |
+| <kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | Вкладка по номеру (<kbd>9</kbd> — последняя) |
+| <kbd>Ctrl</kbd>+<kbd>,</kbd> | Настройки |
+| <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Закрыть окно |
 | <kbd>F5</kbd>, <kbd>Ctrl</kbd>+<kbd>R</kbd> | Обновить |
 | <kbd>F9</kbd> | Боковая панель |
 | <kbd>Esc</kbd> | Отменить операцию / очистить поиск / снять выделение |
 
 ## 🔧 Сборка и установка
 
-Нужны Qt ≥ 6.5 (Base, Declarative, Svg, DBus), CMake ≥ 3.21, Ninja и компилятор с C++20.
-Для миниатюр — tumbler (`sudo dnf install tumbler`), без него показываются только уже готовые.
+Для сборки нужны Qt ≥ 6.7 (Base, Declarative, Svg), CMake ≥ 3.21, Ninja и компилятор с C++20.
 
 ```sh
 # Fedora
 sudo dnf install qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtsvg cmake ninja-build gcc-c++
+# Arch
+sudo pacman -S qt6-base qt6-declarative qt6-svg cmake ninja
 
 cmake -B build -G Ninja -DCMAKE_INSTALL_PREFIX=~/.local
 cmake --build build
 cmake --install build
 ```
+
+Для работы:
+
+| Что | Зачем | Обязательно |
+|---|---|---|
+| `gio` (glib2), `xdg-utils` | открывать файлы и запускать программы | да |
+| терминал | «Открыть в терминале»: kitty, foot, alacritty, wezterm, ghostty, konsole, gnome-terminal или `xdg-terminal-exec` | желательно |
+| [tumbler](https://docs.xfce.org/xfce/tumbler/start) | миниатюры картинок и PDF; без него — только уже готовые из кэша | нет |
+| `ffmpegthumbnailer` | миниатюры видео (через tumbler) | нет |
+| [matugen](https://github.com/InioX/matugen) | палитра из обоев, если нет Quickshell | нет |
+
+При первом запуске Shelf сам проверит, что есть, и подскажет команды установки для вашего
+дистрибутива. Сам пакеты он не ставит.
 
 Сделать Shelf проводником по умолчанию:
 
@@ -97,27 +124,40 @@ xdg-mime default org.stasyao.shelf.desktop inode/directory
 
 ## 🎨 Тема
 
-Shelf читает два файла шелла и следит за ними:
+Откуда брать цвета — в настройках (<kbd>Ctrl</kbd>+<kbd>,</kbd>) или при первом запуске.
+«Автоматически» берёт первое найденное:
 
-| Файл | Что берётся |
+| Источник | Файл |
 |---|---|
-| `~/.local/state/quickshell/user/generated/qs_theme.json` | палитра, сгенерированная из обоев |
-| `~/.config/quickshell/settings.json` | стекло вкл/выкл, прозрачность |
+| Quickshell | `~/.local/state/quickshell/user/generated/qs_theme.json` |
+| matugen — шаблон Shelf | `~/.local/state/shelf/colors.json` |
+| Material из шелла (формат end-4) | `~/.local/state/quickshell/user/generated/colors.json` |
+| встроенная светлая или тёмная | по `color-scheme` из xdg-desktop-portal |
 
-Фон окна полупрозрачный — размытие делает композитор (в Hyprland — обычный `blur`, отдельные
-правила не нужны).
+Файлы отслеживаются: смена обоев перекрашивает открытое окно сразу.
+
+**Подключить к matugen** можно из первой настройки: Shelf положит свой шаблон в
+`~/.config/shelf/matugen/` и допишет блок `[templates.shelf]` в конец
+`~/.config/matugen/config.toml` (перед этим — копия `config.toml.bak-shelf`). Сам matugen
+Shelf не запускает: цвета появятся при следующей смене обоев.
+
+**Стекло** — как в `~/.config/quickshell/settings.json`, если он есть, иначе включено, когда в
+Hyprland включено размытие. Фон окна полупрозрачный, размывает его композитор (обычный `blur`,
+отдельные правила не нужны). Своё стекло и плотность — в настройках.
 
 ## 🗂️ Структура
 
 ```
-src/            C++: модель папки, файловые операции, места, тема, провайдер иконок
-qml/            интерфейс: окно, боковая панель, сетка/список, иконки, диалоги
+src/            C++: модель папки, файловые операции, места, тема, приложения, корзина,
+                сессия, терминал, проверка окружения
+qml/            интерфейс: окно, вкладки, боковая панель, сетка/список, иконки, диалоги
 icons/          стеклянные SVG-иконки типов файлов
 icons/emblems/  эмблемы стандартных папок и архивов (белые силуэты)
 icons/lang/     логотипы языков программирования
 icons/badges/   значки ссылки и замка
-tools/          gen_icons.py — генератор большей части иконок
-data/           шаблон .desktop-файла
+fonts/          вшитые символы значков интерфейса (из JetBrainsMono Nerd Font)
+tools/          gen_icons.py — генератор иконок, subset_icons.py — сборка шрифта значков
+data/           шаблон .desktop-файла, иконка приложения, шаблон matugen
 ```
 
 ### Как рисуются иконки
@@ -139,3 +179,5 @@ python tools/gen_icons.py icons
 
 - Стиль иконок и часть исходных SVG — [Icons8](https://icons8.com)
 - Логотипы языков — [Simple Icons](https://simpleicons.org) (CC0); чашка Java нарисована отдельно
+- Значки интерфейса — из [JetBrainsMono Nerd Font](https://www.nerdfonts.com) (OFL / MIT),
+  вшиты в программу (`fonts/`)
