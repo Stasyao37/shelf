@@ -84,6 +84,10 @@ qt_add_qml_module(shelf
         src/Environment.h src/Environment.cpp
 )
 
+# QML компилируется только в байт-код, без C++ для привязок (AOT): сгенерированный C++
+# пользуется закрытым API Qt (Qt_6.x_PRIVATE_API) и привязал бы сборку к точной версии Qt —
+# пакет из Fedora 43 (Qt 6.10) не встал бы на Fedora 44 (Qt 6.11)
+set_target_properties(shelf PROPERTIES QT_QMLCACHEGEN_ARGUMENTS "--only-bytecode")
 target_include_directories(shelf PRIVATE src)
 target_compile_definitions(shelf PRIVATE SHELF_VERSION="${PROJECT_VERSION}")
 target_link_libraries(shelf PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Qt6::DBus)
