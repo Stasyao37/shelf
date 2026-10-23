@@ -16,6 +16,8 @@
 #include <QUrl>
 #include <QtConcurrent>
 
+#include <sys/stat.h>
+
 namespace {
 const QString kGnomeCopied = QStringLiteral("x-special/gnome-copied-files");
 const QString kKdeCut = QStringLiteral("application/x-kde-cutselection");
@@ -426,6 +428,43 @@ void FileOps::transfer(const QStringList &sources, const QString &destDir, bool 
         QMetaObject::invokeMethod(this, [this, created, error, cancelled] { finishJob(created, error, cancelled); },
                                   Qt::QueuedConnection);
     });
+}
+
+// text/uri-list: строки через CRLF, как в RFC 2483
+QString FileOps::uriList(const QStringList &paths) const
+{
+    QStringList lines;
+    for (const QString &p : paths)
+        lines << QUrl::fromLocalFile(p).toString(QUrl::FullyEncoded);
+    return lines.join(QStringLiteral("\r\n")) + QStringLiteral("\r\n");
+}
+
+QStringList FileOps::localPaths(const QList<QUrl> &urls) const
+{
+    QStringList res;
+    for (const QUrl &u : urls)
+        if (u.isLocalFile())
+            res << QDir::cleanPath(u.toLocalFile());
+    return res;
+}
+
+bool FileOps::dropMoves(const QStringList &sources, const QString &destDir) const
+{
+    const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
+    if (mods & Qt::ControlModifier)
+        return false;
+    if (mods & Qt::ShiftModifier)
+        return true;
+    struct stat d {};
+    if (sources.isEmpty() || ::stat(QFile::encodeName(destDir).constData(), &d) != 0)
+        return false;
+    for (const QString &s : sources) {
+        struct stat st {};
+        // Ссылку перемещаем как ссылку — смотрим на папку, где она лежит
+        if (::stat(QFile::encodeName(QFileInfo(s).absolutePath()).constData(), &st) != 0 || st.st_dev != d.st_dev)
+            return false;
+    }
+    return true;
 }
 
 void FileOps::cancel()

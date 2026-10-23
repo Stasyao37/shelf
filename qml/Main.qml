@@ -160,6 +160,24 @@ Window {
         FileOps.paste(target)
     }
 
+    // Перетащили файлы: в корзину — убрать, иначе скопировать или переместить
+    function dropFiles(paths, dest, move) {
+        if (dest === Places.trashPath) {
+            paths = paths.filter(function (p) { return !p.startsWith(Places.trashPath + "/") })
+            if (paths.length === 0) return
+            var err = FileOps.trash(paths)
+            if (err) toast(err)
+            else toast("В корзине: " + (paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
+            dir.reload()
+            return
+        }
+        // Из корзины тянуть можно только копией: перемещение потеряло бы запись, откуда файл
+        if (paths.some(function (p) { return p.startsWith(Places.trashPath + "/") })) move = false
+        // Уже лежат здесь — перемещать некуда
+        if (move && paths.every(function (p) { return (p.substring(0, p.lastIndexOf("/")) || "/") === dest })) return
+        FileOps.transfer(paths, dest, move)
+    }
+
     function renameSelected() {
         if (inTrash) return
         var paths = pane.selectedPaths()
@@ -333,6 +351,7 @@ Window {
             Layout.fillHeight: true
             currentPath: dir.searchQuery ? "" : dir.path
             onNavigate: (p) => win.go(p)
+            onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
             onTrashMenu: (x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
                 menu.show(pt.x, pt.y, [
@@ -531,6 +550,8 @@ Window {
                     else win.fileMenu(row, pt.x, pt.y)
                 }
                 onRenameRequested: (p, name) => win.doRename(p, name)
+                onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
+                onSpringOpen: (p) => win.go(p)
                 onTyped: (t) => {
                     searchField.forceActiveFocus()
                     searchField.text += t

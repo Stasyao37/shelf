@@ -3,6 +3,7 @@
 #include <QFuture>
 #include <QObject>
 #include <QStringList>
+#include <QUrl>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
@@ -51,6 +52,11 @@ public:
     Q_INVOKABLE void copyText(const QString &text);
     Q_INVOKABLE void paste(const QString &destDir);
     Q_INVOKABLE void transfer(const QStringList &sources, const QString &destDir, bool move);
+    // Перетаскивание: локальные пути из URL; перемещать или копировать —
+    // Ctrl копирует, Shift перемещает, без клавиш — перемещение в пределах диска
+    Q_INVOKABLE QString uriList(const QStringList &paths) const;
+    Q_INVOKABLE QStringList localPaths(const QList<QUrl> &urls) const;
+    Q_INVOKABLE bool dropMoves(const QStringList &sources, const QString &destDir) const;
     Q_INVOKABLE void cancel();
 
     Q_INVOKABLE QVariantMap info(const QString &path);

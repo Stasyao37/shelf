@@ -25,6 +25,52 @@ FocusScope {
     signal contextMenuRequested(int row, real x, real y)   // row = -1 — пустое место
     signal renameRequested(string path, string newName)
     signal typed(string text)
+    signal filesDropped(var paths, string dest, bool move)
+    signal springOpen(string path)   // держали файлы над папкой — открыть её
+
+    // ── Перетаскивание ───────────────────────────────────────────────
+    property var dragPaths: []
+    property string dropFolder: ""   // папка под курсором, куда упадут файлы
+    readonly property bool dropBlocked: model.path.startsWith(Places.trashPath + "/")
+
+    function startDrag(iconItem) {
+        if (dragPaths.length > 0) return
+        var paths = selectedPaths()
+        if (paths.length === 0) return
+        dragPaths = paths
+        iconItem.grabToImage(function (r) {
+            dragProxy.Drag.imageSource = r.url
+            dragProxy.Drag.hotSpot = Qt.point(iconItem.width / 2, iconItem.height / 2)
+            dragProxy.Drag.mimeData = { "text/uri-list": FileOps.uriList(paths) }
+            // Системный drag: блокирует до отпускания, работает и с другими приложениями
+            dragProxy.Drag.active = true
+            dragProxy.Drag.startDrag()
+            dragProxy.Drag.active = false
+            pane.dragPaths = []
+            pane.dropFolder = ""
+        })
+    }
+    function acceptsDrop(drag, dest) {
+        if (dropBlocked || dest.startsWith(Places.trashPath + "/")) return false
+        var ps = FileOps.localPaths(drag.urls)
+        // Папку в саму себя не бросаем
+        return ps.length > 0 && ps.indexOf(dest) < 0
+    }
+    function handleDrop(drop, dest) {
+        dropFolder = ""
+        var ps = FileOps.localPaths(drop.urls)
+        if (ps.length === 0) return
+        var move = FileOps.dropMoves(ps, dest)
+        drop.accept(move ? Qt.MoveAction : Qt.CopyAction)
+        filesDropped(ps, dest, move)
+    }
+
+    Item {
+        id: dragProxy
+        // None: запускаем сами через startDrag(), без внутреннего (только QML) drag
+        Drag.dragType: Drag.None
+        Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
+    }
 
     // ── Выделение ────────────────────────────────────────────────────
     function isSelected(p) { return selected[p] === true }
@@ -160,6 +206,23 @@ FocusScope {
         }
     }
 
+    // Бросили на пустое место — в открытую папку
+    DropArea {
+        id: bgDrop
+        anchors.fill: view
+        onEntered: (drag) => { drag.accepted = pane.acceptsDrop(drag, pane.model.path) }
+        onDropped: (drop) => pane.handleDrop(drop, pane.model.path)
+    }
+    Rectangle {
+        anchors.fill: view
+        anchors.rightMargin: 6
+        visible: bgDrop.containsDrag && pane.dropFolder === ""
+        color: "transparent"
+        radius: Theme.widgetRadius + 2
+        border.width: 2
+        border.color: Qt.alpha(Theme.accent, 0.6)
+    }
+
     GridView {
         id: view
         anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom }
@@ -255,6 +318,7 @@ FocusScope {
             readonly property bool selected: pane.isSelected(path)
             readonly property bool renaming: pane.renamingPath === path
             readonly property bool searchMode: pane.model.searchQuery.length > 0
+            readonly property bool dropHere: pane.dropFolder === path
 
             width: view.cellWidth
             height: view.cellHeight
@@ -264,10 +328,10 @@ FocusScope {
                 anchors.fill: parent
                 anchors.margins: pane.gridMode ? 3 : 1
                 radius: Theme.widgetRadius
-                color: cell.selected ? Theme.activeFill(Theme.accent)
+                color: cell.selected || cell.dropHere ? Theme.activeFill(Theme.accent)
                      : ma.containsMouse ? Theme.hoverFill : "transparent"
-                border.width: 1
-                border.color: cell.selected
+                border.width: cell.dropHere ? 2 : 1
+                border.color: cell.dropHere ? Theme.accent : cell.selected
                     ? Theme.edge(Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, Theme.activeBorderAlpha))
                     : (view.currentIndex === cell.index && view.activeFocus ? Theme.restBorder : "transparent")
                 Behavior on color { ColorAnimation { duration: 90 } }
@@ -284,7 +348,7 @@ FocusScope {
                     visible: cell.isDir
                     size: iconBox.size
                     iconName: cell.icon
-                    open: ma.containsMouse || cell.selected
+                    open: ma.containsMouse || cell.selected || cell.dropHere
                 }
                 FileIcon {
                     visible: !cell.isDir && !thumb.ready
@@ -379,7 +443,14 @@ FocusScope {
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                onPressed: view.forceActiveFocus()
+                property point pressPos
+                onPressed: (m) => { view.forceActiveFocus(); pressPos = Qt.point(m.x, m.y) }
+                onPositionChanged: (m) => {
+                    if (!(m.buttons & Qt.LeftButton) || cell.renaming || pane.dragPaths.length > 0) return
+                    if (Math.abs(m.x - pressPos.x) + Math.abs(m.y - pressPos.y) < Application.styleHints.startDragDistance) return
+                    if (!cell.selected) pane.selectOnly(cell.index)
+                    pane.startDrag(iconBox)
+                }
                 onClicked: (m) => {
                     if (m.button === Qt.RightButton) {
                         if (!cell.selected) pane.selectOnly(cell.index)
@@ -392,6 +463,23 @@ FocusScope {
                     else pane.selectOnly(cell.index)
                 }
                 onDoubleClicked: (m) => { if (m.button === Qt.LeftButton) pane.activated(cell.index) }
+            }
+
+            // На папку можно бросить файлы; подержать над ней — откроется
+            DropArea {
+                anchors.fill: parent
+                enabled: cell.isDir
+                onEntered: (drag) => {
+                    drag.accepted = pane.acceptsDrop(drag, cell.path)
+                    if (drag.accepted) pane.dropFolder = cell.path
+                }
+                onExited: if (pane.dropFolder === cell.path) pane.dropFolder = ""
+                onDropped: (drop) => pane.handleDrop(drop, cell.path)
+                Timer {
+                    interval: 900
+                    running: cell.dropHere
+                    onTriggered: { pane.dropFolder = ""; pane.springOpen(cell.path) }
+                }
             }
 
             ToolTip {

@@ -10,6 +10,7 @@ Rectangle {
     signal navigate(string path)
     signal bookmarkMenu(string path, real x, real y)
     signal trashMenu(real x, real y)
+    signal filesDropped(var paths, string dest, bool move)
 
     color: Theme.material ? Theme.surface0 : Qt.rgba(0, 0, 0, Theme.light ? 0.04 : 0.14)
 
@@ -28,6 +29,8 @@ Rectangle {
         required property var modelData
         property bool isBookmark: false
         readonly property bool current: side.currentPath === modelData.path
+        readonly property bool isTrash: modelData.path === Places.trashPath
+        property bool dropHere: false
 
         width: column.width
         height: 32
@@ -36,8 +39,10 @@ Rectangle {
             anchors.fill: parent
             anchors.leftMargin: 6; anchors.rightMargin: 6
             radius: Theme.btnRadius(height, false, Theme.widgetRadius)
-            color: item.current ? Theme.activeFill(Theme.accent)
+            color: item.current || item.dropHere ? Theme.activeFill(Theme.accent)
                  : ma.containsMouse ? Theme.hoverFill : "transparent"
+            border.width: item.dropHere ? 2 : 0
+            border.color: Theme.accent
             Behavior on color { ColorAnimation { duration: 90 } }
         }
         // Те же стеклянные иконки, что в сетке: папки — с эмблемами,
@@ -63,7 +68,7 @@ Rectangle {
                 visible: glyph.src === ""
                 anchors.fill: parent
                 size: 22
-                open: ma.containsMouse || item.current
+                open: ma.containsMouse || item.current || item.dropHere
             }
             Image {
                 visible: glyph.src !== "" && !glyph.emblem
@@ -120,6 +125,29 @@ Rectangle {
             color: item.current ? Theme.activeFg(Theme.accent) : Theme.text
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 1
+        }
+        // Бросить файлы в место; на корзину — убрать в корзину. Подержать — открыть
+        DropArea {
+            anchors.fill: parent
+            onEntered: (drag) => {
+                var ps = FileOps.localPaths(drag.urls)
+                drag.accepted = ps.length > 0 && ps.indexOf(item.modelData.path) < 0
+                    && !(item.isTrash && ps.every(function (p) { return p.startsWith(Places.trashPath + "/") }))
+                item.dropHere = drag.accepted
+            }
+            onExited: item.dropHere = false
+            onDropped: (drop) => {
+                item.dropHere = false
+                var ps = FileOps.localPaths(drop.urls)
+                var move = item.isTrash || FileOps.dropMoves(ps, item.modelData.path)
+                drop.accept(move ? Qt.MoveAction : Qt.CopyAction)
+                side.filesDropped(ps, item.modelData.path, move)
+            }
+            Timer {
+                interval: 900
+                running: item.dropHere && !item.isTrash && !item.current
+                onTriggered: side.navigate(item.modelData.path)
+            }
         }
         MouseArea {
             id: ma
