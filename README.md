@@ -102,11 +102,38 @@ Wayland-приложение со своим `app_id` и `.desktop` (его мо
 **Fedora 43 и новее** — готовый пакет на странице [выпусков](https://github.com/Stasyao37/shelf/releases):
 
 ```sh
-sudo dnf install ./shelf-0.1.0-1.fc43.x86_64.rpm
+sudo dnf install ./shelf-0.1.1-1.fc43.x86_64.rpm
 ```
 
-Пакету нужен Qt 6.10 или новее, поэтому он ставится и на следующие выпуски Fedora. На других
-дистрибутивах — сборка из исходников, ниже.
+Пакету нужен Qt 6.10 или новее, поэтому он ставится и на следующие выпуски Fedora.
+
+**Nix / NixOS** — flake в этом репозитории:
+
+```sh
+nix run github:Stasyao37/shelf             # попробовать, ничего не устанавливая
+nix profile install github:Stasyao37/shelf # поставить в профиль
+```
+
+В конфигурации NixOS — через оверлей:
+
+```nix
+# flake.nix системы
+inputs.shelf.url = "github:Stasyao37/shelf";
+# в модуле
+nixpkgs.overlays = [ inputs.shelf.overlays.default ];
+environment.systemPackages = [ pkgs.shelf ];
+```
+
+Для миниатюр на NixOS включите `services.tumbler.enable = true;`.
+
+Nix поверх другого дистрибутива (не NixOS): программам на OpenGL из Nix не видны драйверы
+видеокарты системы, поэтому запускайте через [nixGL](https://github.com/nix-community/nixGL):
+
+```sh
+nix run --impure github:nix-community/nixGL -- nix run github:Stasyao37/shelf
+```
+
+На других дистрибутивах — сборка из исходников, ниже.
 
 ## 🔧 Сборка из исходников
 

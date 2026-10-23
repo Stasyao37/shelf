@@ -16,6 +16,8 @@ GlassDialog {
     // Вариант по умолчанию: как у шелла, если он есть, иначе как в системе
     property string pick: ""
     property bool glass: true
+    // Сделать Shelf проводником по умолчанию — меняет системную настройку, поэтому выключено
+    property bool makeDefault: false
     function defaultPick() {
         if (dlg.available("qs_theme")) return "qs_theme"
         if (dlg.available("material")) return "material"
@@ -33,6 +35,7 @@ GlassDialog {
         var current = ThemeSource.sourceSetting
         pick = current !== "auto" ? current : defaultPick()
         glass = !Theme.material
+        makeDefault = false
     }
 
     function apply() {
@@ -46,6 +49,11 @@ GlassDialog {
         ThemeSource.sourceSetting = id
         // Стекло трогаем, только если выбор отличается от того, что дал шелл / Hyprland
         if (glass === Theme.material) ThemeSource.setGlass(glass)
+        if (makeDefault && !Apps.defaultFileManager && !Apps.makeDefaultFileManager())
+            msg = msg ? msg + "; не удалось сделать Shelf проводником по умолчанию"
+                      : "Не удалось сделать Shelf проводником по умолчанию — нужен xdg-mime (xdg-utils)"
+        else if (makeDefault && !msg)
+            msg = "Shelf теперь проводник по умолчанию"
         close()
         finished(msg)
     }
@@ -261,6 +269,34 @@ GlassDialog {
                         anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                         checked: dlg.glass
                         onToggled: (on) => dlg.glass = on
+                    }
+                }
+
+                // Проводник по умолчанию: папки из других программ и xdg-open откроются в Shelf
+                Item {
+                    width: parent.width
+                    height: 40
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Apps.defaultFileManager ? "Shelf — проводник по умолчанию" : "Сделать Shelf проводником по умолчанию"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Text {
+                        visible: Apps.defaultFileManager
+                        anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                        text: "\u{f00c}"
+                        color: Theme.accent
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.fontSize - 2
+                    }
+                    ToggleSwitch {
+                        visible: !Apps.defaultFileManager
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        checked: dlg.makeDefault
+                        onToggled: (on) => dlg.makeDefault = on
                     }
                 }
             }

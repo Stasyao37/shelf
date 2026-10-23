@@ -246,6 +246,38 @@ GlassDialog {
                     }
                 }
 
+                SectionTitle { text: "ПРОВОДНИК" }
+                Item {
+                    width: parent.width
+                    height: 38
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - (Apps.defaultFileManager ? 40 : 200)
+                        elide: Text.ElideRight
+                        text: Apps.defaultFileManager ? "Shelf — проводник по умолчанию" : "Папки открывает другая программа"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Text {
+                        visible: Apps.defaultFileManager
+                        anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                        text: "\u{f00c}"
+                        color: Theme.accent
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.fontSize - 2
+                    }
+                    TextButton {
+                        visible: !Apps.defaultFileManager
+                        anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                        implicitHeight: 30
+                        text: "Сделать Shelf"
+                        primary: true
+                        onClicked: Apps.makeDefaultFileManager()
+                    }
+                }
+
                 SectionTitle { text: "ТЕРМИНАЛ" }
                 ChoiceRow {
                     label: "Автоматически"

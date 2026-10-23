@@ -58,8 +58,13 @@ def path(g):
     return " ".join(out)
 
 
-def layer(g, fill="fill"):
-    edge = g.difference(g.buffer(-0.5, quad_segs=16))
+def layer(g, fill="fill", outline=None):
+    """outline — фигура, по чьему контуру идёт кромка (по умолчанию сама g): у основы
+    за предметом кромка остаётся только по её внешнему краю, не по вырезу под предмет."""
+    if outline is None:
+        edge = g.difference(g.buffer(-0.5, quad_segs=16))
+    else:
+        edge = outline.difference(outline.buffer(-0.5, quad_segs=16)).intersection(g)
     return (f'\t<path fill="url(#{fill})" fill-rule="evenodd" d="{path(g)}"/>\n'
             f'\t<path fill="url(#edge)" fill-rule="evenodd" d="{path(edge)}"/>\n')
 
@@ -108,6 +113,14 @@ def write(name, comment, layers, viewbox="0 0 24 24"):
     open(f"{OUT}/{name}.svg", "w").write(svg)
 
 
+def behind(base, obj):
+    """Основа за предметом, который стоит перед ней (ключ перед листом, печать на плите):
+    под предметом основы нет, поэтому её край не просвечивает сквозь стекло предмета.
+    Вырез чуть меньше предмета — щели на стыке нет. Кромка — только по краю основы.
+    Сам предмет рисуется плотным стеклом: (obj, "detail")."""
+    return (base.difference(obj.buffer(-0.15, quad_segs=16)), "fill", base)
+
+
 def cut(base, obj, gap=0.6):
     """Отдельный предмет перед основой: в основе вырезается зазор вокруг него."""
     return base.difference(obj.buffer(gap, quad_segs=16))
@@ -121,14 +134,14 @@ trefoil = unary_union([
     circle(12, 15.4, 1.1),
     line([(12, 13.4), (12, 15.4)], 1.3),
 ])
-write("pdf", "PDF: лист с загнутым углом и трилистник", [sheet(), dogear(), trefoil])
+write("pdf", "PDF: лист с загнутым углом и трилистник", [sheet(), (dogear(), "overlay"), (trefoil, "overlay")])
 
 # Таблица: плита, вертикальная и две горизонтальные полосы
 write("spreadsheet", "Таблица: плита с перекрестьем полос", [
     rrect(3, 3, 18, 18, 2.5),
-    unary_union([line([(8.6, 4.6), (8.6, 19.4)], 2.6),
-                 line([(4.6, 9.4), (19.4, 9.4)], 2.6),
-                 line([(4.6, 15.2), (19.4, 15.2)], 2.6)]),
+    (unary_union([line([(8.6, 4.6), (8.6, 19.4)], 2.6),
+                  line([(4.6, 9.4), (19.4, 9.4)], 2.6),
+                  line([(4.6, 15.2), (19.4, 15.2)], 2.6)]), "overlay"),
 ])
 
 # Презентация: доска на ножке с кольцом, диаграмма и две строки
@@ -139,35 +152,35 @@ board = unary_union([rrect(2.5, 3, 19, 14, 2.5),
                      circle(12, 20.6, 1.5).difference(circle(12, 20.6, 0.7))])
 write("presentation", "Презентация: доска на ножке, диаграмма и строки", [
     board,
-    unary_union([pie, slice_, line([(13.6, 8.6), (17.6, 8.6)], 2.0),
-                 line([(13.6, 12.2), (17.6, 12.2)], 2.0)]),
+    (unary_union([pie, slice_, line([(13.6, 8.6), (17.6, 8.6)], 2.0),
+                  line([(13.6, 12.2), (17.6, 12.2)], 2.0)]), "overlay"),
 ])
 
 # Пакет: коробка, светлая крышка с прорезью под ленту, ручка
 crate = rrect(3.5, 3, 17, 18, 3)
 lid = crate.intersection(box(0, 0, 24, 8.6)).difference(box(11, 0, 13, 9))
 write("package", "Установочный пакет: коробка с крышкой и ручкой", [
-    crate, unary_union([lid, line([(11.1, 11.4), (12.9, 11.4)], 1.8)]),
+    crate, (unary_union([lid, line([(11.1, 11.4), (12.9, 11.4)], 1.8)]), "overlay"),
 ])
 
 # Скрипт: плита и знак ⌘
 cmd = unary_union([box(12.2, 7.2, 16.8, 11.8).difference(box(13.4, 8.4, 15.6, 10.6))]
                   + [circle(x, y, 1.45) for x in (11.9, 17.1) for y in (6.9, 12.1)])
-write("script", "Скрипт: плита со знаком ⌘", [rrect(3, 3, 18, 18, 3), cmd])
+write("script", "Скрипт: плита со знаком ⌘", [rrect(3, 3, 18, 18, 3), (cmd, "overlay")])
 
 # Конфиг: лист и гаечный ключ перед ним
 head = circle(19.2, 17.3, 2.5).difference(line([(19.9, 16.6), (23, 13.5)], 1.9))
 wrench = unary_union([head, line([(18.2, 18.3), (15.2, 21.3)], 2.2)])
-write("config", "Конфиг: лист и гаечный ключ", [cut(sheet(), wrench), cut(dogear(), wrench), wrench])
+write("config", "Конфиг: лист и гаечный ключ", [behind(sheet(), wrench), (dogear(), "overlay"), (wrench, "detail")])
 
 # Сертификат: плита со строками и печать с лентами
 seal = unary_union([circle(17.6, 16.6, 3.2),
                     Polygon([(15.6, 18.5), (19.6, 18.5), (19.6, 22.6), (17.6, 21.3), (15.6, 22.6)])])
 write("certificate", "Сертификат: плита со строками и печать", [
-    cut(rrect(2.5, 2.5, 16, 16, 3), seal),
-    cut(unary_union([line([(6.6, 7), (14.4, 7)], 2.0), line([(6.6, 10.6), (14.4, 10.6)], 2.0),
-                     line([(6.6, 14.2), (12.4, 14.2)], 2.0)]), seal),
-    seal,
+    behind(rrect(2.5, 2.5, 16, 16, 3), seal),
+    (unary_union([line([(6.6, 7), (14.4, 7)], 2.0), line([(6.6, 10.6), (14.4, 10.6)], 2.0),
+                  line([(6.6, 14.2), (12.4, 14.2)], 2.0)]), "overlay"),
+    (seal, "detail"),
 ])
 
 # Ключ: головка с отверстием, стержень и две дорожки с контактами
@@ -182,8 +195,8 @@ write("key", "Ключ: головка с отверстием и дорожки
 # HTML: окно браузера — светлая шапка, картинка и строки
 win = rrect(3, 3, 18, 18, 3)
 write("html", "HTML: окно со шапкой, картинкой и строками", [
-    win, unary_union([win.intersection(box(0, 0, 24, 7)), rrect(6, 10.5, 5.6, 5.6, 1.2),
-                      line([(14.6, 11.8), (17.8, 11.8)], 1.8), line([(14.6, 15.0), (17.8, 15.0)], 1.8)]),
+    win, (unary_union([win.intersection(box(0, 0, 24, 7)), rrect(6, 10.5, 5.6, 5.6, 1.2),
+                       line([(14.6, 11.8), (17.8, 11.8)], 1.8), line([(14.6, 15.0), (17.8, 15.0)], 1.8)]), "overlay"),
 ])
 
 
@@ -196,7 +209,7 @@ def bezier(p0, p1, p2, p3, n=24):
 play = Polygon([(9.0, 8.9), (9.0, 15.1), (14.6, 12)]).buffer(0.7, quad_segs=16)
 write("video", "Видео: кадр плёнки с перфорацией и кнопкой воспроизведения", [
     rrect(2.5, 5, 19, 14, 3),
-    unary_union([play] + [circle(x, y, 1.05) for x in (5.6, 18.4) for y in (8.6, 12, 15.4)]),
+    (unary_union([play] + [circle(x, y, 1.05) for x in (5.6, 18.4) for y in (8.6, 12, 15.4)]), "overlay"),
 ])
 
 # Шрифт: рукописная F — дуга сверху, наклонный стержень с хвостом, перекладина
@@ -208,16 +221,17 @@ write("font", "Шрифт: рукописная F", [unary_union([
 
 # Книга: раскрытые страницы на обложке с язычком под корешком
 # Страницы прогибаются к корешку: сверху и снизу — плавная ложбинка
-pages = unary_union([rrect(5.0, 3, 7.4, 15.6, 2.4), rrect(11.6, 3, 7.4, 15.6, 2.4)])
+# Две страницы со швом у корешка: в шов видна обложка, а не тёмный фон
+pages = unary_union([rrect(5.0, 3, 6.75, 15.6, 2.4), rrect(12.25, 3, 6.75, 15.6, 2.4)])
 pages = pages.difference(circle(12, 1.6, 1.9)).difference(circle(12, 20.0, 1.9))
 cover = unary_union([rrect(2.5, 6, 19, 14, 2.5), rrect(9.4, 18.6, 5.2, 2.9, 1.3)])
-write("book", "Книга: раскрытые страницы на обложке", [cut(cover, pages, 0.4), pages])
+write("book", "Книга: раскрытые страницы на обложке", [behind(cover, pages), (pages, "detail")])
 
 # Код: лист и </>
-write("code", "Код: лист с </>", [sheet(), dogear(), unary_union([
+write("code", "Код: лист с </>", [sheet(), (dogear(), "overlay"), (unary_union([
     LineString([(10.1, 12.4), (7.5, 15.1), (10.1, 17.8)]).buffer(0.85, quad_segs=16),
     LineString([(13.9, 12.4), (16.5, 15.1), (13.9, 17.8)]).buffer(0.85, quad_segs=16),
-    line([(12.9, 11.6), (11.1, 18.6)], 1.5)])])
+    line([(12.9, 11.6), (11.1, 18.6)], 1.5)]), "overlay")])
 
 # Исполняемый файл: шестерёнка
 from shapely.affinity import rotate
@@ -227,8 +241,8 @@ write("executable", "Исполняемый файл: шестерёнка", [ge
 
 # Программа Windows: окно с плитками 2×2
 app = rrect(3, 3, 18, 18, 3)
-write("exe", "Программа Windows: окно с плитками 2×2", [app, unary_union(
-    [rrect(x, y, 5.4, 5.4, 1.3) for x in (6.3, 12.3) for y in (6.3, 12.3)])])
+write("exe", "Программа Windows: окно с плитками 2×2", [app, (unary_union(
+    [rrect(x, y, 5.4, 5.4, 1.3) for x in (6.3, 12.3) for y in (6.3, 12.3)]), "overlay")])
 
 
 def write_flat(name, comment, g):

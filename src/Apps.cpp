@@ -378,5 +378,26 @@ bool Apps::setDefault(const QString &appId, const QString &mimeType)
         return false;
     QProcess p;
     p.start(QStringLiteral("xdg-mime"), {QStringLiteral("default"), appId, mimeType});
-    return p.waitForFinished(3000) && p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0;
+    const bool ok = p.waitForFinished(3000) && p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0;
+    if (ok)
+        emit defaultsChanged();
+    return ok;
+}
+
+namespace {
+const QString kShelfDesktop = QStringLiteral("org.stasyao.shelf.desktop");
+const QString kDirectory = QStringLiteral("inode/directory");
+}
+
+bool Apps::defaultFileManager()
+{
+    // Список приложений мог измениться (Shelf только что установили) — сканируем заново
+    m_scannedAt = 0;
+    scan();
+    return defaultFor(kDirectory, readAssociations()) == kShelfDesktop;
+}
+
+bool Apps::makeDefaultFileManager()
+{
+    return setDefault(kShelfDesktop, kDirectory) && defaultFileManager();
 }

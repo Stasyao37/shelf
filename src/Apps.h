@@ -15,6 +15,9 @@ class Apps : public QObject
     QML_ELEMENT
     QML_SINGLETON
 
+    // Shelf открывает папки по умолчанию (inode/directory → org.stasyao.shelf.desktop)
+    Q_PROPERTY(bool defaultFileManager READ defaultFileManager NOTIFY defaultsChanged)
+
 public:
     explicit Apps(QObject *parent = nullptr);
 
@@ -28,6 +31,13 @@ public:
     Q_INVOKABLE bool launch(const QString &appId, const QStringList &paths);
     // Записывает в ~/.config/mimeapps.list, как xdg-mime default
     Q_INVOKABLE bool setDefault(const QString &appId, const QString &mimeType);
+
+    bool defaultFileManager();
+    // Сделать Shelf проводником по умолчанию; true — получилось
+    Q_INVOKABLE bool makeDefaultFileManager();
+
+signals:
+    void defaultsChanged();
 
 private:
     struct App {
