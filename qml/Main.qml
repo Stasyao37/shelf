@@ -345,6 +345,7 @@ Window {
         spacing: 0
 
         Sidebar {
+            id: sidebar
             // В узком тайле боковая панель съедает треть окна — прячем (F9 — вручную)
             visible: win.sidebarShown ?? win.width >= 760
             Layout.preferredWidth: 210
@@ -400,9 +401,10 @@ Window {
 
                 // Поиск по текущей папке и вглубь
                 Rectangle {
-                    // В узком (тайловом) окне поиск уступает место пути
+                    // В узком (тайловом) окне поиск уступает место пути. Ширину считаем от окна:
+                    // от ширины самой панели нельзя — она зависит от этого же поля, и Layout зацикливается
                     Layout.preferredWidth: Math.min(searchField.activeFocus || searchField.text ? 260 : 190,
-                                                    Math.max(120, parent.width * 0.3))
+                                                    Math.max(120, (win.width - (sidebar.visible ? sidebar.width : 0) - 16) * 0.3))
                     Layout.preferredHeight: 32
                     radius: Theme.btnRadius(height, false, Theme.widgetRadius)
                     color: Theme.material ? Theme.surface0 : Theme.ink(0.04)
