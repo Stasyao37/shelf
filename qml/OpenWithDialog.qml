@@ -5,7 +5,7 @@ import QtQuick.Controls.Basic
 import Shelf
 
 // «Открыть с помощью»: подходящие приложения, поиск по всем, «всегда так открывать»
-Popup {
+GlassDialog {
     id: dlg
 
     property var paths: []
@@ -56,22 +56,10 @@ Popup {
     }
     function fileName(p) { return p.substring(p.lastIndexOf("/") + 1) }
 
-    anchors.centerIn: parent
-    modal: true
-    focus: true
     padding: 20
     width: 460
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     onOpened: filter.forceActiveFocus()
-
-    Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.25) }
-
-    background: Rectangle {
-        color: Theme.material ? Theme.surface1 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.97)
-        radius: Theme.widgetRadius + 4
-        border.width: 1
-        border.color: Theme.material ? "transparent" : Theme.glassBorder
-    }
 
     contentItem: Column {
         spacing: 12

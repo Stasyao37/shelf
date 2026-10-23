@@ -101,7 +101,12 @@ Window {
         FolderTab {
             id: t
             anchors.fill: parent
-            visible: win.tab === t
+            // Смена вкладки — короткое перетекание; текущая поверх уходящей
+            readonly property bool shown: win.tab === t
+            opacity: shown ? 1 : 0
+            visible: opacity > 0
+            z: shown ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.dur(140); easing.type: Easing.OutCubic } }
             title: t.dir.searchQuery ? "Поиск «" + t.dir.searchQuery + "»" : win.folderName(t.dir.path)
             onMessage: (m) => win.toast(m)
             Component.onCompleted: {
@@ -168,6 +173,9 @@ Window {
         if (shown) searchField.text = ""
         t.dir.path = p   // перечитывает папку сразу, onReloaded забирает pendingSelect
         if (t.dir.path !== p) { t.pendingSelect = []; return }
+        // Переход: вглубь — содержимое въезжает справа, наверх — слева
+        if (shown && from && p !== from)
+            t.pane.playEnter(p.startsWith(from === "/" ? "/" : from + "/") ? 1 : prefix && from.startsWith(prefix) ? -1 : 0)
         // Та же папка — перечитывания не было
         if (t.pendingSelect.length > 0) { t.pane.selectPaths(t.pendingSelect); t.pendingSelect = [] }
         if (shown) pathBar.editing = false
@@ -497,9 +505,13 @@ Window {
 
         Sidebar {
             id: sidebar
-            // В узком тайле боковая панель съедает треть окна — прячем (F9 — вручную)
-            visible: win.sidebarShown ?? win.width >= 760
-            Layout.preferredWidth: 210
+            // В узком тайле боковая панель съедает треть окна — прячем (F9 — вручную).
+            // Прячется и появляется, плавно меняя ширину
+            readonly property bool shown: win.sidebarShown ?? win.width >= 760
+            Layout.preferredWidth: shown ? 210 : 0
+            Behavior on Layout.preferredWidth { NumberAnimation { duration: Theme.dur(200); easing.type: Easing.OutCubic } }
+            visible: Layout.preferredWidth > 0.5
+            clip: true
             Layout.fillHeight: true
             currentPath: dir.searchQuery ? "" : dir.path
             onNavigate: (p) => win.go(p)
@@ -536,10 +548,16 @@ Window {
                 Layout.fillWidth: true
                 Layout.leftMargin: 6
                 Layout.rightMargin: 6
-                Layout.topMargin: 6
-                Layout.preferredHeight: 34
-                // С одной вкладкой окно выглядит как раньше
-                visible: win.tabs.length > 1
+                // С одной вкладкой окно выглядит как раньше; со второй — полоска выезжает
+                readonly property bool shown: win.tabs.length > 1
+                Layout.topMargin: shown ? 6 : 0
+                Layout.preferredHeight: shown ? 34 : 0
+                Behavior on Layout.preferredHeight { NumberAnimation { duration: Theme.dur(180); easing.type: Easing.OutCubic } }
+                Behavior on Layout.topMargin { NumberAnimation { duration: Theme.dur(180); easing.type: Easing.OutCubic } }
+                opacity: shown ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.dur(180) } }
+                visible: Layout.preferredHeight > 0.5
+                clip: true
                 tabs: win.tabs
                 current: win.current
                 onActivate: (i) => win.switchTo(i)
@@ -659,12 +677,18 @@ Window {
 
             // В корзине: что можно сделать с её содержимым
             Rectangle {
-                visible: win.inTrash
+                // Раскрывается при входе в корзину и сворачивается при выходе
                 Layout.fillWidth: true
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
-                Layout.bottomMargin: 6
-                Layout.preferredHeight: 40
+                Layout.bottomMargin: win.inTrash ? 6 : 0
+                Layout.preferredHeight: win.inTrash ? 40 : 0
+                Behavior on Layout.preferredHeight { NumberAnimation { duration: Theme.dur(180); easing.type: Easing.OutCubic } }
+                Behavior on Layout.bottomMargin { NumberAnimation { duration: Theme.dur(180); easing.type: Easing.OutCubic } }
+                opacity: win.inTrash ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.dur(160) } }
+                visible: Layout.preferredHeight > 0.5
+                clip: true
                 radius: Theme.btnRadius(height, false, Theme.widgetRadius)
                 color: Theme.material ? Theme.surface0 : Theme.ink(0.04)
                 border.width: 1
@@ -726,6 +750,14 @@ Window {
                 Row {
                     id: restoreNotice
                     visible: win.restoreOffer !== null && !FileOps.busy
+                    // Проявляется, чуть выезжая слева
+                    onVisibleChanged: if (visible) noticeIn.restart()
+                    transform: Translate { id: noticeShift }
+                    ParallelAnimation {
+                        id: noticeIn
+                        NumberAnimation { target: restoreNotice; property: "opacity"; from: 0; to: 1; duration: Theme.dur(260); easing.type: Easing.OutCubic }
+                        NumberAnimation { target: noticeShift; property: "x"; from: -14; to: 0; duration: Theme.dur(300); easing.type: Easing.OutCubic }
+                    }
                     anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
                     spacing: 8
                     Text {
@@ -826,7 +858,9 @@ Window {
         border.color: Theme.material ? "transparent" : Theme.glassBorder
         opacity: 0
         visible: opacity > 0
-        Behavior on opacity { NumberAnimation { duration: 180 } }
+        Behavior on opacity { NumberAnimation { duration: Theme.dur(200); easing.type: Easing.OutCubic } }
+        // Поднимается снизу, пока проявляется, и опускается, пока гаснет
+        transform: Translate { y: (1 - toastBox.opacity) * 12 }
         Text {
             id: toastText
             anchors.centerIn: parent

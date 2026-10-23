@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import Shelf
 
-Popup {
+GlassDialog {
     id: dlg
 
     property var info: ({})
@@ -14,21 +14,9 @@ Popup {
         open()
     }
 
-    anchors.centerIn: parent
-    modal: true
-    focus: true
     padding: 20
     width: 440
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.25) }
-
-    background: Rectangle {
-        color: Theme.material ? Theme.surface1 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.97)
-        radius: Theme.widgetRadius + 4
-        border.width: 1
-        border.color: Theme.material ? "transparent" : Theme.glassBorder
-    }
 
     readonly property var rows: [
         ["Тип", info.type], ["Размер", info.size], ["Содержимое", info.contents],

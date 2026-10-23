@@ -38,6 +38,7 @@ set(QML_FILES
     qml/ChoiceRow.qml
     qml/ToggleSwitch.qml
     qml/FirstRun.qml
+    qml/GlassDialog.qml
 )
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Файлы лежат в qml/, но в модуле — в корне: иначе синглтон Theme

@@ -21,8 +21,11 @@ Popup {
         var h = parent ? parent.height : 0
         var mw = implicitWidth, mh = heightOf(list)
         // Не влезает ниже или правее курсора — открываем выше или левее, как в других программах
-        x = px + mw + 4 <= w ? px : Math.max(4, px - mw)
-        y = py + mh + 4 <= h ? py : Math.max(4, py - mh)
+        var left = px + mw + 4 > w, up = py + mh + 4 > h
+        x = left ? Math.max(4, px - mw) : px
+        y = up ? Math.max(4, py - mh) : py
+        // Раскрывается из того угла, где курсор
+        transformOrigin = up ? (left ? Item.BottomRight : Item.BottomLeft) : (left ? Item.TopRight : Item.TopLeft)
         open()
     }
 
@@ -33,10 +36,13 @@ Popup {
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     enter: Transition {
-        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 110 }
-        NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: 110; easing.type: Easing.OutCubic }
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.dur(140); easing.type: Easing.OutCubic }
+        NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: Theme.dur(170); easing.type: Easing.OutCubic }
     }
-    exit: Transition { NumberAnimation { property: "opacity"; to: 0; duration: 90 } }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; to: 0; duration: Theme.dur(100); easing.type: Easing.InCubic }
+        NumberAnimation { property: "scale"; to: 0.96; duration: Theme.dur(100); easing.type: Easing.InCubic }
+    }
 
     background: Rectangle {
         color: Theme.material ? Theme.surface1 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.97)

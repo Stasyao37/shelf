@@ -1,5 +1,6 @@
 pragma Singleton
 
+import QtCore
 import QtQuick
 import Shelf
 
@@ -125,5 +126,16 @@ QtObject {
     // Вшитые в программу (fonts/), вырезаны из тех же JetBrainsMono Nerd Font и Propo
     readonly property string iconFont:   material ? "Shelf Icons Propo" : "Shelf Icons"
     readonly property int    fontSize:   14
-    readonly property int    animDuration: 200
+    readonly property int    animDuration: dur(200)
+
+    // ── Анимации ────────────────────────────────────────────────────
+    // Переключатель в настройках; выключены — все переходы мгновенные.
+    // Корень — QtObject, детей у него нет: Settings хранится в свойстве
+    readonly property Settings _motion: Settings {
+        category: "view"
+        property bool animations: true
+    }
+    readonly property bool animations: _motion.animations
+    function setAnimations(on) { _motion.animations = on }
+    function dur(ms) { return _motion.animations ? ms : 0 }
 }

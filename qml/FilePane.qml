@@ -149,6 +149,27 @@ FocusScope {
     }
     function focusView() { view.forceActiveFocus() }
 
+    // ── Анимации ─────────────────────────────────────────────────────
+    // Переход в другую папку: содержимое проявляется со сдвигом — вглубь справа (dir 1),
+    // наверх слева (-1), без сдвига (0). Пока идёт переход, анимации появления
+    // отдельных файлов выключены, чтобы не двигалось всё сразу
+    property bool navigating: false
+    readonly property bool itemMotion: Theme.animations && !navigating
+    function playEnter(dir) {
+        navigating = true
+        viewShift.x = 18 * dir
+        view.opacity = 0.35
+        enterAnim.restart()
+    }
+    ParallelAnimation {
+        id: enterAnim
+        NumberAnimation { target: view; property: "opacity"; to: 1; duration: Theme.dur(200); easing.type: Easing.OutCubic }
+        NumberAnimation { target: viewShift; property: "x"; to: 0; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+        onFinished: pane.navigating = false
+    }
+    // Сетка ↔ список — то же перетекание без сдвига
+    onGridModeChanged: playEnter(0)
+
     // ── Заголовок колонок (режим списка) ─────────────────────────────
     Item {
         id: header
@@ -226,6 +247,23 @@ FocusScope {
 
     GridView {
         id: view
+        transform: Translate { id: viewShift }
+
+        // Новые файлы проявляются и подрастают, удалённые гаснут, соседи плавно уступают место
+        add: Transition {
+            enabled: pane.itemMotion
+            NumberAnimation { property: "appear"; from: 0; to: 1; duration: Theme.dur(200); easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.86; to: 1; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+        }
+        remove: Transition {
+            enabled: pane.itemMotion
+            NumberAnimation { property: "appear"; to: 0; duration: Theme.dur(160); easing.type: Easing.InCubic }
+            NumberAnimation { property: "scale"; to: 0.86; duration: Theme.dur(160); easing.type: Easing.InCubic }
+        }
+        displaced: Transition {
+            enabled: pane.itemMotion
+            NumberAnimation { properties: "x,y"; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+        }
         anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom }
         anchors.leftMargin: 8
         clip: true
@@ -323,7 +361,11 @@ FocusScope {
 
             width: view.cellWidth
             height: view.cellHeight
-            opacity: isHidden ? 0.6 : 1.0
+            // appear — для анимаций появления и удаления; у скрытых файлов своя полупрозрачность
+            property real appear: 1
+            opacity: (isHidden ? 0.6 : 1.0) * appear
+            // Делегаты переиспользуются: возвращаем то, что могла оставить анимация удаления
+            GridView.onReused: { appear = 1; scale = 1 }
 
             Rectangle {
                 anchors.fill: parent

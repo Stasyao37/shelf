@@ -8,7 +8,7 @@ import Shelf
 // Показывается один раз ([setup] done в shelf.conf); заново — из настроек.
 // Пакеты не ставит и matugen не запускает — только подсказывает и, по выбору,
 // дописывает свой шаблон в config.toml (с резервной копией).
-Popup {
+GlassDialog {
     id: dlg
 
     signal finished(string message)
@@ -50,23 +50,13 @@ Popup {
         finished(msg)
     }
 
-    anchors.centerIn: parent
-    modal: true
-    focus: true
     padding: 0
     width: 540
     height: Math.min(content.implicitHeight + 90, parent ? parent.height - 48 : 640)
     // Закрыть мимо нельзя — только «Пропустить» или «Готово», чтобы выбор не потерялся
     closePolicy: Popup.CloseOnEscape
 
-    Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.35) }
-
-    background: Rectangle {
-        color: Theme.material ? Theme.surface1 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.97)
-        radius: Theme.widgetRadius + 4
-        border.width: 1
-        border.color: Theme.material ? "transparent" : Theme.glassBorder
-    }
+    shade: 0.35
 
     component SectionTitle: Text {
         topPadding: 12

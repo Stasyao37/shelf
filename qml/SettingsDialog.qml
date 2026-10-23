@@ -6,27 +6,15 @@ import Shelf
 
 // Настройки Shelf: откуда цвета, стекло, оттенок иконок, терминал.
 // Всё применяется сразу и хранится в ~/.config/shelf/shelf.conf
-Popup {
+GlassDialog {
     id: dlg
 
     signal firstRunRequested()
 
-    anchors.centerIn: parent
-    modal: true
-    focus: true
     padding: 0
     width: 500
     height: Math.min(content.implicitHeight + 90, parent ? parent.height - 48 : 600)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.25) }
-
-    background: Rectangle {
-        color: Theme.material ? Theme.surface1 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.97)
-        radius: Theme.widgetRadius + 4
-        border.width: 1
-        border.color: Theme.material ? "transparent" : Theme.glassBorder
-    }
 
     // ── Мелкие контролы ─────────────────────────────────────────────
     component SectionTitle: Text {
@@ -215,6 +203,33 @@ Popup {
                         color: Theme.subtext0
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 3
+                    }
+                }
+
+                SectionTitle { text: "ИНТЕРФЕЙС" }
+                Item {
+                    width: parent.width
+                    height: 34
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Анимации"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Text {
+                        anchors { right: animToggle.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        text: "переходы, окна, появление файлов"
+                        color: Theme.overlay1
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 4
+                    }
+                    ToggleSwitch {
+                        id: animToggle
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        checked: Theme.animations
+                        onToggled: (on) => Theme.setAnimations(on)
                     }
                 }
 
