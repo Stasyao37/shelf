@@ -1,5 +1,7 @@
 #include "Apps.h"
 
+#include "Terminal.h"
+
 #include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
@@ -293,9 +295,11 @@ bool Apps::launch(const QString &appId, const QStringList &paths)
     const App &a = m_apps.at(i);
     if (!a.terminal)
         return QProcess::startDetached(QStringLiteral("gio"), QStringList{QStringLiteral("launch"), a.file} + paths);
+    // Консольная программа открывается в папке первого файла, как в Thunar
+    const QString dir = paths.isEmpty() ? QString() : QFileInfo(paths.first()).absolutePath();
     bool ok = true;
     for (const QStringList &cmd : commandLines(a, paths))
-        ok = QProcess::startDetached(QStringLiteral("kitty"), QStringList{QStringLiteral("--")} + cmd) && ok;
+        ok = Terminal::run(cmd, dir) && ok;
     return ok;
 }
 

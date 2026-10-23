@@ -8,7 +8,7 @@
 
 // Приложения из .desktop-файлов и связи «тип файла → приложение» из mimeapps.list —
 // для «Открыть с помощью». Запуск через gio launch, как у Thunar и Nautilus;
-// консольные (Terminal=true) — сами в kitty: gio про kitty не знает.
+// консольные (Terminal=true) — сами, через Terminal: gio знает не все терминалы.
 class Apps : public QObject
 {
     Q_OBJECT

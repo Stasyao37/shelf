@@ -73,6 +73,7 @@ qt_add_qml_module(shelf
         src/Apps.h src/Apps.cpp
         src/Trash.h src/Trash.cpp
         src/Session.h src/Session.cpp
+        src/Terminal.h src/Terminal.cpp
 )
 
 target_include_directories(shelf PRIVATE src)

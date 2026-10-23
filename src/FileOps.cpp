@@ -1,6 +1,7 @@
 #include "FileOps.h"
 
 #include "FileEntry.h"
+#include "Terminal.h"
 #include "Trash.h"
 
 #include <QClipboard>
@@ -165,7 +166,8 @@ void FileOps::open(const QString &path)
 
 void FileOps::openTerminal(const QString &dir)
 {
-    QProcess::startDetached(QStringLiteral("kitty"), {QStringLiteral("--directory"), dir});
+    if (!Terminal::openIn(dir))
+        emit failed(QStringLiteral("Не найден терминал — укажите его в настройках"));
 }
 
 QString FileOps::trash(const QStringList &paths)
