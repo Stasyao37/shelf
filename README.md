@@ -1,6 +1,11 @@
 <div align="center">
 
-# 📚 Shelf
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="icons/shelf.svg">
+  <img src="docs/shelf-light.svg" alt="" width="112">
+</picture>
+
+# Shelf
 
 **Простой файловый менеджер на Qt 6 / QML в стиле стеклянного шелла Quickshell**
 

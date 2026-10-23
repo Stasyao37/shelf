@@ -323,3 +323,16 @@ def write_app(path_out, layers):
 
 
 write_app(f"{OUT}/../data/org.stasyao.shelf.svg", shelf_glyph)
+
+
+def write_tinted(path_out, layers, color):
+    """Тот же значок другой «краской» — для светлого фона (README на светлой теме GitHub)."""
+    body = "".join(layer(l[0] if isinstance(l, tuple) else l) for l in layers)
+    svg = (f'<?xml version="1.0" encoding="UTF-8"?>\n<!-- Shelf для светлого фона: стекло краской {color}\n'
+           f'     Сгенерировано tools/gen_icons.py -->\n'
+           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48px" height="48px">\n'
+           f'{DEFS.replace("#FFFFFF", color)}\n{body}</svg>\n')
+    open(path_out, "w").write(svg)
+
+
+write_tinted(f"{OUT}/../docs/shelf-light.svg", shelf_glyph, "#1B2468")
