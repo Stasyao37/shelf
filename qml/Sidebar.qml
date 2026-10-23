@@ -11,6 +11,7 @@ Rectangle {
     signal bookmarkMenu(string path, real x, real y)
     signal trashMenu(real x, real y)
     signal filesDropped(var paths, string dest, bool move)
+    signal openInNewTab(string path)
 
     color: Theme.material ? Theme.surface0 : Qt.rgba(0, 0, 0, Theme.light ? 0.04 : 0.14)
 
@@ -154,8 +155,12 @@ Rectangle {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
             onClicked: (m) => {
+                if (m.button === Qt.MiddleButton) {
+                    side.openInNewTab(item.modelData.path)
+                    return
+                }
                 if (m.button === Qt.RightButton) {
                     var p = mapToItem(side, m.x, m.y)
                     if (item.isBookmark)

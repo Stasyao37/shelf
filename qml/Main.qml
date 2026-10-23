@@ -19,42 +19,122 @@ Window {
     color: "transparent"
     title: (dir.searchQuery ? "Поиск «" + dir.searchQuery + "»" : folderName(dir.path)) + " — Shelf"
 
-    property var history: []
-    property int histIndex: -1
-    property var pendingSelect: []
     // undefined — по ширине окна; F9 закрепляет выбор до конца сеанса
     property var sidebarShown: undefined
-    property int pendingRow: -1
+
+    // Вкладки (FolderTab) в порядке полоски; dir и pane — текущей вкладки
+    property var tabs: []
+    property int current: 0
+    readonly property FolderTab tab: tabs[current] ?? null
+    readonly property DirModel dir: tab ? tab.dir : stubDir
+    readonly property FilePane pane: tab ? tab.pane : stubPane
+
+    // Вид общий для всех вкладок и запоминается между запусками
+    property bool gridMode: true
+    property bool showHidden: false
+    property string sortKey: "name"
+    property bool sortDesc: false
+    onGridModeChanged: tabs.forEach(function (t) { t.pane.gridMode = gridMode })
+    onShowHiddenChanged: tabs.forEach(function (t) { t.dir.showHidden = showHidden })
+    onSortKeyChanged: tabs.forEach(function (t) { t.dir.sortKey = sortKey })
+    onSortDescChanged: tabs.forEach(function (t) { t.dir.sortDesc = sortDesc })
 
     Settings {
         category: "view"
-        property alias gridMode: pane.gridMode
-        property alias showHidden: dir.showHidden
-        property alias sortKey: dir.sortKey
-        property alias sortDesc: dir.sortDesc
+        property alias gridMode: win.gridMode
+        property alias showHidden: win.showHidden
+        property alias sortKey: win.sortKey
+        property alias sortDesc: win.sortDesc
     }
 
-    DirModel {
-        id: dir
-        onReloaded: {
-            if (win.pendingSelect.length > 0) {
-                pane.selectPaths(win.pendingSelect)
-                win.pendingSelect = []
-            } else if (win.pendingRow >= 0) {
-                pane.selectRow(win.pendingRow)
-                win.pendingRow = -1
-            } else {
-                pane.prune()
+    // ── Сессия ───────────────────────────────────────────────────────
+    // Вкладки пишутся на диск на случай выключения или падения; при обычном
+    // закрытии файл удаляется. Осиротевшую сессию предлагаем вернуть внизу слева
+    property var restoreOffer: null
+    function saveSession() { sessionSave.restart() }
+    Timer {
+        id: sessionSave
+        interval: 400
+        onTriggered: Session.save(win.tabs.map(function (t) { return t.dir.path }), win.current)
+    }
+    onTabsChanged: saveSession()
+    onCurrentChanged: saveSession()
+    onClosing: {
+        sessionSave.stop()
+        Session.clear()
+    }
+    function tabsWord(n) {
+        return n + " " + (n % 10 === 1 && n % 100 !== 11 ? "вкладку"
+            : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "вкладки" : "вкладок")
+    }
+    function restoreTabs() {
+        var o = restoreOffer
+        restoreOffer = null
+        if (!o) return
+        // Нетронутую стартовую вкладку заменяем, иначе добавляем к открытым
+        var old = tabs.length === 1 && tab.history.length <= 1 ? tabs[0] : null
+        var list = old ? [] : tabs.slice()
+        var base = list.length
+        o.paths.forEach(function (p) {
+            var t = tabComponent.createObject(tabStack)
+            list.push(t)
+            go(p, true, t)
+        })
+        tabs = list
+        switchTo(base + o.current)
+        if (old) old.destroy()
+    }
+
+    // Заглушки на время до первой вкладки: привязкам к dir и pane не нужен null
+    DirModel { id: stubDir }
+    FilePane { id: stubPane; visible: false; model: stubDir }
+
+    Component {
+        id: tabComponent
+        FolderTab {
+            id: t
+            anchors.fill: parent
+            visible: win.tab === t
+            title: t.dir.searchQuery ? "Поиск «" + t.dir.searchQuery + "»" : win.folderName(t.dir.path)
+            onMessage: (m) => win.toast(m)
+            Component.onCompleted: {
+                t.pane.gridMode = win.gridMode
+                t.dir.showHidden = win.showHidden
+                t.dir.sortKey = win.sortKey
+                t.dir.sortDesc = win.sortDesc
+            }
+            // Сортировку меняют и щелчком по заголовку колонки — запоминаем для всех вкладок
+            Connections {
+                target: t.dir
+                function onSortChanged() { win.sortKey = t.dir.sortKey; win.sortDesc = t.dir.sortDesc }
+                function onPathChanged() { win.saveSession() }
+            }
+            Connections {
+                target: t.pane
+                function onActivated(row) { win.openRow(row) }
+                function onContextMenuRequested(row, x, y) {
+                    var pt = t.pane.mapToItem(win.contentItem, x, y)
+                    if (row < 0) win.folderMenu(pt.x, pt.y)
+                    else win.fileMenu(row, pt.x, pt.y)
+                }
+                function onRenameRequested(p, name) { win.doRename(p, name) }
+                function onFilesDropped(paths, dest, move) { win.dropFiles(paths, dest, move) }
+                function onSpringOpen(p) { win.go(p) }
+                function onOpenInNewTab(p) { win.newTab(p, false) }
+                function onTyped(text) {
+                    searchField.forceActiveFocus()
+                    searchField.text += text
+                }
             }
         }
-        onErrorChanged: if (error) win.toast(error)
     }
 
     Connections {
         target: FileOps
         function onFailed(message) { win.toast(message) }
         function onFinished(newPaths) {
-            win.pendingSelect = newPaths
+            if (!win.tab) return
+            win.tab.pendingSelect = newPaths
             dir.reload()
         }
     }
@@ -62,38 +142,83 @@ Window {
     // ── Навигация ────────────────────────────────────────────────────
     function folderName(p) {
         if (p === Places.places[0].path) return "Домашняя"
+        if (p === Places.trashPath) return "Корзина"
         if (p === "/") return "/"
         return p.substring(p.lastIndexOf("/") + 1)
     }
-    function go(path, record) {
-        var p = dir.expandPath(path)
-        var from = dir.path
+    // target — вкладка, по умолчанию текущая (фоновая — при открытии в новой вкладке)
+    function go(path, record, target) {
+        var t = target || tab
+        var shown = t === tab
+        var p = t.dir.expandPath(path)
+        var from = t.dir.path
         // Поднялись выше — выделяем папку, из которой пришли
         var prefix = p === "/" ? "/" : p + "/"
         if (from.startsWith(prefix)) {
             var next = from.indexOf("/", prefix.length)
-            win.pendingSelect = [next > 0 ? from.substring(0, next) : from]
+            t.pendingSelect = [next > 0 ? from.substring(0, next) : from]
         }
-        searchField.text = ""
-        dir.path = p   // перечитывает папку сразу, onReloaded забирает pendingSelect
-        if (dir.path !== p) { win.pendingSelect = []; return }
+        if (shown) searchField.text = ""
+        t.dir.path = p   // перечитывает папку сразу, onReloaded забирает pendingSelect
+        if (t.dir.path !== p) { t.pendingSelect = []; return }
         // Та же папка — перечитывания не было
-        if (win.pendingSelect.length > 0) { pane.selectPaths(win.pendingSelect); win.pendingSelect = [] }
-        pathBar.editing = false
-        pane.renamingPath = ""
-        if (record !== false && history[histIndex] !== p) {
-            history = history.slice(0, histIndex + 1).concat([p])
-            histIndex = history.length - 1
+        if (t.pendingSelect.length > 0) { t.pane.selectPaths(t.pendingSelect); t.pendingSelect = [] }
+        if (shown) pathBar.editing = false
+        t.pane.renamingPath = ""
+        if (record !== false && t.history[t.histIndex] !== p) {
+            t.history = t.history.slice(0, t.histIndex + 1).concat([p])
+            t.histIndex = t.history.length - 1
         }
-        if (pane.selectedCount === 0) pane.selectRow(0)
-        pane.focusView()
+        if (t.pane.selectedCount === 0) t.pane.selectRow(0)
+        if (shown) t.pane.focusView()
     }
-    function back()    { if (histIndex > 0) { histIndex--; go(history[histIndex], false) } }
-    function forward() { if (histIndex < history.length - 1) { histIndex++; go(history[histIndex], false) } }
+    function back()    { if (tab.histIndex > 0) { tab.histIndex--; go(tab.history[tab.histIndex], false) } }
+    function forward() { if (tab.histIndex < tab.history.length - 1) { tab.histIndex++; go(tab.history[tab.histIndex], false) } }
     function up() {
         if (dir.searchQuery) { searchField.text = ""; return }
         if (dir.path !== "/") go(dir.path.substring(0, dir.path.lastIndexOf("/")) || "/")
     }
+
+    // ── Вкладки ──────────────────────────────────────────────────────
+    // Новая встаёт справа от текущей, как в браузере; activate=false — в фоне
+    function newTab(path, activate) {
+        var t = tabComponent.createObject(tabStack)
+        var at = tabs.length === 0 ? 0 : current + 1
+        var list = tabs.slice()
+        list.splice(at, 0, t)
+        tabs = list
+        go(path, true, t)
+        if (activate) switchTo(at)
+        return t
+    }
+    function switchTo(i) {
+        if (i < 0 || i >= tabs.length) return
+        searchDebounce.stop()
+        pathBar.editing = false
+        current = i
+        // У поля поиска одно на окно — показываем запрос этой вкладки
+        searchField.text = dir.searchQuery
+        searchDebounce.stop()
+        pane.focusView()
+    }
+    function closeTab(i) {
+        if (tabs.length <= 1) { win.close(); return }
+        var closing = tabs[i]
+        var list = tabs.slice()
+        list.splice(i, 1)
+        var next = i < current ? current - 1 : Math.min(current, list.length - 1)
+        tabs = list
+        switchTo(next)
+        closing.destroy()
+    }
+    function moveTab(from, to) {
+        var cur = tabs[current]
+        var list = tabs.slice()
+        list.splice(to, 0, list.splice(from, 1)[0])
+        tabs = list
+        current = list.indexOf(cur)
+    }
+    function cycleTab(step) { switchTo((current + step + tabs.length) % tabs.length) }
 
     // ── Действия ─────────────────────────────────────────────────────
     readonly property bool inTrash: dir.path === Places.trashPath || dir.path.startsWith(Places.trashPath + "/")
@@ -115,7 +240,7 @@ Window {
         var paths = pane.selectedPaths()
         if (paths.length === 0) return
         if (inTrash) { deleteForever(paths); return }
-        win.pendingRow = dir.indexOfPath(paths[0])
+        tab.pendingRow = dir.indexOfPath(paths[0])
         var err = FileOps.trash(paths)
         if (err) toast(err)
         else toast(paths.length === 1 ? "В корзине: " + folderName(paths[0]) : "В корзине: " + paths.length + " объектов")
@@ -126,14 +251,14 @@ Window {
         confirm.ask(paths.length === 1 ? "Удалить «" + folderName(paths[0]) + "» навсегда?"
                                        : "Удалить навсегда " + many(paths.length) + "?",
                     "Это действие нельзя отменить.", "Удалить", function () {
-            win.pendingRow = dir.indexOfPath(paths[0])
+            tab.pendingRow = dir.indexOfPath(paths[0])
             FileOps.deleteForever(paths)
         })
     }
     function restoreSelected() {
         var paths = pane.selectedPaths()
         if (paths.length === 0 || !dir.trashRoot) return
-        win.pendingRow = dir.indexOfPath(paths[0])
+        tab.pendingRow = dir.indexOfPath(paths[0])
         var res = FileOps.restore(paths)
         if (res.error) toast(res.error)
         else if (res.paths.length === 1) {
@@ -187,7 +312,7 @@ Window {
         pane.renamingPath = ""
         var err = FileOps.rename(path, newName)
         if (err) { toast(err); pane.focusView(); return }
-        win.pendingSelect = [path.substring(0, path.lastIndexOf("/") + 1) + newName.trim()]
+        tab.pendingSelect = [path.substring(0, path.lastIndexOf("/") + 1) + newName.trim()]
         dir.reload()
         pane.focusView()
     }
@@ -196,7 +321,7 @@ Window {
         if (dir.searchQuery) searchField.text = ""
         var p = FileOps.makeDir(dir.path, "Новая папка")
         if (!p) { toast("Не удалось создать папку"); return }
-        win.pendingSelect = [p]
+        tab.pendingSelect = [p]
         dir.reload()
         pane.renamingPath = p
     }
@@ -246,9 +371,10 @@ Window {
         if (dir.searchQuery)
             items.push({ text: "Показать в папке", icon: "\u{f07b}", enabled: single, act: function () {
                 var parent = p.substring(0, p.lastIndexOf("/")) || "/"
-                go(parent); win.pendingSelect = [p]; dir.reload()
+                go(parent); tab.pendingSelect = [p]; dir.reload()
             } })
         if (isDir) {
+            items.push({ text: "Открыть в новой вкладке", icon: "\u{f0db}", act: function () { newTab(p, true) } })
             items.push({ text: "Открыть в терминале", icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } })
         }
         items.push({ separator: true })
@@ -271,8 +397,8 @@ Window {
     function folderMenu(x, y) {
         function sortItem(label, key) {
             return { text: label, checked: dir.sortKey === key, act: function () {
-                if (dir.sortKey === key) dir.sortDesc = !dir.sortDesc
-                else { dir.sortKey = key; dir.sortDesc = false }
+                if (win.sortKey === key) win.sortDesc = !win.sortDesc
+                else { win.sortKey = key; win.sortDesc = false }
             } }
         }
         var top = inTrash ? [
@@ -289,7 +415,7 @@ Window {
             sortItem("По имени", "name"), sortItem("По дате", "date"), sortItem("По размеру", "size"), sortItem("По типу", "type"),
             { separator: true },
             { text: "Скрытые файлы", checked: dir.showHidden, icon: "\u{f070}", shortcut: "Ctrl+H",
-              act: function () { dir.showHidden = !dir.showHidden } },
+              act: function () { win.showHidden = !win.showHidden } },
             { text: Places.isBookmarked(dir.path) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}", shortcut: "Ctrl+D",
               act: function () { toggleBookmark(dir.path) } },
             { text: "Свойства папки", icon: "\u{f05a}", act: function () { props.showFor(dir.path, "folder") } },
@@ -308,10 +434,10 @@ Window {
     Shortcut { sequences: ["Alt+Up", "Backspace"]; onActivated: win.up() }
     Shortcut { sequence: "Ctrl+L"; onActivated: pathBar.startEdit() }
     Shortcut { sequences: ["Ctrl+F", "/"]; onActivated: { searchField.forceActiveFocus(); searchField.selectAll() } }
-    Shortcut { sequence: "Ctrl+H"; onActivated: dir.showHidden = !dir.showHidden }
+    Shortcut { sequence: "Ctrl+H"; onActivated: win.showHidden = !win.showHidden }
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: dir.reload() }
-    Shortcut { sequence: "Ctrl+1"; onActivated: pane.gridMode = true }
-    Shortcut { sequence: "Ctrl+2"; onActivated: pane.gridMode = false }
+    Shortcut { sequence: "Ctrl+1"; onActivated: win.gridMode = true }
+    Shortcut { sequence: "Ctrl+2"; onActivated: win.gridMode = false }
     Shortcut { sequence: "F2"; onActivated: win.renameSelected() }
     Shortcut { sequence: "Delete"; onActivated: win.trashSelected() }
     Shortcut { sequence: StandardKey.Copy; onActivated: win.copySelected(false) }
@@ -323,7 +449,22 @@ Window {
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: win.showProperties() }
     Shortcut { sequence: "F9"; onActivated: win.sidebarShown = !(win.sidebarShown ?? win.width >= 760) }
     Shortcut { sequence: "F4"; onActivated: FileOps.openTerminal(dir.path) }
-    Shortcut { sequences: ["Ctrl+W", "Ctrl+Q"]; onActivated: win.close() }
+    Shortcut { sequence: "Ctrl+T"; onActivated: win.newTab(dir.path, true) }
+    Shortcut { sequence: "Ctrl+W"; onActivated: win.closeTab(win.current) }
+    Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: win.cycleTab(1) }
+    Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+PgUp"]; onActivated: win.cycleTab(-1) }
+    // Alt+1…8 — вкладка по номеру, Alt+9 — последняя
+    Repeater {
+        model: 9
+        Item {
+            required property int index
+            Shortcut {
+                sequence: "Alt+" + (index + 1)
+                onActivated: win.switchTo(index === 8 ? win.tabs.length - 1 : index)
+            }
+        }
+    }
     Shortcut {
         sequence: "Escape"
         onActivated: {
@@ -352,6 +493,7 @@ Window {
             Layout.fillHeight: true
             currentPath: dir.searchQuery ? "" : dir.path
             onNavigate: (p) => win.go(p)
+            onOpenInNewTab: (p) => win.newTab(p, false)
             onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
             onTrashMenu: (x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
@@ -365,6 +507,7 @@ Window {
                 var pt = mapToItem(win.contentItem, x, y)
                 menu.show(pt.x, pt.y, [
                     { text: "Открыть", icon: "\u{f07c}", act: function () { win.go(p) } },
+                    { text: "Открыть в новой вкладке", icon: "\u{f0db}", act: function () { win.newTab(p, true) } },
                     { text: "Открыть в терминале", icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } },
                     { separator: true },
                     { text: "Убрать из закладок", icon: "\u{f02e}", danger: true, act: function () { Places.removeBookmark(p) } },
@@ -378,6 +521,23 @@ Window {
             Layout.minimumWidth: 0
             spacing: 0
 
+            TabStrip {
+                Layout.fillWidth: true
+                Layout.leftMargin: 6
+                Layout.rightMargin: 6
+                Layout.topMargin: 6
+                Layout.preferredHeight: 34
+                // С одной вкладкой окно выглядит как раньше
+                visible: win.tabs.length > 1
+                tabs: win.tabs
+                current: win.current
+                onActivate: (i) => win.switchTo(i)
+                onCloseTab: (i) => win.closeTab(i)
+                onMoveTab: (from, to) => win.moveTab(from, to)
+                onNewTab: win.newTab(win.dir.path, true)
+                onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
+            }
+
             // Панель: назад/вперёд/вверх | путь | поиск | вид
             RowLayout {
                 Layout.fillWidth: true
@@ -385,8 +545,8 @@ Window {
                 Layout.margins: 8
                 spacing: 4
 
-                GlassButton { text: "\u{f060}"; tooltip: "Назад (Alt+←)"; enabled: win.histIndex > 0; onClicked: win.back() }
-                GlassButton { text: "\u{f061}"; tooltip: "Вперёд (Alt+→)"; enabled: win.histIndex < win.history.length - 1; onClicked: win.forward() }
+                GlassButton { text: "\u{f060}"; tooltip: "Назад (Alt+←)"; enabled: (win.tab?.histIndex ?? 0) > 0; onClicked: win.back() }
+                GlassButton { text: "\u{f061}"; tooltip: "Вперёд (Alt+→)"; enabled: win.tab ? win.tab.histIndex < win.tab.history.length - 1 : false; onClicked: win.forward() }
                 GlassButton { text: "\u{f062}"; tooltip: "Вверх (Alt+↑)"; enabled: dir.path !== "/"; onClicked: win.up() }
 
                 PathBar {
@@ -476,13 +636,13 @@ Window {
                     Layout.leftMargin: 4
                     text: pane.gridMode ? "\u{f03a}" : "\u{f00a}"
                     tooltip: pane.gridMode ? "Списком (Ctrl+2)" : "Значками (Ctrl+1)"
-                    onClicked: pane.gridMode = !pane.gridMode
+                    onClicked: win.gridMode = !win.gridMode
                 }
                 GlassButton {
                     text: dir.showHidden ? "\u{f06e}" : "\u{f070}"
                     active: dir.showHidden
                     tooltip: "Скрытые файлы (Ctrl+H)"
-                    onClicked: dir.showHidden = !dir.showHidden
+                    onClicked: win.showHidden = !win.showHidden
                 }
             }
 
@@ -539,25 +699,11 @@ Window {
                 }
             }
 
-            FilePane {
-                id: pane
+            // Сюда tabComponent кладёт вкладки; видна только текущая
+            Item {
+                id: tabStack
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                model: dir
-                focus: true
-                onActivated: (row) => win.openRow(row)
-                onContextMenuRequested: (row, x, y) => {
-                    var pt = mapToItem(win.contentItem, x, y)
-                    if (row < 0) win.folderMenu(pt.x, pt.y)
-                    else win.fileMenu(row, pt.x, pt.y)
-                }
-                onRenameRequested: (p, name) => win.doRename(p, name)
-                onFilesDropped: (paths, dest, move) => win.dropFiles(paths, dest, move)
-                onSpringOpen: (p) => win.go(p)
-                onTyped: (t) => {
-                    searchField.forceActiveFocus()
-                    searchField.text += t
-                }
             }
 
             // Строка состояния / прогресс операции
@@ -565,8 +711,44 @@ Window {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
 
+                // Предложение вернуть вкладки после аварийного закрытия
+                Row {
+                    id: restoreNotice
+                    visible: win.restoreOffer !== null && !FileOps.busy
+                    anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                    spacing: 8
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "\u{f1da}"
+                        color: Theme.accent
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.fontSize - 3
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: win.restoreOffer ? "Shelf закрылся неожиданно — вернуть " + win.tabsWord(win.restoreOffer.paths.length) + "?" : ""
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 3
+                    }
+                    TextButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitHeight: 24
+                        text: "Восстановить"
+                        primary: true
+                        onClicked: win.restoreTabs()
+                    }
+                    GlassButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitHeight: 24; implicitWidth: 26
+                        text: "\u{f00d}"
+                        iconSize: Theme.fontSize - 3
+                        tooltip: "Не восстанавливать"
+                        onClicked: win.restoreOffer = null
+                    }
+                }
                 Text {
-                    visible: !FileOps.busy
+                    visible: !FileOps.busy && !restoreNotice.visible
                     anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
                     readonly property var sel: pane.selectedCount > 0 ? pane.selectedPaths() : []
                     text: sel.length > 0
@@ -662,7 +844,10 @@ Window {
     }
 
     Component.onCompleted: {
-        go(startPath || Places.places[0].path)
-        if (startSelect) { pendingSelect = [startSelect]; dir.reload() }
+        newTab(startPath || Places.places[0].path, true)
+        if (startSelect) { tab.pendingSelect = [startSelect]; dir.reload() }
+        // Одна вкладка там же, где открылись сейчас, — предлагать нечего
+        var o = Session.takeOrphan()
+        if (o.paths && !(o.paths.length === 1 && o.paths[0] === dir.path)) restoreOffer = o
     }
 }

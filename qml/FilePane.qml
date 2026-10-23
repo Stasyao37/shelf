@@ -27,6 +27,7 @@ FocusScope {
     signal typed(string text)
     signal filesDropped(var paths, string dest, bool move)
     signal springOpen(string path)   // держали файлы над папкой — открыть её
+    signal openInNewTab(string path)  // средняя кнопка по папке
 
     // ── Перетаскивание ───────────────────────────────────────────────
     property var dragPaths: []
@@ -442,7 +443,7 @@ FocusScope {
                 id: ma
                 anchors.fill: parent
                 hoverEnabled: true
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 property point pressPos
                 onPressed: (m) => { view.forceActiveFocus(); pressPos = Qt.point(m.x, m.y) }
                 onPositionChanged: (m) => {
@@ -452,6 +453,10 @@ FocusScope {
                     pane.startDrag(iconBox)
                 }
                 onClicked: (m) => {
+                    if (m.button === Qt.MiddleButton) {
+                        if (cell.isDir) pane.openInNewTab(cell.path)
+                        return
+                    }
                     if (m.button === Qt.RightButton) {
                         if (!cell.selected) pane.selectOnly(cell.index)
                         var p = mapToItem(pane, m.x, m.y)
@@ -483,9 +488,22 @@ FocusScope {
             }
 
             ToolTip {
+                id: whereTip
                 visible: ma.containsMouse && pane.gridMode && cell.searchMode
                 delay: 600
                 text: cell.dir.replace(/^\/home\/[^/]+/, "~")
+                // Как у кнопок: без этого Basic рисует чёрный прямоугольник с крупным шрифтом
+                contentItem: Text {
+                    text: whereTip.text
+                    color: Theme.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize - 3
+                }
+                background: Rectangle {
+                    color: Theme.surface0
+                    radius: 6
+                    border.color: Theme.glassBorder
+                }
             }
 
             // Переименование на месте: выделено имя без расширения
