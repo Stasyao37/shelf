@@ -24,8 +24,11 @@ Window {
 
     // Вкладки (FolderTab) в порядке полоски; dir и pane — текущей вкладки
     property var tabs: []
-    property int current: 0
-    readonly property FolderTab tab: tabs[current] ?? null
+    // Текущая вкладка хранится как объект, номер выводится из неё: при перестановке
+    // вкладок порядок и номер меняются одним присваиванием, без промежуточного
+    // состояния, в котором подсветка на миг уходила к соседней вкладке (issue #1)
+    property FolderTab tab: null
+    readonly property int current: Math.max(0, tabs.indexOf(tab))
     readonly property DirModel dir: tab ? tab.dir : stubDir
     readonly property FilePane pane: tab ? tab.pane : stubPane
 
@@ -87,6 +90,7 @@ Window {
             list.push(t)
             go(p, true, t)
         })
+        tab = list[base + o.current]
         tabs = list
         switchTo(base + o.current)
         if (old) old.destroy()
@@ -210,7 +214,7 @@ Window {
         if (i < 0 || i >= tabs.length) return
         searchDebounce.stop()
         pathBar.editing = false
-        current = i
+        tab = tabs[i]
         // У поля поиска одно на окно — показываем запрос этой вкладки
         searchField.text = dir.searchQuery
         searchDebounce.stop()
@@ -222,16 +226,16 @@ Window {
         var list = tabs.slice()
         list.splice(i, 1)
         var next = i < current ? current - 1 : Math.min(current, list.length - 1)
+        // Сначала текущая — уже из нового списка, потом сам список
+        tab = list[next]
         tabs = list
         switchTo(next)
         closing.destroy()
     }
     function moveTab(from, to) {
-        var cur = tabs[current]
         var list = tabs.slice()
         list.splice(to, 0, list.splice(from, 1)[0])
-        tabs = list
-        current = list.indexOf(cur)
+        tabs = list   // текущая вкладка та же, её номер пересчитается сам
     }
     function cycleTab(step) { switchTo((current + step + tabs.length) % tabs.length) }
 
