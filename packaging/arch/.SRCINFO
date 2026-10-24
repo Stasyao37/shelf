@@ -18,8 +18,7 @@ pkgbase = shelf-fm
 	depends = glib2
 	depends = xdg-utils
 	depends = hicolor-icon-theme
-	depends = gcc-libs
-	depends = glibc
+
 	optdepends = tumbler: миниатюры картинок и PDF
 	optdepends = ffmpegthumbnailer: миниатюры видео
 	optdepends = matugen: палитра из обоев

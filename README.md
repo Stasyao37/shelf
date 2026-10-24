@@ -102,10 +102,26 @@ Wayland-приложение со своим `app_id` и `.desktop` (его мо
 **Fedora 43 и новее** — готовый пакет на странице [выпусков](https://github.com/Stasyao37/shelf/releases):
 
 ```sh
-sudo dnf install ./shelf-0.1.1-1.fc43.x86_64.rpm
+sudo dnf install ./shelf-0.1.2-1.fc43.x86_64.rpm
 ```
 
 Пакету нужен Qt 6.10 или новее, поэтому он ставится и на следующие выпуски Fedora.
+
+**Debian 13, Ubuntu 25.04 и новее** — `.deb` на странице выпусков:
+
+```sh
+sudo apt install ./shelf_0.1.2_amd64.deb
+```
+
+**Arch Linux** — готовый пакет на странице выпусков или сборка из `PKGBUILD`:
+
+```sh
+sudo pacman -U ./shelf-fm-0.1.2-1-x86_64.pkg.tar.zst
+# или
+git clone https://github.com/Stasyao37/shelf && cd shelf/packaging/arch && makepkg -si
+```
+
+В AUR пакет появится под именем `shelf-fm`.
 
 **Nix / NixOS** — flake в этом репозитории:
 

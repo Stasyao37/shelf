@@ -10,7 +10,7 @@ license=('GPL-3.0-or-later' 'OFL-1.1' 'MIT' 'CC0-1.0')
 # QML-модули (Controls, Effects, Layouts, QtCore) входят в qt6-declarative;
 # SVG и Wayland — плагины, грузятся во время работы
 depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-wayland'
-         'glib2' 'xdg-utils' 'hicolor-icon-theme' 'gcc-libs' 'glibc')
+         'glib2' 'xdg-utils' 'hicolor-icon-theme')
 makedepends=('cmake' 'ninja')
 optdepends=('tumbler: миниатюры картинок и PDF'
             'ffmpegthumbnailer: миниатюры видео'

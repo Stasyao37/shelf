@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.1.1
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -58,6 +58,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.stasyao.shelf.des
 %{_datadir}/icons/hicolor/16x16/apps/org.stasyao.shelf.svg
 
 %changelog
+* Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.1.2-1
+- Tab highlight no longer jumps while reordering (#1); --version without a display
+
 * Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.1.1-1
 - Nix flake; one package for Fedora 43 and newer (no private Qt API)
 
