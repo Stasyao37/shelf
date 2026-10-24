@@ -1,6 +1,6 @@
 pkgbase = shelf-fm
 	pkgdesc = Glass file manager for Hyprland in Qt 6 / QML
-	pkgver = 0.1.2
+	pkgver = 0.2.1
 	pkgrel = 1
 	url = https://github.com/Stasyao37/shelf
 	arch = x86_64
@@ -18,10 +18,11 @@ pkgbase = shelf-fm
 	depends = glib2
 	depends = xdg-utils
 	depends = hicolor-icon-theme
+	depends = xdg-desktop-portal
 	optdepends = tumbler: миниатюры картинок и PDF
 	optdepends = ffmpegthumbnailer: миниатюры видео
 	optdepends = matugen: палитра из обоев
-	source = shelf-0.1.2.tar.gz::https://github.com/Stasyao37/shelf/archive/v0.1.2/shelf-0.1.2.tar.gz
-	sha256sums = e4fb2b3a325f786e892f209a7c5dfd5c2edb88fc09acd00f255bec14cfdd8fca
+	source = shelf-0.2.1.tar.gz::https://github.com/Stasyao37/shelf/archive/v0.2.1/shelf-0.2.1.tar.gz
+	sha256sums = acc66d81044892ac5fee66b54294c0557f5f867f319926ae37c50274052dff9b
 
 pkgname = shelf-fm
