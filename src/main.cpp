@@ -29,16 +29,19 @@ QString gtkIconTheme()
 
 int main(int argc, char *argv[])
 {
+    // До QGuiApplication: ему нужен экран, а --version должен работать и по SSH, и в скриптах
+    for (int i = 1; i < argc; ++i)
+        if (qstrcmp(argv[i], "--version") == 0) {
+            QTextStream(stdout) << "Shelf " << SHELF_VERSION << '\n';
+            return 0;
+        }
+
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("shelf"));
     app.setOrganizationName(QStringLiteral("shelf"));
     app.setApplicationDisplayName(QStringLiteral("Shelf"));
     app.setApplicationVersion(QStringLiteral(SHELF_VERSION));
 
-    if (app.arguments().contains(QStringLiteral("--version"))) {
-        QTextStream(stdout) << "Shelf " << app.applicationVersion() << '\n';
-        return 0;
-    }
     // Становится app_id окна в Wayland — по нему Hyprland и .desktop узнают приложение
     app.setDesktopFileName(QStringLiteral("org.stasyao.shelf"));
 

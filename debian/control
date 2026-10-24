@@ -1,0 +1,50 @@
+Source: shelf
+Section: utils
+Priority: optional
+Maintainer: Stasyao37 <kapitonov.stass@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake (>= 3.21),
+ ninja-build,
+ qt6-base-dev (>= 6.7),
+ qt6-declarative-dev (>= 6.7),
+ qt6-base-dev-tools,
+ qt6-declarative-dev-tools,
+Standards-Version: 4.7.2
+Homepage: https://github.com/Stasyao37/shelf
+Vcs-Browser: https://github.com/Stasyao37/shelf
+Vcs-Git: https://github.com/Stasyao37/shelf.git
+Rules-Requires-Root: no
+
+Package: shelf
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+# QML-модули и плагины Qt грузятся во время работы — shlibs их не видит
+ qml6-module-qtquick,
+ qml6-module-qtquick-controls,
+ qml6-module-qtquick-templates,
+ qml6-module-qtquick-layouts,
+ qml6-module-qtquick-effects,
+ qml6-module-qtquick-window,
+ qml6-module-qtqml-workerscript,
+ qml6-module-qtcore,
+ qt6-svg-plugins,
+ qt6-wayland,
+# gio — открывать файлы и запускать программы; xdg-utils — xdg-open, xdg-mime
+ libglib2.0-bin,
+ xdg-utils,
+ hicolor-icon-theme,
+Recommends:
+ tumbler,
+ ffmpegthumbnailer,
+Description: glass file manager for Hyprland in Qt 6 / QML
+ Shelf is a simple file manager for Hyprland styled after glassmorphism: a
+ frosted-glass window blurred by the compositor, a hand-drawn glass icon set
+ and smooth animations. It takes its palette from matugen or a Quickshell bar
+ (or uses built-in light and dark themes) and recolors itself when the
+ wallpaper changes.
+ .
+ Tabs, drag and drop, trash with restore, thumbnails, "open with" and a
+ first-run setup that checks the environment.

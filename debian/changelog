@@ -1,0 +1,6 @@
+shelf (0.1.2) unstable; urgency=medium
+
+  * Packaging for Debian 13 and Ubuntu 25.04 or newer.
+  * Active tab highlight no longer jumps while reordering tabs (#1).
+
+ -- Stasyao37 <kapitonov.stass@gmail.com>  Sat, 24 Oct 2026 12:00:00 +0300

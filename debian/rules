@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=cmake+ninja
+
+# Системному пакету путь поиска библиотек рядом с бинарником не нужен
+override_dh_auto_configure:
+	dh_auto_configure -- -DCMAKE_SKIP_INSTALL_RPATH=ON
+
+# Тестов у Shelf пока нет — CMake не создаёт цель test
+override_dh_auto_test:
