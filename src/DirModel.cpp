@@ -235,7 +235,7 @@ void DirModel::applyFilterAndSort()
         return;
     QList<FileEntry> rows;
     for (const FileEntry &e : std::as_const(m_all))
-        if (m_showHidden || !e.isHidden)
+        if ((m_showHidden || !e.isHidden) && passesFilters(e))
             rows.append(e);
     std::stable_sort(rows.begin(), rows.end(),
                      [this](const FileEntry &a, const FileEntry &b) { return lessThan(a, b); });
@@ -381,9 +381,15 @@ void DirModel::appendResults(quint64 gen, const QList<FileEntry> &batch)
 {
     if (gen != m_searchGen)
         return;
+    QList<FileEntry> kept;
+    for (const FileEntry &e : batch)
+        if (passesFilters(e))
+            kept.append(e);
+    if (kept.isEmpty())
+        return;
     const int first = int(m_rows.size());
-    beginInsertRows({}, first, first + int(batch.size()) - 1);
-    m_rows.append(batch);
+    beginInsertRows({}, first, first + int(kept.size()) - 1);
+    m_rows.append(kept);
     endInsertRows();
     emit countChanged();
 }
@@ -443,6 +449,58 @@ QString DirModel::sizeOf(const QStringList &paths) const
             total += m_rows.at(i).size;
     }
     return onlyFiles && total > 0 ? formatSize(total) : QString();
+}
+
+bool DirModel::passesFilters(const FileEntry &e) const
+{
+    if (e.isDir)
+        return true;
+    if (m_dirsOnly)
+        return false;
+    if (m_nameRegex.isEmpty() && m_mimeFilters.isEmpty())
+        return true;
+    for (const QRegularExpression &re : m_nameRegex)
+        if (re.match(e.name).hasMatch())
+            return true;
+    if (!m_mimeFilters.isEmpty()) {
+        const QMimeType mt = m_mime.mimeTypeForName(e.mimeType);
+        for (const QString &m : m_mimeFilters)
+            // image/* и точное совпадение; inherits — text/x-c++src подходит под text/plain
+            if ((m.endsWith(QLatin1String("/*")) && e.mimeType.startsWith(m.chopped(1))) || mt.inherits(m))
+                return true;
+    }
+    return false;
+}
+
+void DirModel::setNameFilters(const QStringList &globs)
+{
+    if (globs == m_nameFilters)
+        return;
+    m_nameFilters = globs;
+    m_nameRegex.clear();
+    for (const QString &g : globs)
+        m_nameRegex << QRegularExpression(QRegularExpression::wildcardToRegularExpression(g),
+                                          QRegularExpression::CaseInsensitiveOption);
+    emit filtersChanged();
+    reload();
+}
+
+void DirModel::setMimeFilters(const QStringList &mimes)
+{
+    if (mimes == m_mimeFilters)
+        return;
+    m_mimeFilters = mimes;
+    emit filtersChanged();
+    reload();
+}
+
+void DirModel::setDirsOnly(bool on)
+{
+    if (on == m_dirsOnly)
+        return;
+    m_dirsOnly = on;
+    emit filtersChanged();
+    reload();
 }
 
 bool DirModel::trashRoot() const

@@ -10,6 +10,8 @@ GlassDialog {
     id: dlg
 
     signal firstRunRequested()
+    // Сообщение в тост главного окна
+    signal message(string text)
 
     padding: 0
     width: 500
@@ -275,6 +277,52 @@ GlassDialog {
                         text: "Сделать Shelf"
                         primary: true
                         onClicked: Apps.makeDefaultFileManager()
+                    }
+                }
+
+                // Окна выбора файлов из других программ (портал FileChooser)
+                Item {
+                    width: parent.width
+                    height: 38
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - 80
+                        elide: Text.ElideRight
+                        text: "Выбор файлов в окнах Shelf"
+                        color: Environment.portalBackend ? Theme.text : Theme.subtext0
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    ToggleSwitch {
+                        visible: Environment.portalBackend
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        checked: Environment.portalPicker
+                        onToggled: (on) => {
+                            var err = Environment.setPortalPicker(on)
+                            if (err) dlg.message(err)
+                            else dlg.message(on ? "Готово — новые окна выбора откроются в Shelf; GTK-программы — после перезапуска"
+                                                : "Выбор файлов вернулся к прежнему")
+                        }
+                    }
+                }
+                Text {
+                    width: parent.width
+                    leftPadding: 12
+                    rightPadding: 12
+                    bottomPadding: 4
+                    wrapMode: Text.Wrap
+                    text: Environment.portalBackend
+                        ? "Firefox, Chromium, Telegram, GTK- и Qt-программы будут открывать и сохранять файлы через Shelf. Меняет ~/.config/xdg-desktop-portal и подключает ~/.config/hypr/shelf.conf (с копиями .bak-shelf)."
+                        : "Нужен бэкенд портала: поставьте Shelf пакетом или выполните " + Environment.portalInstallCommand()
+                    color: Theme.overlay1
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize - 4
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: !Environment.portalBackend
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { FileOps.copyText(Environment.portalInstallCommand()); dlg.message("Команда скопирована") }
                     }
                 }
 

@@ -7,6 +7,7 @@
 #include <QFileSystemWatcher>
 #include <QFuture>
 #include <QMimeDatabase>
+#include <QRegularExpression>
 #include <QTimer>
 #include <QtQml/qqmlregistration.h>
 
@@ -30,6 +31,10 @@ class DirModel : public QAbstractListModel
     Q_PROPERTY(QString freeSpace READ freeSpace NOTIFY pathChanged)
     // Открыт корень корзины: вместо типа — «Откуда», вместо даты изменения — дата удаления
     Q_PROPERTY(bool trashRoot READ trashRoot NOTIFY pathChanged)
+    // Окно выбора файлов: показывать только подходящие файлы (папки видны всегда)
+    Q_PROPERTY(QStringList nameFilters READ nameFilters WRITE setNameFilters NOTIFY filtersChanged)
+    Q_PROPERTY(QStringList mimeFilters READ mimeFilters WRITE setMimeFilters NOTIFY filtersChanged)
+    Q_PROPERTY(bool dirsOnly READ dirsOnly WRITE setDirsOnly NOTIFY filtersChanged)
 
 public:
     enum Role {
@@ -72,6 +77,12 @@ public:
     QString error() const { return m_error; }
     QString freeSpace() const;
     bool trashRoot() const;
+    QStringList nameFilters() const { return m_nameFilters; }
+    void setNameFilters(const QStringList &globs);
+    QStringList mimeFilters() const { return m_mimeFilters; }
+    void setMimeFilters(const QStringList &mimes);
+    bool dirsOnly() const { return m_dirsOnly; }
+    void setDirsOnly(bool on);
 
     Q_INVOKABLE void reload();
     Q_INVOKABLE int indexOfPath(const QString &path) const;
@@ -93,6 +104,7 @@ signals:
     void errorChanged();
     // Список перечитан (смена папки, изменения на диске) — QML восстанавливает выделение
     void reloaded();
+    void filtersChanged();
 
 private:
     void listDir();
@@ -103,6 +115,7 @@ private:
     void appendResults(quint64 gen, const QList<FileEntry> &batch);
     void setError(const QString &e);
     bool lessThan(const FileEntry &a, const FileEntry &b) const;
+    bool passesFilters(const FileEntry &e) const;
 
     QString m_path;
     QString m_query;
@@ -111,6 +124,10 @@ private:
     bool m_sortDesc = false;
     bool m_showHidden = false;
     bool m_searching = false;
+    QStringList m_nameFilters;
+    QList<QRegularExpression> m_nameRegex;
+    QStringList m_mimeFilters;
+    bool m_dirsOnly = false;
 
     QList<FileEntry> m_all;   // всё содержимое папки, со скрытыми
     QList<FileEntry> m_rows;  // то, что видно

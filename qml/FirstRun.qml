@@ -18,6 +18,8 @@ GlassDialog {
     property bool glass: true
     // Сделать Shelf проводником по умолчанию — меняет системную настройку, поэтому выключено
     property bool makeDefault: false
+    // Окна выбора файлов Shelf для других программ — тоже меняет системные настройки
+    property bool usePicker: false
     function defaultPick() {
         if (dlg.available("qs_theme")) return "qs_theme"
         if (dlg.available("material")) return "material"
@@ -36,6 +38,7 @@ GlassDialog {
         pick = current !== "auto" ? current : defaultPick()
         glass = !Theme.material
         makeDefault = false
+        usePicker = false
     }
 
     function apply() {
@@ -54,6 +57,10 @@ GlassDialog {
                       : "Не удалось сделать Shelf проводником по умолчанию — нужен xdg-mime (xdg-utils)"
         else if (makeDefault && !msg)
             msg = "Shelf теперь проводник по умолчанию"
+        if (usePicker && !Environment.portalPicker) {
+            var perr = Environment.setPortalPicker(true)
+            if (perr) msg = msg ? msg + "; " + perr : perr
+        }
         close()
         finished(msg)
     }
@@ -269,6 +276,35 @@ GlassDialog {
                         anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                         checked: dlg.glass
                         onToggled: (on) => dlg.glass = on
+                    }
+                }
+
+                // Окна выбора файлов Shelf в других программах (если бэкенд портала установлен)
+                Item {
+                    visible: Environment.portalBackend
+                    width: parent.width
+                    height: 40
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Environment.portalPicker ? "Выбор файлов в окнах Shelf включён" : "Выбор файлов в окнах Shelf"
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    Text {
+                        visible: Environment.portalPicker
+                        anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                        text: "\u{f00c}"
+                        color: Theme.accent
+                        font.family: Theme.iconFont
+                        font.pixelSize: Theme.fontSize - 2
+                    }
+                    ToggleSwitch {
+                        visible: !Environment.portalPicker
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        checked: dlg.usePicker
+                        onToggled: (on) => dlg.usePicker = on
                     }
                 }
 

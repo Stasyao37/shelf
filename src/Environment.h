@@ -22,6 +22,10 @@ class Environment : public QObject
     Q_PROPERTY(bool gio READ gio CONSTANT)
     Q_PROPERTY(bool xdgUtils READ xdgUtils CONSTANT)
     Q_PROPERTY(QString distro READ distro CONSTANT)
+    // Бэкенд портала установлен там, где его ищет xdg-desktop-portal
+    Q_PROPERTY(bool portalBackend READ portalBackend CONSTANT)
+    // Портал отдаёт выбор файлов Shelf (FileChooser=shelf)
+    Q_PROPERTY(bool portalPicker READ portalPicker NOTIFY changed)
 
 public:
     explicit Environment(QObject *parent = nullptr);
@@ -41,6 +45,13 @@ public:
     Q_INVOKABLE QString installCommand(const QString &package) const;
     // Возвращает пустую строку при успехе, иначе текст ошибки
     Q_INVOKABLE QString connectMatugen();
+
+    bool portalBackend() const;
+    bool portalPicker() const;
+    // Включить/выключить окна выбора Shelf; пустая строка — получилось
+    Q_INVOKABLE QString setPortalPicker(bool on);
+    // Команда, которой ставят описание портала, если Shelf собран в ~/.local
+    Q_INVOKABLE QString portalInstallCommand() const;
 
     static QString matugenConfig();
 

@@ -10,14 +10,16 @@ Window {
     property string startPath: ""
     property string startSelect: ""
 
-    width: 1100
-    height: 700
+    // Окно выбора — компактнее, как обычный диалог
+    width: Picker.active ? 940 : 1100
+    height: Picker.active ? 600 : 700
     minimumWidth: 640
     minimumHeight: 400
     visible: true
     // Прозрачный фон — Hyprland размоет то, что под окном, как у бара
     color: "transparent"
-    title: (dir.searchQuery ? "Поиск «" + dir.searchQuery + "»" : folderName(dir.path)) + " — Shelf"
+    title: picking ? (Picker.title || win.pickDefaultTitle)
+                   : (dir.searchQuery ? "Поиск «" + dir.searchQuery + "»" : folderName(dir.path)) + " — Shelf"
 
     // undefined — по ширине окна; F9 закрепляет выбор до конца сеанса
     property var sidebarShown: undefined
@@ -67,11 +69,79 @@ Window {
         interval: 400
         onTriggered: Session.save(win.tabs.map(function (t) { return t.dir.path }), win.current)
     }
-    onTabsChanged: saveSession()
-    onCurrentChanged: saveSession()
+    onTabsChanged: if (!picking) saveSession()
+    onCurrentChanged: if (!picking) saveSession()
     onClosing: {
+        // Закрыли окно выбора крестиком — это «Отмена»
+        if (picking) { Picker.cancel(); return }
         sessionSave.stop()
         Session.clear()
+    }
+
+    // ── Окно выбора файлов (shelf --pick от портала) ─────────────────
+    readonly property bool picking: Picker.active
+    readonly property string pickMode: Picker.mode
+    readonly property bool pickSave: pickMode === "save"
+    readonly property bool pickFolder: pickMode === "folder" || pickMode === "saveFiles"
+    readonly property string pickDefaultTitle: pickSave ? "Сохранить файл" : pickMode === "saveFiles" ? "Сохранить файлы в папку"
+                                              : pickMode === "folder" ? "Выбрать папку" : Picker.multiple ? "Открыть файлы" : "Открыть файл"
+    readonly property string pickAcceptText: Picker.acceptLabel ? Picker.acceptLabel.replace("_", "")
+                                            : pickSave || pickMode === "saveFiles" ? "Сохранить" : pickMode === "folder" ? "Выбрать" : "Открыть"
+    property int pickFilter: Picker.currentFilter >= 0 ? Picker.currentFilter : (Picker.filters.length > 0 ? 0 : -1)
+    // id → значение для choices портала
+    property var pickChoices: ({})
+    function applyPickFilter() {
+        var f = Picker.filters[pickFilter]
+        dir.dirsOnly = pickFolder
+        dir.nameFilters = f ? f.globs : []
+        dir.mimeFilters = f ? f.mimes : []
+    }
+    onPickFilterChanged: if (picking && tab) applyPickFilter()
+    // Сохранение: щёлкнули по существующему файлу — его имя в поле (заменить его)
+    Connections {
+        target: win.picking && win.pickSave ? win.pane : null
+        function onSelectedChanged() {
+            var sel = win.pane.selectedPaths()
+            if (sel.length === 1 && !dir.isDirAt(dir.indexOfPath(sel[0])))
+                pickName.text = sel[0].substring(sel[0].lastIndexOf("/") + 1)
+        }
+    }
+    function pickFinish(paths) {
+        var ch = []
+        for (var id in pickChoices) ch.push([id, pickChoices[id]])
+        Picker.accept(paths, pickFilter, ch)
+    }
+    function pickAccept() {
+        var sel = pane.selectedPaths()
+        if (pickMode === "open") {
+            var files = sel.filter(function (p) { return !dir.isDirAt(dir.indexOfPath(p)) })
+            if (files.length === 0) {
+                // Выбрана папка — заходим в неё
+                if (sel.length === 1) go(sel[0])
+                return
+            }
+            pickFinish(Picker.multiple ? files : [files[0]])
+        } else if (pickMode === "folder") {
+            pickFinish([sel.length === 1 && dir.isDirAt(dir.indexOfPath(sel[0])) ? sel[0] : dir.path])
+        } else if (pickSave) {
+            var name = pickName.text.trim()
+            if (!name || name.indexOf("/") >= 0) { toast("Введите имя файла"); pickName.forceActiveFocus(); return }
+            var path = (dir.path === "/" ? "" : dir.path) + "/" + name
+            if (Picker.exists(path) && dir.isDirAt(dir.indexOfPath(path))) { go(path); return }
+            if (Picker.exists(path))
+                confirm.ask("Заменить «" + name + "»?", "Файл с таким именем уже есть в этой папке.", "Заменить",
+                            function () { pickFinish([path]) })
+            else pickFinish([path])
+        } else {
+            // saveFiles — несколько файлов в выбранную папку
+            var target = sel.length === 1 && dir.isDirAt(dir.indexOfPath(sel[0])) ? sel[0] : dir.path
+            var out = Picker.files.map(function (n) { return (target === "/" ? "" : target) + "/" + n })
+            var clash = out.filter(function (p) { return Picker.exists(p) })
+            if (clash.length > 0)
+                confirm.ask("Заменить " + many(clash.length) + "?", "В папке уже есть файлы с такими именами.", "Заменить",
+                            function () { pickFinish(out) })
+            else pickFinish(out)
+        }
     }
     function tabsWord(n) {
         return n + " " + (n % 10 === 1 && n % 100 !== 11 ? "вкладку"
@@ -201,6 +271,8 @@ Window {
     // ── Вкладки ──────────────────────────────────────────────────────
     // Новая встаёт справа от текущей, как в браузере; activate=false — в фоне
     function newTab(path, activate) {
+        // В окне выбора вкладок нет — «в новой вкладке» просто переходит
+        if (picking && tabs.length > 0) { go(path); return tab }
         var t = tabComponent.createObject(tabStack)
         var at = tabs.length === 0 ? 0 : current + 1
         var list = tabs.slice()
@@ -248,6 +320,7 @@ Window {
         if (row < 0) return
         var p = dir.pathAt(row)
         if (dir.isDirAt(row)) go(p)
+        else if (picking) { pane.selectRow(row); pickAccept() }
         else FileOps.open(p)
     }
     function openSelected() {
@@ -470,9 +543,11 @@ Window {
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: win.showProperties() }
     Shortcut { sequence: "F9"; onActivated: win.sidebarShown = !(win.sidebarShown ?? win.width >= 760) }
     Shortcut { sequence: "F4"; onActivated: FileOps.openTerminal(dir.path) }
-    Shortcut { sequence: "Ctrl+T"; onActivated: win.newTab(dir.path, true) }
+    Shortcut { sequence: "Ctrl+T"; enabled: !win.picking; onActivated: win.newTab(dir.path, true) }
     Shortcut { sequence: "Ctrl+W"; onActivated: win.closeTab(win.current) }
     Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    // Окно выбора: Ctrl+Enter — «Открыть / Сохранить / Выбрать» откуда угодно
+    Shortcut { sequences: ["Ctrl+Return", "Ctrl+Enter"]; enabled: win.picking; onActivated: win.pickAccept() }
     Shortcut { sequence: "Ctrl+,"; onActivated: settingsDlg.open() }
     Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: win.cycleTab(1) }
     Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+Backtab", "Ctrl+PgUp"]; onActivated: win.cycleTab(-1) }
@@ -492,6 +567,8 @@ Window {
         onActivated: {
             if (FileOps.busy) FileOps.cancel()
             else if (searchField.text) { searchField.text = ""; pane.focusView() }
+            // В окне выбора Esc без выделения — «Отмена», как в любом диалоге
+            else if (win.picking && pane.selectedCount === 0) Picker.cancel()
             else pane.clearSelection()
         }
     }
@@ -745,6 +822,152 @@ Window {
                 Layout.fillHeight: true
             }
 
+            // Окно выбора: имя файла, параметры приложения, тип файлов, Отмена / действие
+            Rectangle {
+                visible: win.picking
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                Layout.topMargin: 4
+                Layout.preferredHeight: 48
+                radius: Theme.btnRadius(height, false, Theme.widgetRadius)
+                color: Theme.material ? Theme.surface0 : Theme.ink(0.04)
+                border.width: 1
+                border.color: Theme.restBorder
+
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 8; rightMargin: 6 }
+                    spacing: 8
+
+                    // Имя файла (сохранение)
+                    Rectangle {
+                        visible: win.pickSave
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+                        radius: Theme.btnRadius(height, false, Theme.widgetRadius)
+                        color: Theme.material ? Theme.surface1 : Theme.ink(0.05)
+                        border.width: 1
+                        border.color: pickName.activeFocus ? Theme.accent : Theme.restBorder
+                        TextInput {
+                            id: pickName
+                            anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                            verticalAlignment: Text.AlignVCenter
+                            clip: true
+                            color: Theme.text
+                            selectionColor: Theme.accent
+                            selectedTextColor: Theme.base
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize - 1
+                            // Имя без расширения выделено — сразу печатаешь своё
+                            function selectBase() {
+                                var dot = text.lastIndexOf(".")
+                                select(0, dot > 0 ? dot : text.length)
+                                forceActiveFocus()
+                            }
+                            Keys.onReturnPressed: win.pickAccept()
+                            Keys.onEnterPressed: win.pickAccept()
+                            Text {
+                                visible: !pickName.text
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Имя файла"
+                                color: Theme.overlay1
+                                font: pickName.font
+                            }
+                        }
+                    }
+                    Text {
+                        visible: !win.pickSave
+                        Layout.fillWidth: true
+                        text: win.pickMode === "saveFiles" ? "Файлы сохранятся в «" + win.folderName(dir.path) + "»: " + Picker.files.join(", ")
+                            : win.pickMode === "folder" ? "Папка: «" + win.folderName(pane.selectedCount === 1 && dir.isDirAt(dir.indexOfPath(pane.selectedPaths()[0])) ? pane.selectedPaths()[0] : dir.path) + "»"
+                            : pane.selectedCount > 0 ? "Выбрано: " + pane.selectedCount
+                            : Picker.multiple ? "Выберите файлы" : "Выберите файл"
+                        elide: Text.ElideRight
+                        color: Theme.subtext0
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 2
+                    }
+
+                    // Параметры от приложения: флажки и списки
+                    Repeater {
+                        model: win.picking ? Picker.choices : []
+                        Item {
+                            id: choiceItem
+                            required property var modelData
+                            readonly property bool flag: modelData.options.length === 0
+                            readonly property string value: win.pickChoices[modelData.id] ?? modelData.value
+                            Layout.preferredHeight: 34
+                            implicitWidth: flag ? flagRow.implicitWidth : choiceBtn.implicitWidth
+                            Row {
+                                id: flagRow
+                                visible: choiceItem.flag
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 8
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: choiceItem.value === "true"
+                                    onToggled: (on) => { var c = Object.assign({}, win.pickChoices); c[choiceItem.modelData.id] = on ? "true" : "false"; win.pickChoices = c }
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: choiceItem.modelData.label
+                                    color: Theme.text
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSize - 2
+                                }
+                            }
+                            TextButton {
+                                id: choiceBtn
+                                visible: !choiceItem.flag
+                                anchors.verticalCenter: parent.verticalCenter
+                                implicitHeight: 34
+                                text: {
+                                    var o = choiceItem.modelData.options.find(function (x) { return x[0] === choiceItem.value })
+                                    return choiceItem.modelData.label + ": " + (o ? o[1] : choiceItem.value)
+                                }
+                                onClicked: {
+                                    var pt = mapToItem(win.contentItem, 0, 0)
+                                    menu.show(pt.x, pt.y, choiceItem.modelData.options.map(function (o) {
+                                        return { text: o[1], checked: o[0] === choiceItem.value, act: function () {
+                                            var c = Object.assign({}, win.pickChoices); c[choiceItem.modelData.id] = o[0]; win.pickChoices = c } }
+                                    }))
+                                }
+                            }
+                        }
+                    }
+
+                    // Тип файлов
+                    TextButton {
+                        visible: win.picking && Picker.filters.length > 0 && !win.pickFolder
+                        Layout.preferredHeight: 34
+                        implicitHeight: 34
+                        Layout.maximumWidth: 240
+                        text: (Picker.filters[win.pickFilter] || {}).name || "Все файлы"
+                        onClicked: {
+                            var pt = mapToItem(win.contentItem, 0, 0)
+                            menu.show(pt.x, pt.y, Picker.filters.map(function (f, i) {
+                                return { text: f.name, checked: i === win.pickFilter, act: function () { win.pickFilter = i } }
+                            }))
+                        }
+                    }
+                    TextButton {
+                        Layout.preferredHeight: 34
+                        implicitHeight: 34
+                        text: "Отмена"
+                        onClicked: Picker.cancel()
+                    }
+                    TextButton {
+                        Layout.preferredHeight: 34
+                        implicitHeight: 34
+                        text: win.pickAcceptText
+                        primary: true
+                        enabled: win.pickSave ? pickName.text.trim().length > 0
+                               : win.pickMode === "open" ? pane.selectedCount > 0 : true
+                        onClicked: win.pickAccept()
+                    }
+                }
+            }
+
             // Строка состояния / прогресс операции
             Item {
                 Layout.fillWidth: true
@@ -795,7 +1018,8 @@ Window {
                     }
                 }
                 Text {
-                    visible: !FileOps.busy && !restoreNotice.visible
+                    // В окне выбора то же пишет нижняя панель
+                    visible: !FileOps.busy && !restoreNotice.visible && !win.picking
                     anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
                     readonly property var sel: pane.selectedCount > 0 ? pane.selectedPaths() : []
                     text: sel.length > 0
@@ -890,6 +1114,7 @@ Window {
         parent: win.contentItem
         onClosed: pane.focusView()
         onFirstRunRequested: firstRun.open()
+        onMessage: (text) => win.toast(text)
     }
     FirstRun {
         id: firstRun
@@ -910,6 +1135,15 @@ Window {
     Component.onCompleted: {
         newTab(startPath || Places.places[0].path, true)
         if (startSelect) { tab.pendingSelect = [startSelect]; dir.reload() }
+        if (picking) {
+            applyPickFilter()
+            pane.singleSelect = !(pickMode === "open" && Picker.multiple)
+            var cs = {}
+            Picker.choices.forEach(function (c) { cs[c.id] = c.value })
+            pickChoices = cs
+            if (pickSave) { pickName.text = Picker.currentName; pickName.selectBase() }
+            return
+        }
         // Одна вкладка там же, где открылись сейчас, — предлагать нечего
         var o = Session.takeOrphan()
         if (o.paths && !(o.paths.length === 1 && o.paths[0] === dir.path)) restoreOffer = o

@@ -36,6 +36,8 @@ Depends:
  libglib2.0-bin,
  xdg-utils,
  hicolor-icon-theme,
+# Окна выбора файлов для других программ — бэкенд xdg-desktop-portal
+ xdg-desktop-portal,
 Recommends:
  tumbler,
  ffmpegthumbnailer,

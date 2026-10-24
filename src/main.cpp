@@ -1,7 +1,9 @@
 #include "DirModel.h"
 #include "IconProvider.h"
+#include "Picker.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFontDatabase>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -36,6 +38,12 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+    // shelf --pick запрос.json — окно выбора файлов для xdg-desktop-portal-shelf
+    QString pickRequest;
+    for (int i = 1; i + 1 < argc; ++i)
+        if (qstrcmp(argv[i], "--pick") == 0)
+            pickRequest = QFile::decodeName(argv[i + 1]);
+
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("shelf"));
     app.setOrganizationName(QStringLiteral("shelf"));
@@ -60,8 +68,18 @@ int main(int argc, char *argv[])
     // Свои контролы рисуем сами; Basic не тянет вид qt6ct/kvantum
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
+    if (!pickRequest.isEmpty()) {
+        if (!Picker::load(pickRequest))
+            return 2;
+        // Свой app_id — чтобы Hyprland держал окно выбора плавающим, по центру
+        app.setDesktopFileName(QStringLiteral("org.stasyao.shelf.picker"));
+    }
+
     // shelf [папка | файл | file://…] — для файла открываем его папку и выделяем его
-    QString start = app.arguments().value(1, QDir::homePath());
+    QString start = pickRequest.isEmpty() ? app.arguments().value(1, QDir::homePath())
+                                          : Picker().currentFolder();
+    if (start.isEmpty())
+        start = QDir::homePath();
     QString select;
     start = DirModel::expandPath(start);
     if (!QFileInfo(start).isDir()) {

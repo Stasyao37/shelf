@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.1.2
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -24,6 +24,8 @@ Requires:       qt6-qtdeclarative%{?_isa}
 Requires:       /usr/bin/gio
 Requires:       xdg-utils
 Requires:       hicolor-icon-theme
+# Окна выбора файлов для других программ — бэкенд xdg-desktop-portal
+Requires:       xdg-desktop-portal
 # Миниатюры картинок, PDF и видео
 Recommends:     tumbler
 Recommends:     ffmpegthumbnailer
@@ -56,8 +58,14 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.stasyao.shelf.des
 %{_datadir}/applications/org.stasyao.shelf.desktop
 %{_datadir}/icons/hicolor/scalable/apps/org.stasyao.shelf.svg
 %{_datadir}/icons/hicolor/16x16/apps/org.stasyao.shelf.svg
+%{_libexecdir}/xdg-desktop-portal-shelf
+%{_datadir}/dbus-1/services/org.freedesktop.impl.portal.desktop.shelf.service
+%{_datadir}/xdg-desktop-portal/portals/shelf.portal
 
 %changelog
+* Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.2.0-1
+- Own file chooser windows for other apps (xdg-desktop-portal backend)
+
 * Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.1.2-1
 - Tab highlight no longer jumps while reordering (#1); --version without a display
 

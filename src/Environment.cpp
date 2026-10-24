@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QSettings>
 #include <QTextStream>
 
 #include <unistd.h>
@@ -203,3 +204,200 @@ QString Environment::connectMatugen()
     emit changed();
     return {};
 }
+
+// ── Окна выбора файлов через портал ─────────────────────────────────
+namespace {
+const QString kPortalKey = QStringLiteral("org.freedesktop.impl.portal.FileChooser");
+
+QString desktopName()
+{
+    return qEnvironmentVariable("XDG_CURRENT_DESKTOP").split(QLatin1Char(':')).value(0).toLower();
+}
+
+QString portalsDir()
+{
+    // NixOS и другие кладут описания бэкендов в свой каталог и сообщают о нём так
+    const QString env = qEnvironmentVariable("XDG_DESKTOP_PORTAL_DIR");
+    return env.isEmpty() ? QStringLiteral("/usr/share/xdg-desktop-portal/portals") : env;
+}
+
+QString userPortalsConf()
+{
+    const QString de = desktopName();
+    return configDir() + QStringLiteral("/xdg-desktop-portal/") + (de.isEmpty() ? QString() : de + QLatin1Char('-'))
+           + QStringLiteral("portals.conf");
+}
+
+QString hyprSnippet()
+{
+    return configDir() + QStringLiteral("/hypr/shelf.conf");
+}
+
+QString hyprConf()
+{
+    return configDir() + QStringLiteral("/hypr/hyprland.conf");
+}
+
+const QString kSourceLine = QStringLiteral("source = ~/.config/hypr/shelf.conf");
+
+QString readText(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly | QIODevice::Text) ? QString::fromUtf8(f.readAll()) : QString();
+}
+
+bool writeText(const QString &path, const QString &text)
+{
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        return false;
+    f.write(text.toUtf8());
+    return true;
+}
+
+void backupOnce(const QString &path)
+{
+    if (QFile::exists(path) && !QFile::exists(path + QStringLiteral(".bak-shelf")))
+        QFile::copy(path, path + QStringLiteral(".bak-shelf"));
+}
+
+// Значение ключа в [preferred] или пусто
+QString preferredValue(const QString &text, const QString &key)
+{
+    for (const QString &line : text.split(QLatin1Char('\n'))) {
+        const QString t = line.trimmed();
+        if (t.startsWith(key) && t.mid(key.size()).trimmed().startsWith(QLatin1Char('=')))
+            return t.section(QLatin1Char('='), 1).trimmed();
+    }
+    return {};
+}
+
+// Ставит ключ в [preferred] (value пусто — убирает). Строка меняется там же, где стояла,
+// и в том же оформлении («ключ = значение» или «ключ=значение»): выключение возвращает файл как был
+QString withPreferred(const QString &text, const QString &key, const QString &value)
+{
+    QStringList lines = text.split(QLatin1Char('\n'));
+    int found = -1;
+    for (int i = lines.size() - 1; i >= 0; --i) {
+        const QString t = lines[i].trimmed();
+        if (!t.startsWith(key) || !t.mid(key.size()).trimmed().startsWith(QLatin1Char('=')))
+            continue;
+        if (found >= 0)
+            lines.removeAt(found); // дубли — оставляем первый
+        found = i;
+    }
+    if (found >= 0) {
+        if (value.isEmpty()) {
+            lines.removeAt(found);
+        } else {
+            const QString sep = lines[found].contains(QLatin1String(" = ")) ? QStringLiteral(" = ") : QStringLiteral("=");
+            lines[found] = key + sep + value;
+        }
+    } else if (!value.isEmpty()) {
+        int at = lines.indexOf(QStringLiteral("[preferred]"));
+        if (at < 0) {
+            lines.prepend(QStringLiteral("[preferred]"));
+            at = 0;
+        }
+        // Оформление — как у соседних строк файла
+        const bool spaced = text.contains(QLatin1String(" = "));
+        lines.insert(at + 1, key + (spaced ? QStringLiteral(" = ") : QStringLiteral("=")) + value);
+    }
+    while (!lines.isEmpty() && lines.last().trimmed().isEmpty())
+        lines.removeLast();
+    return lines.join(QLatin1Char('\n')) + QLatin1Char('\n');
+}
+
+void run(const QString &exe, const QStringList &args)
+{
+    QProcess p;
+    p.start(exe, args);
+    p.waitForFinished(5000);
+}
+}
+
+bool Environment::portalBackend() const
+{
+    return QFile::exists(portalsDir() + QStringLiteral("/shelf.portal"));
+}
+
+bool Environment::portalPicker() const
+{
+    return preferredValue(readText(userPortalsConf()), kPortalKey) == QLatin1String("shelf");
+}
+
+QString Environment::portalInstallCommand() const
+{
+    const QString src = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+                        + QStringLiteral("/xdg-desktop-portal/portals/shelf.portal");
+    return QStringLiteral("sudo install -Dm644 %1 /usr/share/xdg-desktop-portal/portals/shelf.portal").arg(src);
+}
+
+QString Environment::setPortalPicker(bool on)
+{
+    if (on && !portalBackend())
+        return QStringLiteral("Бэкенд портала не установлен — %1").arg(portalInstallCommand());
+
+    // 1. Портал: FileChooser=shelf. Своего файла нет — берём системный как основу,
+    //    иначе пользовательский файл заменил бы его целиком
+    const QString conf = userPortalsConf();
+    QString text = readText(conf);
+    if (text.isEmpty())
+        text = readText(QStringLiteral("/usr/share/xdg-desktop-portal/") + QFileInfo(conf).fileName());
+    if (text.isEmpty())
+        text = QStringLiteral("[preferred]\ndefault=gtk\n");
+    QSettings st;
+    if (on) {
+        const QString prev = preferredValue(text, kPortalKey);
+        if (prev != QLatin1String("shelf"))
+            st.setValue(QStringLiteral("portal/previousFileChooser"), prev);
+        backupOnce(conf);
+        text = withPreferred(text, kPortalKey, QStringLiteral("shelf"));
+    } else {
+        text = withPreferred(text, kPortalKey, st.value(QStringLiteral("portal/previousFileChooser")).toString());
+        st.remove(QStringLiteral("portal/previousFileChooser"));
+    }
+    if (!writeText(conf, text))
+        return QStringLiteral("Не удалось записать %1").arg(conf);
+
+    // 2. Hyprland: GTK-программам — портал, окну выбора — плавающее по центру
+    if (hyprland() && QFile::exists(hyprConf())) {
+        QString hc = readText(hyprConf());
+        const bool hasSource = hc.contains(kSourceLine);
+        if (on) {
+            const QString snippet = QStringLiteral(
+                "# Shelf: окна выбора файлов (Настройки Shelf → Проводник). Файл перезаписывается Shelf.\n"
+                "# GTK 3 и Firefox — выбор файлов через портал; GTK 4 — тоже\n"
+                "env = GTK_USE_PORTAL,1\n"
+                "env = GDK_DEBUG,portals\n"
+                "windowrulev2 = float, class:^(org.stasyao.shelf.picker)$\n"
+                "windowrulev2 = size 940 600, class:^(org.stasyao.shelf.picker)$\n"
+                "windowrulev2 = center, class:^(org.stasyao.shelf.picker)$\n");
+            if (!writeText(hyprSnippet(), snippet))
+                return QStringLiteral("Не удалось записать %1").arg(hyprSnippet());
+            if (!hasSource) {
+                backupOnce(hyprConf());
+                if (!hc.endsWith(QLatin1Char('\n')))
+                    hc += QLatin1Char('\n');
+                hc += QStringLiteral("\n# Shelf: окна выбора файлов\n") + kSourceLine + QLatin1Char('\n');
+                writeText(hyprConf(), hc);
+            }
+        } else {
+            // Сначала строку source, потом файл — иначе Hyprland ругнётся на пропавший файл
+            if (hasSource) {
+                hc.remove(QStringLiteral("\n# Shelf: окна выбора файлов\n") + kSourceLine + QLatin1Char('\n'));
+                hc.remove(kSourceLine + QLatin1Char('\n'));
+                writeText(hyprConf(), hc);
+            }
+            QFile::remove(hyprSnippet());
+        }
+        run(QStringLiteral("hyprctl"), {QStringLiteral("reload")});
+    }
+
+    // 3. Портал перечитывает настройки только при запуске
+    run(QStringLiteral("systemctl"), {QStringLiteral("--user"), QStringLiteral("restart"), QStringLiteral("xdg-desktop-portal.service")});
+    emit changed();
+    return {};
+}
+

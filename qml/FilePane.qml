@@ -11,6 +11,8 @@ FocusScope {
     required property DirModel model
     property bool gridMode: true
     property string renamingPath: ""
+    // Окно выбора одного файла: Ctrl/Shift не добавляют к выделению
+    property bool singleSelect: false
 
     // path → true; объект пересоздаётся при каждом изменении, чтобы сработали привязки
     property var selected: ({})
@@ -92,6 +94,7 @@ FocusScope {
         view.currentIndex = row
     }
     function toggleRow(row) {
+        if (singleSelect) { selectOnly(row); return }
         var s = Object.assign({}, selected)
         var p = model.pathAt(row)
         if (s[p]) delete s[p]; else s[p] = true
@@ -100,6 +103,7 @@ FocusScope {
         view.currentIndex = row
     }
     function selectRange(row) {
+        if (singleSelect) { selectOnly(row); return }
         if (anchorRow < 0) anchorRow = row
         var s = {}
         for (var i = Math.min(anchorRow, row); i <= Math.max(anchorRow, row); ++i)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(shelf VERSION 0.1.2 LANGUAGES CXX)
+project(shelf VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -82,6 +82,7 @@ qt_add_qml_module(shelf
         src/Session.h src/Session.cpp
         src/Terminal.h src/Terminal.cpp
         src/Environment.h src/Environment.cpp
+        src/Picker.h src/Picker.cpp
 )
 
 # QML компилируется только в байт-код, без C++ для привязок (AOT): сгенерированный C++
@@ -103,3 +104,19 @@ install(FILES data/icons/org.stasyao.shelf.svg DESTINATION ${CMAKE_INSTALL_DATAD
 install(FILES data/icons/org.stasyao.shelf-small.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/16x16/apps
         RENAME org.stasyao.shelf.svg)
+
+# ── Бэкенд портала выбора файлов ─────────────────────────────────────
+# xdg-desktop-portal-shelf отвечает на org.freedesktop.impl.portal.FileChooser и
+# открывает Shelf в режиме выбора (shelf --pick)
+qt_add_executable(xdg-desktop-portal-shelf src/portal/main.cpp src/portal/FileChooser.cpp src/portal/FileChooser.h)
+target_link_libraries(xdg-desktop-portal-shelf PRIVATE Qt6::Core Qt6::DBus)
+target_compile_definitions(xdg-desktop-portal-shelf PRIVATE SHELF_EXE="${CMAKE_INSTALL_FULL_BINDIR}/shelf")
+target_compile_options(xdg-desktop-portal-shelf PRIVATE -Wall -Wextra)
+install(TARGETS xdg-desktop-portal-shelf RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
+configure_file(data/portal/org.freedesktop.impl.portal.desktop.shelf.service.in
+               org.freedesktop.impl.portal.desktop.shelf.service @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.freedesktop.impl.portal.desktop.shelf.service
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services)
+# Портал ищет описания бэкендов только в $prefix/share/xdg-desktop-portal/portals
+install(FILES data/portal/shelf.portal DESTINATION ${CMAKE_INSTALL_DATADIR}/xdg-desktop-portal/portals)
+
