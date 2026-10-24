@@ -124,6 +124,9 @@ void DirModel::setPath(const QString &path)
         m_watcher.removePath(m_path);
     m_path = p;
     m_watcher.addPath(m_path);
+    // Другая папка — не правка этой: строки по одной не меняем, иначе GridView играет
+    // анимации удаления и вставки поверх перехода, и удалённые строки повисают призраками
+    m_resetNext = true;
 
     if (!m_query.isEmpty()) {
         stopSearch();
@@ -271,7 +274,8 @@ void DirModel::updateRows(const QList<FileEntry> &rows)
     }
     // Много изменений (другая папка, конец поиска) — по одной строке дольше, чем сбросом
     const int changes = int(m_rows.size()) - kept + int(rows.size()) - kept;
-    if (!sameOrder || m_rows.isEmpty() || changes > 64) {
+    if (m_resetNext || !sameOrder || m_rows.isEmpty() || changes > 64) {
+        m_resetNext = false;
         beginResetModel();
         m_rows = rows;
         endResetModel();

@@ -128,6 +128,8 @@ private:
     QList<QRegularExpression> m_nameRegex;
     QStringList m_mimeFilters;
     bool m_dirsOnly = false;
+    // Сменилась папка — следующее перечитывание перестраивает список целиком
+    bool m_resetNext = true;
 
     QList<FileEntry> m_all;   // всё содержимое папки, со скрытыми
     QList<FileEntry> m_rows;  // то, что видно

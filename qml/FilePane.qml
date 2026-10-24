@@ -158,7 +158,9 @@ FocusScope {
     // наверх слева (-1), без сдвига (0). Пока идёт переход, анимации появления
     // отдельных файлов выключены, чтобы не двигалось всё сразу
     property bool navigating: false
-    readonly property bool itemMotion: Theme.animations && !navigating
+    // Переход перестраивает модель целиком (сброс), и add/remove не срабатывают; отключать
+    // переходы на ходу нельзя — GridView бросает идущую анимацию и оставляет строку висеть
+    readonly property bool itemMotion: Theme.animations
     function playEnter(dir) {
         navigating = true
         viewShift.x = 18 * dir
