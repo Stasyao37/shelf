@@ -9,7 +9,10 @@ Item {
     id: strip
 
     property var tabs: []        // FolderTab
-    property int current: 0
+    // Текущая вкладка — сам объект, а не номер: при перестановке кнопки пересоздаются
+    // по новому списку раньше, чем приходит новый номер, и сравнение номеров на миг
+    // подсвечивало соседнюю вкладку (issue #1)
+    property var currentTab: null
 
     signal activate(int index)
     signal closeTab(int index)
@@ -48,7 +51,7 @@ Item {
             id: tabItem
             required property var modelData
             required property int index
-            readonly property bool current: index === strip.current
+            readonly property bool current: modelData === strip.currentTab
             readonly property bool dropHere: drop.containsDrag
             property bool dragging: false
             property real dragX: 0

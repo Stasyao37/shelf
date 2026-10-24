@@ -640,7 +640,7 @@ Window {
                 visible: Layout.preferredHeight > 0.5
                 clip: true
                 tabs: win.tabs
-                current: win.current
+                currentTab: win.tab
                 onActivate: (i) => win.switchTo(i)
                 onCloseTab: (i) => win.closeTab(i)
                 onMoveTab: (from, to) => win.moveTab(from, to)
