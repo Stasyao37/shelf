@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.2.1
+Version:        0.2.2
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -63,6 +63,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/org.stasyao.shelf.des
 %{_datadir}/xdg-desktop-portal/portals/shelf.portal
 
 %changelog
+* Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.2.2-1
+- No phantom files after switching folders (e.g. entering the trash)
+
 * Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.2.1-1
 - Own file chooser windows for other apps; tab highlight no longer flickers (#1)
 
