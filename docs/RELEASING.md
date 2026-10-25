@@ -7,6 +7,8 @@
    - `packaging/arch/PKGBUILD` — `pkgver=`
    - `packaging/nix/package.nix` — `version =`
    - `CHANGELOG.md` — раздел `## X.Y.Z — дата` первым (из него берутся заметки к релизу)
+   - `README.md` — имена пакетов в «Установке» (`shelf-X.Y.Z-1.fc43…`, `shelf_X.Y.Z_amd64.deb`,
+     `shelf-fm-X.Y.Z-1…`) и всё, что изменилось в возможностях и горячих клавишах
 2. Закоммитить, запушить и поставить тег:
    ```sh
    git tag -a vX.Y.Z -m "Shelf X.Y.Z" && git push origin vX.Y.Z

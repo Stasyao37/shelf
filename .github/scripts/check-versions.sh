@@ -12,4 +12,8 @@ check debian/changelog    "$(sed -n '1s/^shelf (\([^)]*\)).*/\1/p' debian/change
 check PKGBUILD            "$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)"
 check package.nix         "$(sed -n 's/.*version = "\(.*\)";.*/\1/p' packaging/nix/package.nix)"
 check CHANGELOG.md        "$(grep -m1 -o '^## [0-9.]*' CHANGELOG.md | cut -c4-)"
+# Команды установки в README называют файлы пакетов — все должны быть этой версии
+for v in $(grep -oE '(shelf-|shelf_|shelf-fm-)[0-9]+\.[0-9]+\.[0-9]+' README.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$' | sort -u); do
+    check README.md "$v"
+done
 exit $fail
