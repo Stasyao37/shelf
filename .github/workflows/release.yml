@@ -1,0 +1,184 @@
+# Выпуск: тег vX.Y.Z → проверка версий → RPM, .deb, Arch, Nix → релиз на GitHub с пакетами.
+# Вручную (Actions → release → Run workflow) — для любого тега; dry_run собирает без релиза.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег, например v0.2.2"
+        required: true
+      dry_run:
+        description: "Только собрать, релиз не создавать"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      # Скрипты — из коммита workflow, исходники — из тега (у старых тегов скриптов ещё нет)
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          path: src
+      - id: v
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Версии во всех файлах совпадают с тегом
+        working-directory: src
+        run: ../.github/scripts/check-versions.sh "${TAG#v}"
+      # Пакеты собираются из того же архива, что GitHub отдаёт пользователям
+      - name: Архив исходников тега
+        run: |
+          V="${TAG#v}"
+          curl -fsSL --retry 5 -o "shelf-$V.tar.gz" \
+            "https://github.com/${{ github.repository }}/archive/$TAG/shelf-$V.tar.gz"
+          sha256sum "shelf-$V.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: shelf-*.tar.gz
+
+  rpm:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: fedora:43
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - name: Сборка RPM
+        run: |
+          dnf -y -q install rpm-build rpmdevtools rpmlint 'dnf-command(builddep)'
+          dnf -y -q builddep packaging/rpm/shelf.spec
+          TOP="$PWD/rpmbuild"; mkdir -p "$TOP/SOURCES"; cp shelf-*.tar.gz "$TOP/SOURCES/"
+          rpmbuild --define "_topdir $TOP" -ba packaging/rpm/shelf.spec
+          rpmlint "$TOP"/RPMS/x86_64/shelf-[0-9]*.rpm || true
+          # Пакет не должен быть привязан к точной версии Qt (закрытый API)
+          if rpm -qRp "$TOP"/RPMS/x86_64/shelf-[0-9]*.rpm | grep PRIVATE_API; then
+            echo "RPM зависит от закрытого API Qt"; exit 1
+          fi
+          mkdir out; cp "$TOP"/RPMS/x86_64/shelf-[0-9]*.rpm "$TOP"/SRPMS/*.src.rpm out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: out/*
+
+  deb:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - name: Сборка .deb
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq build-essential devscripts equivs lintian >/dev/null
+          V="${{ needs.prepare.outputs.version }}"
+          tar xzf "shelf-$V.tar.gz"; cd "shelf-$V"
+          mk-build-deps -i -r -t "apt-get -y -qq --no-install-recommends" debian/control >/dev/null
+          dpkg-buildpackage -us -uc -b
+          cd ..; lintian "shelf_${V}_amd64.deb" || true
+          mkdir out; cp "shelf_${V}_amd64.deb" out/
+      - name: Ставится в чистую систему и запускается
+        run: |
+          apt-get install -y -qq ./out/*.deb >/dev/null
+          shelf --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: out/*
+
+  arch:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - name: Сборка пакета Arch
+        run: |
+          pacman -Syu --noconfirm --needed base-devel namcap >/dev/null
+          useradd -m builder
+          mkdir pkg; cp packaging/arch/PKGBUILD shelf-*.tar.gz pkg/
+          # В PKGBUILD — настоящая сумма архива тега (для AUR и пользователей)
+          SUM=$(sha256sum pkg/shelf-*.tar.gz | cut -d' ' -f1)
+          sed -i "s/^sha256sums=(.*)/sha256sums=('$SUM')/" pkg/PKGBUILD
+          chown -R builder pkg; cd pkg
+          # Одинарные кавычки — массивы раскрывает оболочка builder; список намеренно делится на слова
+          # shellcheck disable=SC2016,SC2046
+          pacman -S --noconfirm --needed $(su builder -c 'source PKGBUILD; echo ${depends[@]} ${makedepends[@]}') >/dev/null
+          su builder -c "makepkg -f --noconfirm"
+          su builder -c "makepkg --printsrcinfo > .SRCINFO"
+          namcap PKGBUILD
+          pacman -U --noconfirm shelf-fm-[0-9]*.pkg.tar.zst >/dev/null
+          shelf --version
+          mkdir ../out; cp shelf-fm-[0-9]*.pkg.tar.zst PKGBUILD ../out/; cp .SRCINFO ../out/SRCINFO
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: out/*
+
+  nix:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: cachix/install-nix-action@v31
+      - name: Сборка flake
+        run: |
+          nix flake check
+          nix build .#shelf -L
+          ls result/libexec result/share/xdg-desktop-portal/portals
+          QT_QPA_PLATFORM=offscreen result/bin/shelf --version
+
+  release:
+    needs: [prepare, rpm, deb, arch, nix]
+    if: github.event_name == 'push' || !inputs.dry_run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          path: src
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Релиз на GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ needs.prepare.outputs.version }}"
+          (cd src && python3 ../.github/scripts/release-notes.py "$V") > notes.md
+          rm -f dist/shelf-"$V".tar.gz
+          mv dist/SRCINFO dist/SRCINFO.txt
+          ls -la dist
+          gh release create "$TAG" --repo "${{ github.repository }}" --verify-tag --latest --title "Shelf $V" --notes-file notes.md dist/*

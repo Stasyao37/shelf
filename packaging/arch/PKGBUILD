@@ -17,7 +17,9 @@ optdepends=('tumbler: миниатюры картинок и PDF'
             'matugen: палитра из обоев')
 # В AUR уже есть shelf-git — другая программа (закладки на файлы); -fm — чтобы не путать
 source=("$_name-$pkgver.tar.gz::$url/archive/v$pkgver/$_name-$pkgver.tar.gz")
-sha256sums=('2b36c84680cb2473f6a05196cfd3411321c4683cabbf1b2ac756cc62b2397dbb')
+# Настоящую сумму архива тега подставляет сборка выпуска (.github/workflows/release.yml);
+# PKGBUILD с ней и .SRCINFO прикладываются к релизу — их и кладём в AUR
+sha256sums=('SKIP')
 
 build() {
   cmake -B build -S "$_name-$pkgver" -G Ninja \
