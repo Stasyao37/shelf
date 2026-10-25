@@ -120,7 +120,7 @@ sudo install -Dm644 ~/.local/share/xdg-desktop-portal/portals/shelf.portal \
 
 ## 📦 Установка
 
-**Fedora 43 и новее** — готовый пакет на странице [выпусков](https://github.com/Stasyao37/shelf/releases):
+**Fedora 43 и новее** — готовый пакет на странице [выпусков](https://github.com/nook-apps/shelf/releases):
 
 ```sh
 sudo dnf install ./shelf-0.2.2-1.fc43.x86_64.rpm
@@ -139,7 +139,7 @@ sudo apt install ./shelf_0.2.2_amd64.deb
 ```sh
 sudo pacman -U ./shelf-fm-0.2.2-1-x86_64.pkg.tar.zst
 # или
-git clone https://github.com/Stasyao37/shelf && cd shelf/packaging/arch && makepkg -si
+git clone https://github.com/nook-apps/shelf && cd shelf/packaging/arch && makepkg -si
 ```
 
 В AUR пакет появится под именем `shelf-fm`.
@@ -147,15 +147,15 @@ git clone https://github.com/Stasyao37/shelf && cd shelf/packaging/arch && makep
 **Nix / NixOS** — flake в этом репозитории:
 
 ```sh
-nix run github:Stasyao37/shelf             # попробовать, ничего не устанавливая
-nix profile install github:Stasyao37/shelf # поставить в профиль
+nix run github:nook-apps/shelf             # попробовать, ничего не устанавливая
+nix profile install github:nook-apps/shelf # поставить в профиль
 ```
 
 В конфигурации NixOS — через оверлей:
 
 ```nix
 # flake.nix системы
-inputs.shelf.url = "github:Stasyao37/shelf";
+inputs.shelf.url = "github:nook-apps/shelf";
 # в модуле
 nixpkgs.overlays = [ inputs.shelf.overlays.default ];
 environment.systemPackages = [ pkgs.shelf ];
@@ -167,7 +167,7 @@ Nix поверх другого дистрибутива (не NixOS): прог�
 видеокарты системы, поэтому запускайте через [nixGL](https://github.com/nix-community/nixGL):
 
 ```sh
-nix run --impure github:nix-community/nixGL -- nix run github:Stasyao37/shelf
+nix run --impure github:nix-community/nixGL -- nix run github:nook-apps/shelf
 ```
 
 На других дистрибутивах — сборка из исходников, ниже.

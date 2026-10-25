@@ -14,7 +14,7 @@ print(f"""## Установка
 | **Fedora 43+** | `sudo dnf install ./shelf-{v}-1.fc43.x86_64.rpm` |
 | **Debian 13, Ubuntu 25.04+** | `sudo apt install ./shelf_{v}_amd64.deb` |
 | **Arch Linux** | `sudo pacman -U ./shelf-fm-{v}-1-x86_64.pkg.tar.zst` или `makepkg -si` с приложенным PKGBUILD |
-| **NixOS / Nix** | `nix run github:Stasyao37/shelf/v{v}` |
+| **NixOS / Nix** | `nix run github:nook-apps/shelf/v{v}` |
 
 Зависимости пакеты ставят сами; для миниатюр рекомендуются tumbler и ffmpegthumbnailer.
 Окна выбора файлов для других программ: **Ctrl+,** → «Проводник» → «Выбор файлов в окнах Shelf».

@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: shelf
-Source: https://github.com/Stasyao37/shelf
+Source: https://github.com/nook-apps/shelf
 
 Files: *
 Copyright: 2026 Stasyao37

@@ -6,7 +6,7 @@ Summary:        Glass file manager for Hyprland in Qt 6 / QML
 # Код — GPL-3.0-or-later; вшитый шрифт значков (fonts/) — OFL-1.1, значки Nerd Fonts — MIT;
 # логотипы языков (icons/lang/) — CC0-1.0
 License:        GPL-3.0-or-later AND OFL-1.1 AND MIT AND CC0-1.0
-URL:            https://github.com/Stasyao37/shelf
+URL:            https://github.com/nook-apps/shelf
 Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  cmake >= 3.21

@@ -47,7 +47,7 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Glass file manager for Hyprland in Qt 6 / QML";
-    homepage = "https://github.com/Stasyao37/shelf";
+    homepage = "https://github.com/nook-apps/shelf";
     # Код — GPL-3.0-or-later; шрифт значков — OFL-1.1 и MIT (Nerd Fonts); логотипы языков — CC0
     license = with lib.licenses; [ gpl3Plus ofl mit cc0 ];
     platforms = lib.platforms.linux;

@@ -10,8 +10,8 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      # nix run github:Stasyao37/shelf — запустить, не устанавливая
-      # nix profile install github:Stasyao37/shelf — поставить в профиль
+      # nix run github:nook-apps/shelf — запустить, не устанавливая
+      # nix profile install github:nook-apps/shelf — поставить в профиль
       packages = forAllSystems (pkgs: rec {
         shelf = pkgs.callPackage ./packaging/nix/package.nix { };
         default = shelf;

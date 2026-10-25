@@ -5,7 +5,7 @@ pkgver=0.2.2
 pkgrel=1
 pkgdesc="Glass file manager for Hyprland in Qt 6 / QML"
 arch=('x86_64' 'aarch64')
-url="https://github.com/Stasyao37/shelf"
+url="https://github.com/nook-apps/shelf"
 license=('GPL-3.0-or-later' 'OFL-1.1' 'MIT' 'CC0-1.0')
 # QML-модули (Controls, Effects, Layouts, QtCore) входят в qt6-declarative;
 # SVG и Wayland — плагины, грузятся во время работы
