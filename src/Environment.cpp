@@ -371,9 +371,9 @@ QString Environment::setPortalPicker(bool on)
                 "# GTK 3 и Firefox — выбор файлов через портал; GTK 4 — тоже\n"
                 "env = GTK_USE_PORTAL,1\n"
                 "env = GDK_DEBUG,portals\n"
-                "windowrulev2 = float, class:^(org.stasyao.shelf.picker)$\n"
-                "windowrulev2 = size 940 600, class:^(org.stasyao.shelf.picker)$\n"
-                "windowrulev2 = center, class:^(org.stasyao.shelf.picker)$\n");
+                "windowrulev2 = float, class:^(io.github.nook_apps.Shelf.Picker)$\n"
+                "windowrulev2 = size 940 600, class:^(io.github.nook_apps.Shelf.Picker)$\n"
+                "windowrulev2 = center, class:^(io.github.nook_apps.Shelf.Picker)$\n");
             if (!writeText(hyprSnippet(), snippet))
                 return QStringLiteral("Не удалось записать %1").arg(hyprSnippet());
             if (!hasSource) {
@@ -399,5 +399,45 @@ QString Environment::setPortalPicker(bool on)
     run(QStringLiteral("systemctl"), {QStringLiteral("--user"), QStringLiteral("restart"), QStringLiteral("xdg-desktop-portal.service")});
     emit changed();
     return {};
+}
+
+// ── Переезд на io.github.nook_apps.Shelf ────────────────────────────
+void Environment::migrateAppId()
+{
+    QSettings st;
+    if (st.value(QStringLiteral("migration/appId")).toString() == QLatin1String("io.github.nook_apps.Shelf"))
+        return;
+    const QString oldId = QStringLiteral("org.stasyao.shelf");
+    const QString newId = QStringLiteral("io.github.nook_apps.Shelf");
+
+    // 1. Назначения программ: org.stasyao.shelf.desktop → новое имя (проводник по умолчанию и т.п.)
+    for (const QString &f : {configDir() + QStringLiteral("/mimeapps.list"),
+                             configDir() + QStringLiteral("/") + desktopName() + QStringLiteral("-mimeapps.list")}) {
+        QString text = readText(f);
+        if (!text.contains(oldId + QStringLiteral(".desktop")))
+            continue;
+        backupOnce(f);
+        text.replace(oldId + QStringLiteral(".desktop"), newId + QStringLiteral(".desktop"));
+        writeText(f, text);
+    }
+
+    // 2. Правила окна выбора в Hyprland
+    QString snippet = readText(hyprSnippet());
+    if (snippet.contains(oldId + QStringLiteral(".picker"))) {
+        snippet.replace(oldId + QStringLiteral(".picker"), newId + QStringLiteral(".Picker"));
+        writeText(hyprSnippet(), snippet);
+        if (!qEnvironmentVariableIsEmpty("HYPRLAND_INSTANCE_SIGNATURE"))
+            run(QStringLiteral("hyprctl"), {QStringLiteral("reload")});
+    }
+
+    // 3. Старый ярлык и иконки от сборки в ~/.local (файлы пакетов обновит пакетный менеджер)
+    const QString data = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    const QString oldDesktop = data + QStringLiteral("/applications/") + oldId + QStringLiteral(".desktop");
+    if (readText(oldDesktop).contains(QLatin1String("Exec=")) && readText(oldDesktop).contains(QLatin1String("/shelf")))
+        QFile::remove(oldDesktop);
+    for (const QFileInfo &dir : QDir(data + QStringLiteral("/icons/hicolor")).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
+        QFile::remove(dir.absoluteFilePath() + QStringLiteral("/apps/") + oldId + QStringLiteral(".svg"));
+
+    st.setValue(QStringLiteral("migration/appId"), newId);
 }
 

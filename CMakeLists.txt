@@ -68,7 +68,7 @@ qt_add_qml_module(shelf
         icons/emblems/folder-git.svg icons/emblems/folder-config.svg
         ${LANG_ICONS}
         fonts/ShelfIcons.ttf fonts/ShelfIconsPropo.ttf
-        data/matugen/shelf-colors.json data/icons/org.stasyao.shelf.svg
+        data/matugen/shelf-colors.json data/icons/io.github.nook_apps.Shelf.svg
     SOURCES
         src/DirModel.h src/DirModel.cpp
         src/FileOps.h src/FileOps.cpp
@@ -96,14 +96,14 @@ target_compile_options(shelf PRIVATE -Wall -Wextra)
 
 include(GNUInstallDirs)
 install(TARGETS shelf RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-configure_file(data/org.stasyao.shelf.desktop.in org.stasyao.shelf.desktop @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.stasyao.shelf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+configure_file(data/io.github.nook_apps.Shelf.desktop.in io.github.nook_apps.Shelf.desktop @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/io.github.nook_apps.Shelf.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 # Иконка приложения: подробная — везде, включая меню лаунчеров;
 # упрощённый силуэт — только для 16 px (трей), где детали уже не различить
-install(FILES data/icons/org.stasyao.shelf.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
-install(FILES data/icons/org.stasyao.shelf-small.svg
+install(FILES data/icons/io.github.nook_apps.Shelf.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
+install(FILES data/icons/io.github.nook_apps.Shelf-small.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/16x16/apps
-        RENAME org.stasyao.shelf.svg)
+        RENAME io.github.nook_apps.Shelf.svg)
 
 # ── Бэкенд портала выбора файлов ─────────────────────────────────────
 # xdg-desktop-portal-shelf отвечает на org.freedesktop.impl.portal.FileChooser и

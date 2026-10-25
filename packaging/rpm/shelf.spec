@@ -49,15 +49,15 @@ first-run setup that checks the environment.
 %cmake_install
 
 %check
-desktop-file-validate %{buildroot}%{_datadir}/applications/org.stasyao.shelf.desktop
+desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.nook_apps.Shelf.desktop
 
 %files
 %license LICENSE fonts/OFL.txt
 %doc README.md CHANGELOG.md
 %{_bindir}/shelf
-%{_datadir}/applications/org.stasyao.shelf.desktop
-%{_datadir}/icons/hicolor/scalable/apps/org.stasyao.shelf.svg
-%{_datadir}/icons/hicolor/16x16/apps/org.stasyao.shelf.svg
+%{_datadir}/applications/io.github.nook_apps.Shelf.desktop
+%{_datadir}/icons/hicolor/scalable/apps/io.github.nook_apps.Shelf.svg
+%{_datadir}/icons/hicolor/16x16/apps/io.github.nook_apps.Shelf.svg
 %{_libexecdir}/xdg-desktop-portal-shelf
 %{_datadir}/dbus-1/services/org.freedesktop.impl.portal.desktop.shelf.service
 %{_datadir}/xdg-desktop-portal/portals/shelf.portal

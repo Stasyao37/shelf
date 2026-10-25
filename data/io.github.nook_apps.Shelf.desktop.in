@@ -7,9 +7,9 @@ Comment=Browse and manage files
 Comment[ru]=Просмотр и управление файлами
 # Полный путь: у Hyprland в PATH нет ~/.local/bin, лаунчеры шелла запускают через него
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/shelf %U
-Icon=org.stasyao.shelf
+Icon=io.github.nook_apps.Shelf
 Terminal=false
 Categories=System;FileTools;FileManager;Core;
 MimeType=inode/directory;
-StartupWMClass=org.stasyao.shelf
+StartupWMClass=io.github.nook_apps.Shelf
 Keywords=shelf;полка;файлы;папки;проводник;files;folder;explorer;

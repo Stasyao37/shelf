@@ -15,7 +15,7 @@ class Apps : public QObject
     QML_ELEMENT
     QML_SINGLETON
 
-    // Shelf открывает папки по умолчанию (inode/directory → org.stasyao.shelf.desktop)
+    // Shelf открывает папки по умолчанию (inode/directory → io.github.nook_apps.Shelf.desktop)
     Q_PROPERTY(bool defaultFileManager READ defaultFileManager NOTIFY defaultsChanged)
 
 public:

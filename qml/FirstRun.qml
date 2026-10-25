@@ -140,7 +140,7 @@ GlassDialog {
                     spacing: 14
                     Image {
                         width: 52; height: 52
-                        source: Qt.resolvedUrl("data/icons/org.stasyao.shelf.svg")
+                        source: Qt.resolvedUrl("data/icons/io.github.nook_apps.Shelf.svg")
                         sourceSize: Qt.size(104, 104)
                         smooth: true
                     }

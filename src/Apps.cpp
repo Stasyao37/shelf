@@ -385,7 +385,7 @@ bool Apps::setDefault(const QString &appId, const QString &mimeType)
 }
 
 namespace {
-const QString kShelfDesktop = QStringLiteral("org.stasyao.shelf.desktop");
+const QString kShelfDesktop = QStringLiteral("io.github.nook_apps.Shelf.desktop");
 const QString kDirectory = QStringLiteral("inode/directory");
 }
 

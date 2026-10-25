@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="data/icons/org.stasyao.shelf.svg" alt="" width="112">
+<img src="data/icons/io.github.nook_apps.Shelf.svg" alt="" width="112">
 
 # Shelf
 
@@ -203,7 +203,7 @@ cmake --install build
 Сделать Shelf проводником по умолчанию:
 
 ```sh
-xdg-mime default org.stasyao.shelf.desktop inode/directory
+xdg-mime default io.github.nook_apps.Shelf.desktop inode/directory
 ```
 
 > [!NOTE]

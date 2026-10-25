@@ -1,4 +1,5 @@
 #include "DirModel.h"
+#include "Environment.h"
 #include "IconProvider.h"
 #include "Picker.h"
 
@@ -51,14 +52,14 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral(SHELF_VERSION));
 
     // Становится app_id окна в Wayland — по нему Hyprland и .desktop узнают приложение
-    app.setDesktopFileName(QStringLiteral("org.stasyao.shelf"));
+    app.setDesktopFileName(QStringLiteral("io.github.nook_apps.Shelf"));
 
     const QString iconTheme = gtkIconTheme();
     if (!iconTheme.isEmpty())
         QIcon::setThemeName(iconTheme);
     QIcon::setFallbackThemeName(QStringLiteral("Adwaita"));
     // Своя иконка из hicolor; до установки — та, что в теме
-    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.stasyao.shelf"),
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("io.github.nook_apps.Shelf"),
                                        QIcon::fromTheme(QStringLiteral("system-file-manager"))));
 
     // Значки интерфейса — вшитые символы Nerd Font: не зависим от установленных шрифтов
@@ -77,6 +78,10 @@ int main(int argc, char *argv[])
         QGuiApplication::setFont(font);
     }
 
+    // Переезд на io.github.nook_apps.Shelf: старые назначения и правила — на новое имя
+    if (pickRequest.isEmpty())
+        Environment::migrateAppId();
+
     // Свои контролы рисуем сами; Basic не тянет вид qt6ct/kvantum
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
@@ -84,7 +89,7 @@ int main(int argc, char *argv[])
         if (!Picker::load(pickRequest))
             return 2;
         // Свой app_id — чтобы Hyprland держал окно выбора плавающим, по центру
-        app.setDesktopFileName(QStringLiteral("org.stasyao.shelf.picker"));
+        app.setDesktopFileName(QStringLiteral("io.github.nook_apps.Shelf.Picker"));
     }
 
     // shelf [папка | файл | file://…] — для файла открываем его папку и выделяем его

@@ -54,6 +54,9 @@ public:
     Q_INVOKABLE QString portalInstallCommand() const;
 
     static QString matugenConfig();
+    // Один раз: старый идентификатор org.stasyao.shelf → io.github.nook_apps.Shelf
+    // (проводник по умолчанию, правила окна выбора, старый ярлык в ~/.local)
+    static void migrateAppId();
 
 signals:
     void changed();
