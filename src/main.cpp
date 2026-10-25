@@ -65,6 +65,18 @@ int main(int argc, char *argv[])
     QFontDatabase::addApplicationFont(QStringLiteral(":/qt/qml/Shelf/fonts/ShelfIcons.ttf"));
     QFontDatabase::addApplicationFont(QStringLiteral(":/qt/qml/Shelf/fonts/ShelfIconsPropo.ttf"));
 
+    // qt6ct кладёт в шрифт приложения имя начертания («Regular»), его наследуют
+    // все шрифты, и оно перебивает жирность: Font.DemiBold и font.bold рисовались
+    // бы обычным. Начертание выбираем по весу сами. Вес тоже обычный: у Shelf свои
+    // шрифты (Theme.fontFamily), а вес из qt6ct (там Medium у Fira Code) задан для
+    // другого шрифта и без «Regular» сделал бы весь текст жирнее
+    QFont font = QGuiApplication::font();
+    if (!font.styleName().isEmpty() || font.weight() != QFont::Normal) {
+        font.setStyleName(QString());
+        font.setWeight(QFont::Normal);
+        QGuiApplication::setFont(font);
+    }
+
     // Свои контролы рисуем сами; Basic не тянет вид qt6ct/kvantum
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
