@@ -10,6 +10,22 @@ FocusScope {
 
     required property DirModel model
     property bool gridMode: true
+    // Сторона значка в сетке; iconShown — она же с анимацией, по ней раскладка.
+    // Миниатюры заказываем по iconSize, чтобы не дёргать кэш на каждом кадре
+    property int iconSize: 56
+    property real iconShown: iconSize
+    Behavior on iconShown { NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
+    // Ctrl+колесо: +1 крупнее, -1 мельче
+    signal zoomRequested(int step)
+    // При масштабе держим на месте первый видимый значок
+    property int zoomAnchor: -1
+    onIconSizeChanged: zoomAnchor = view.indexAt(view.width / 2, view.contentY + 4)
+    onIconShownChanged: {
+        if (zoomAnchor >= 0 && gridMode)
+            view.positionViewAtIndex(zoomAnchor, GridView.Beginning)
+        if (iconShown === iconSize)
+            zoomAnchor = -1
+    }
     property string renamingPath: ""
     // Окно выбора одного файла: Ctrl/Shift не добавляют к выделению
     property bool singleSelect: false
@@ -282,11 +298,12 @@ FocusScope {
         highlightFollowsCurrentItem: false
         reuseItems: true
 
-        readonly property int gridCell: 112
+        // При значке 56 — ячейка 112×118, остальные размеры — пропорционально значку
+        readonly property int gridCell: Math.round(pane.iconShown) + 56
         cellWidth: pane.gridMode
             ? Math.floor((width - 14) / Math.max(1, Math.floor((width - 14) / gridCell)))
             : width - 14
-        cellHeight: pane.gridMode ? 118 : 30
+        cellHeight: pane.gridMode ? Math.round(pane.iconShown) + 62 : 30
 
         ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AsNeeded
@@ -299,7 +316,18 @@ FocusScope {
 
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            property real zoomAcc: 0
             onWheel: (ev) => {
+                if (ev.modifiers & Qt.ControlModifier) {
+                    // Тачпад шлёт мелкие шаги — копим до щелчка колеса
+                    zoomAcc += ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.pixelDelta.y * 4
+                    if (Math.abs(zoomAcc) >= 120) {
+                        pane.zoomRequested(zoomAcc > 0 ? 1 : -1)
+                        zoomAcc = 0
+                    }
+                    return
+                }
+                zoomAcc = 0
                 var d = ev.pixelDelta.y !== 0 ? ev.pixelDelta.y : ev.angleDelta.y / 120 * 90
                 var maxY = Math.max(view.originY, view.originY + view.contentHeight - view.height)
                 view.contentY = Math.max(view.originY, Math.min(view.contentY - d, maxY))
@@ -388,7 +416,7 @@ FocusScope {
 
             Item {
                 id: iconBox
-                readonly property int size: pane.gridMode ? 56 : 22
+                readonly property int size: pane.gridMode ? Math.round(pane.iconShown) : 22
                 width: size; height: size
                 x: pane.gridMode ? (parent.width - width) / 2 : 8
                 y: pane.gridMode ? 10 : (parent.height - height) / 2
@@ -412,20 +440,20 @@ FocusScope {
                     // revision и mtime — чтобы перечитать, когда tumbler закончит или файл изменится.
                     // Они в самом выражении: голые строки-зависимости компилятор QML выбрасывает
                     source: cell.isDir || Thumbnailer.revision < 0 || cell.mtime < 0
-                            ? "" : Thumbnailer.thumbnail(cell.path, cell.mimeType)
+                            ? "" : Thumbnailer.thumbnail(cell.path, cell.mimeType, pane.gridMode ? pane.iconSize : 22)
                 }
 
                 // Ссылка — слева внизу, замок — справа внизу: оба могут быть сразу
                 Badge {
                     visible: cell.isLink
                     name: "link"
-                    size: pane.gridMode ? 20 : 11
+                    size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
                     anchors { left: parent.left; bottom: parent.bottom; leftMargin: pane.gridMode ? -2 : -3 }
                 }
                 Badge {
                     visible: cell.isLocked
                     name: "lock"
-                    size: pane.gridMode ? 20 : 11
+                    size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
                     anchors { right: parent.right; bottom: parent.bottom; rightMargin: pane.gridMode ? -2 : -3 }
                 }
             }
@@ -443,7 +471,7 @@ FocusScope {
                 horizontalAlignment: pane.gridMode ? Text.AlignHCenter : Text.AlignLeft
                 verticalAlignment: Text.AlignVCenter
                 x: pane.gridMode ? 6 : 38
-                y: pane.gridMode ? 72 : 0
+                y: pane.gridMode ? iconBox.size + 16 : 0
                 width: pane.gridMode ? parent.width - 12 : parent.width - 38 - pane.nameRight - 6
                 height: pane.gridMode ? 40 : parent.height
             }
@@ -558,7 +586,7 @@ FocusScope {
             Loader {
                 active: cell.renaming
                 x: pane.gridMode ? 4 : 34
-                y: pane.gridMode ? 72 : 2
+                y: pane.gridMode ? iconBox.size + 16 : 2
                 width: pane.gridMode ? parent.width - 8 : parent.width - 34 - pane.nameRight - 10
                 height: pane.gridMode ? 26 : parent.height - 4
                 sourceComponent: Rectangle {

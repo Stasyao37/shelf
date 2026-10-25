@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QtEndian>
 #include <QStandardPaths>
 #include <QUrl>
@@ -17,8 +19,14 @@ namespace {
 const QString kService = QStringLiteral("org.freedesktop.thumbnails.Thumbnailer1");
 const QString kPath = QStringLiteral("/org/freedesktop/thumbnails/Thumbnailer1");
 const QString kIface = QStringLiteral("org.freedesktop.thumbnails.Thumbnailer1");
-// 128 px: в сетке иконка 56 px, при масштабе 1.5 это 84 физических — хватает с запасом
-const QString kFlavor = QStringLiteral("normal");
+// Размеры миниатюр по спецификации: сторона 128, 256, 512 и 1024 px
+const char *const kFlavors[] = {"normal", "large", "x-large", "xx-large"};
+constexpr int kFlavorPx[] = {128, 256, 512, 1024};
+
+QString pendingKey(int flavor, const QString &path)
+{
+    return QString::number(flavor) + QLatin1Char(':') + path;
+}
 
 qint64 mtimeOf(const QString &path)
 {
@@ -89,6 +97,29 @@ Thumbnailer::Thumbnailer(QObject *parent)
     bus.connect(kService, kPath, kIface, QStringLiteral("Error"), this,
                 SLOT(onError(uint, QStringList, int, QString)));
     loadSupported();
+
+    // Старый tumbler знает только normal и large
+    const QDBusMessage msg = QDBusMessage::createMethodCall(kService, kPath, kIface, QStringLiteral("GetFlavors"));
+    auto *w = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(msg), this);
+    connect(w, &QDBusPendingCallWatcher::finished, this, [this](QDBusPendingCallWatcher *w) {
+        w->deleteLater();
+        const QDBusPendingReply<QStringList> reply = *w;
+        if (reply.isError())
+            return;
+        for (int i = 0; i < 4; ++i)
+            if (reply.value().contains(QLatin1String(kFlavors[i])))
+                m_maxFlavor = std::max(m_maxFlavor, i);
+    });
+}
+
+int Thumbnailer::flavorFor(int size) const
+{
+    const QScreen *screen = QGuiApplication::primaryScreen();
+    const qreal px = size * (screen ? screen->devicePixelRatio() : 1.0);
+    int f = 0;
+    while (f < m_maxFlavor && kFlavorPx[f] < px)
+        ++f;
+    return f;
 }
 
 QString Thumbnailer::cacheName(const QString &path)
@@ -121,88 +152,107 @@ void Thumbnailer::loadSupported()
     });
 }
 
-QString Thumbnailer::thumbnail(const QString &path, const QString &mimeType)
+QString Thumbnailer::thumbnail(const QString &path, const QString &mimeType, int size)
 {
     // Миниатюры самих миниатюр спецификация запрещает
     if (path.isEmpty() || path.startsWith(m_cacheDir))
         return {};
 
     const qint64 mtime = mtimeOf(path);
-    const auto it = m_known.constFind(path);
+    const auto nv = m_never.constFind(path);
+    if (nv != m_never.cend() && *nv == mtime)
+        return {};
+    const int want = flavorFor(size);
+    const QString key = pendingKey(want, path);
+    const auto it = m_known.constFind(key);
     if (it != m_known.cend() && it->mtime == mtime)
         return it->url;
 
     const QString name = cacheName(path);
-    // Подходит любой размер не меньше нашего; больший Qt сам ужмёт
-    for (const char *flavor : {"normal", "large", "x-large", "xx-large"}) {
-        const QString file = m_cacheDir + QLatin1Char('/') + QLatin1String(flavor) + QLatin1Char('/') + name;
-        if (!QFileInfo::exists(file))
-            continue;
+    auto cached = [&](int f) -> QString {
+        const QString file = m_cacheDir + QLatin1Char('/') + QLatin1String(kFlavors[f]) + QLatin1Char('/') + name;
         // Устаревшая — файл менялся после того, как её сделали
-        if (!sameMtime(file, mtime))
-            continue;
+        if (!QFileInfo::exists(file) || !sameMtime(file, mtime))
+            return {};
         // Путь миниатюры у новой версии файла тот же — без ?mtime QML покажет
         // старую картинку из своего кэша
         QUrl u = QUrl::fromLocalFile(file);
         u.setQuery(QString::number(mtime));
-        const QString url = u.toString();
-        m_known.insert(path, {mtime, url});
-        return url;
+        return u.toString();
+    };
+    // Подходит любой размер не меньше нужного; больший Qt сам ужмёт
+    for (int f = want; f < 4; ++f) {
+        const QString url = cached(f);
+        if (!url.isEmpty()) {
+            m_known.insert(key, {mtime, url});
+            return url;
+        }
     }
 
     // Кто-то уже пытался и не смог
     for (const QString &dir : std::as_const(m_failDirs)) {
         const QString file = dir + name;
         if (QFileInfo::exists(file) && sameMtime(file, mtime)) {
-            m_known.insert(path, {mtime, {}});
+            m_never.insert(path, mtime);
             return {};
         }
     }
 
     if (m_supported.contains(mimeType)) {
-        if (!m_pending.contains(path)) {
-            m_queue.insert(path, mimeType);
+        if (!m_pending.contains(key)) {
+            m_queue[want].insert(path, mimeType);
             m_flushTimer.start();
         }
     } else if (m_supportedLoaded) {
         // Не умеет никто — запоминаем, чтобы не проверять кэш на каждой перерисовке
-        m_known.insert(path, {mtime, {}});
+        m_never.insert(path, mtime);
+        return {};
+    }
+    // Пока tumbler делает крупную — показываем меньшую, если есть
+    for (int f = want - 1; f >= 0; --f) {
+        const QString url = cached(f);
+        if (!url.isEmpty())
+            return url;
     }
     return {};
 }
 
 void Thumbnailer::flush()
 {
-    if (m_queue.isEmpty())
-        return;
-    QStringList uris, mimes;
-    for (auto it = m_queue.cbegin(); it != m_queue.cend(); ++it) {
-        uris << QString::fromLatin1(QUrl::fromLocalFile(it.key()).toEncoded());
-        mimes << it.value();
-        m_pending.insert(it.key());
+    // Заказ на каждый размер отдельный: размер — параметр всего заказа
+    for (auto q = m_queue.cbegin(); q != m_queue.cend(); ++q) {
+        const int flavor = q.key();
+        QStringList uris, mimes;
+        for (auto it = q->cbegin(); it != q->cend(); ++it) {
+            uris << QString::fromLatin1(QUrl::fromLocalFile(it.key()).toEncoded());
+            mimes << it.value();
+            m_pending.insert(pendingKey(flavor, it.key()));
+        }
+
+        // foreground — tumbler делает их раньше фоновых заказов других программ
+        QDBusMessage msg = QDBusMessage::createMethodCall(kService, kPath, kIface, QStringLiteral("Queue"));
+        msg << uris << mimes << QString::fromLatin1(kFlavors[flavor]) << QStringLiteral("foreground") << uint(0);
+        auto *w = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(msg), this);
+        connect(w, &QDBusPendingCallWatcher::finished, this, [this, uris, flavor](QDBusPendingCallWatcher *w) {
+            w->deleteLater();
+            if (QDBusPendingReply<uint>(*w).isError()) {
+                // Сервис пропал — не держим пути в ожидании вечно
+                for (const QString &uri : uris)
+                    m_pending.remove(pendingKey(flavor, QUrl(uri).toLocalFile()));
+            }
+        });
     }
     m_queue.clear();
-
-    // foreground — tumbler делает их раньше фоновых заказов других программ
-    QDBusMessage msg = QDBusMessage::createMethodCall(kService, kPath, kIface, QStringLiteral("Queue"));
-    msg << uris << mimes << kFlavor << QStringLiteral("foreground") << uint(0);
-    auto *w = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(msg), this);
-    connect(w, &QDBusPendingCallWatcher::finished, this, [this, uris](QDBusPendingCallWatcher *w) {
-        w->deleteLater();
-        if (QDBusPendingReply<uint>(*w).isError()) {
-            // Сервис пропал — не держим пути в ожидании вечно
-            for (const QString &uri : uris)
-                m_pending.remove(QUrl(uri).toLocalFile());
-        }
-    });
 }
 
 void Thumbnailer::onReady(uint, const QStringList &uris)
 {
     for (const QString &uri : uris) {
+        // Какого размера готова, сигнал не говорит — снимаем ожидание со всех,
+        // недостающий размер закажется снова при следующем запросе
         const QString path = QUrl(uri).toLocalFile();
-        m_pending.remove(path);
-        m_known.remove(path); // перечитаем из кэша при следующем запросе
+        for (int f = 0; f < 4; ++f)
+            m_pending.remove(pendingKey(f, path));
     }
     bump();
 }
@@ -211,9 +261,12 @@ void Thumbnailer::onError(uint, const QStringList &uris, int, const QString &)
 {
     for (const QString &uri : uris) {
         const QString path = QUrl(uri).toLocalFile();
-        if (!m_pending.remove(path))
+        bool ours = false;
+        for (int f = 0; f < 4; ++f)
+            ours |= m_pending.remove(pendingKey(f, path));
+        if (!ours)
             continue; // чужой заказ
-        m_known.insert(path, {mtimeOf(path), {}});
+        m_never.insert(path, mtimeOf(path));
     }
 }
 

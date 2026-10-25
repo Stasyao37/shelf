@@ -36,10 +36,24 @@ Window {
 
     // Вид общий для всех вкладок и запоминается между запусками
     property bool gridMode: true
+    // Размер значков в сетке — один из iconSteps (Ctrl+колесо, Ctrl+= / Ctrl+- / Ctrl+0)
+    readonly property var iconSteps: [40, 56, 80, 112, 160]
+    property int iconSize: 56
+    function zoom(step) {
+        var i = iconSteps.indexOf(iconSize)
+        if (i < 0) i = 1
+        if (!gridMode) {
+            // В списке крупнее — значит, значками
+            if (step > 0) gridMode = true
+            return
+        }
+        iconSize = iconSteps[step === 0 ? 1 : Math.max(0, Math.min(iconSteps.length - 1, i + step))]
+    }
     property bool showHidden: false
     property string sortKey: "name"
     property bool sortDesc: false
     onGridModeChanged: tabs.forEach(function (t) { t.pane.gridMode = gridMode })
+    onIconSizeChanged: tabs.forEach(function (t) { t.pane.iconSize = iconSize })
     onShowHiddenChanged: tabs.forEach(function (t) { t.dir.showHidden = showHidden })
     onSortKeyChanged: tabs.forEach(function (t) { t.dir.sortKey = sortKey })
     onSortDescChanged: tabs.forEach(function (t) { t.dir.sortDesc = sortDesc })
@@ -54,6 +68,7 @@ Window {
     Settings {
         category: "view"
         property alias gridMode: win.gridMode
+        property alias iconSize: win.iconSize
         property alias showHidden: win.showHidden
         property alias sortKey: win.sortKey
         property alias sortDesc: win.sortDesc
@@ -185,6 +200,7 @@ Window {
             onMessage: (m) => win.toast(m)
             Component.onCompleted: {
                 t.pane.gridMode = win.gridMode
+                t.pane.iconSize = win.iconSteps.indexOf(win.iconSize) >= 0 ? win.iconSize : 56
                 t.dir.showHidden = win.showHidden
                 t.dir.sortKey = win.sortKey
                 t.dir.sortDesc = win.sortDesc
@@ -198,6 +214,7 @@ Window {
             Connections {
                 target: t.pane
                 function onActivated(row) { win.openRow(row) }
+                function onZoomRequested(step) { win.zoom(step) }
                 function onContextMenuRequested(row, x, y) {
                     var pt = t.pane.mapToItem(win.contentItem, x, y)
                     if (row < 0) win.folderMenu(pt.x, pt.y)
@@ -532,6 +549,9 @@ Window {
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: dir.reload() }
     Shortcut { sequence: "Ctrl+1"; onActivated: win.gridMode = true }
     Shortcut { sequence: "Ctrl+2"; onActivated: win.gridMode = false }
+    Shortcut { sequences: ["Ctrl+=", "Ctrl++", StandardKey.ZoomIn]; onActivated: win.zoom(1) }
+    Shortcut { sequences: ["Ctrl+-", StandardKey.ZoomOut]; onActivated: win.zoom(-1) }
+    Shortcut { sequence: "Ctrl+0"; onActivated: win.zoom(0) }
     Shortcut { sequence: "F2"; onActivated: win.renameSelected() }
     Shortcut { sequence: "Delete"; onActivated: win.trashSelected() }
     Shortcut { sequence: StandardKey.Copy; onActivated: win.copySelected(false) }

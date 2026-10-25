@@ -102,6 +102,7 @@ sudo install -Dm644 ~/.local/share/xdg-desktop-portal/portals/shelf.portal \
 | <kbd>Ctrl</kbd>+<kbd>F</kbd>, <kbd>/</kbd> | Поиск |
 | <kbd>Ctrl</kbd>+<kbd>H</kbd> | Скрытые файлы |
 | <kbd>Ctrl</kbd>+<kbd>1</kbd> / <kbd>Ctrl</kbd>+<kbd>2</kbd> | Сетка / список |
+| <kbd>Ctrl</kbd>+колесо, <kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Крупнее / мельче / обычный размер значков |
 | <kbd>F2</kbd> | Переименовать |
 | <kbd>Delete</kbd> | В корзину |
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd> | Копировать / вырезать / вставить |

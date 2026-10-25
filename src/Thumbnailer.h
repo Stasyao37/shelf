@@ -25,8 +25,10 @@ public:
     int revision() const { return m_revision; }
 
     // URL готовой миниатюры или пустая строка. Если её нет — заказывает у tumbler,
-    // и когда он закончит, revision вырастет.
-    Q_INVOKABLE QString thumbnail(const QString &path, const QString &mimeType);
+    // и когда он закончит, revision вырастет. size — сторона значка в логических
+    // пикселях: по ней выбирается размер миниатюры (normal 128 … xx-large 1024).
+    // Пока нужной нет, отдаёт меньшую из кэша, если она есть.
+    Q_INVOKABLE QString thumbnail(const QString &path, const QString &mimeType, int size = 56);
 
     // Имя файла миниатюры: MD5 от file://-URI, как в GLib
     static QString cacheName(const QString &path);
@@ -41,10 +43,11 @@ private slots:
 private:
     struct Known {
         qint64 mtime = 0;
-        QString url; // пусто — миниатюры нет и не будет (tumbler не смог)
+        QString url;
     };
 
     void loadSupported();
+    int flavorFor(int size) const;
     void flush();
     void bump();
 
@@ -52,9 +55,11 @@ private:
     QStringList m_failDirs; // fail/<программа>/ — у каждой своя
     bool m_supportedLoaded = false;
     QSet<QString> m_supported; // MIME-типы, которые tumbler умеет для file://
-    QHash<QString, Known> m_known;
-    QHash<QString, QString> m_queue;   // путь → MIME, ждут отправки
-    QSet<QString> m_pending;            // отправлены tumbler'у
+    int m_maxFlavor = 1;                // самый крупный размер, который умеет tumbler
+    QHash<QString, Known> m_known;      // ключ — номер размера и путь
+    QHash<QString, qint64> m_never;     // путь → mtime: миниатюры нет и не будет
+    QHash<int, QHash<QString, QString>> m_queue; // размер → путь → MIME, ждут отправки
+    QSet<QString> m_pending;            // отправлены tumbler'у (ключ как у m_known)
     QTimer m_flushTimer;
     QTimer m_bumpTimer;
     int m_revision = 0;
