@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.2.2
+Version:        0.3.0
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -63,6 +63,11 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.nook_apps.S
 %{_datadir}/xdg-desktop-portal/portals/shelf.portal
 
 %changelog
+* Sun Oct 25 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.3.0-1
+- Icon zoom (Ctrl+wheel), thumbnails sized to the icon
+- Color palette from the current wallpaper without matugen
+- Bold labels work under qt6ct; app id io.github.nook_apps.Shelf
+
 * Sat Oct 24 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.2.2-1
 - No phantom files after switching folders (e.g. entering the trash)
 

@@ -1,3 +1,11 @@
+shelf (0.3.0) unstable; urgency=medium
+
+  * Icon zoom (Ctrl+wheel), thumbnails sized to the icon.
+  * Color palette from the current wallpaper without matugen.
+  * Bold labels work under qt6ct; app id io.github.nook_apps.Shelf.
+
+ -- Stasyao37 <kapitonov.stass@gmail.com>  Sun, 25 Oct 2026 23:40:00 +0300
+
 shelf (0.2.2) unstable; urgency=medium
 
   * No phantom files after switching folders (e.g. entering the trash).
