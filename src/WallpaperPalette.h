@@ -9,7 +9,8 @@
 namespace WallpaperPalette {
 
 // Путь к текущим обоям или пустая строка. Спрашивает по очереди hyprpaper (hyprctl),
-// swww / awww, swaybg и wpaperd по командной строке, конфиги waypaper и hyprpaper
+// swww / awww (query), wpaperd (wpaperctl), swaybg по командной строке,
+// потом конфиги waypaper и hyprpaper
 QString current();
 
 // Палитра по картинке: оттенок — самый заметный насыщенный цвет обоев,

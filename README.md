@@ -40,7 +40,7 @@ Wayland-приложение со своим `app_id` и `.desktop` (его мо
 
 **Цвета из обоев.** Палитру Shelf берёт у [matugen](https://github.com/InioX/matugen) — или у бара,
 если он собран на Quickshell, — и перекрашивается вместе с ними при смене обоев, без перезапуска.
-Нет ни того, ни другого — Shelf сам находит текущие обои (hyprpaper, swww, swaybg, waypaper) и
+Нет ни того, ни другого — Shelf сам находит текущие обои (hyprpaper, swww, wpaperd, swaybg, waypaper) и
 берёт оттенок из них. Иконки получают мягкий оттенок той же палитры.
 
 **Готов из коробки.** При первом запуске Shelf проверит систему и подскажет, чего не хватает;
@@ -222,7 +222,7 @@ xdg-mime default io.github.nook_apps.Shelf.desktop inode/directory
 | Quickshell | `~/.local/state/quickshell/user/generated/qs_theme.json` |
 | matugen — шаблон Shelf | `~/.local/state/shelf/colors.json` |
 | Material из шелла (формат end-4) | `~/.local/state/quickshell/user/generated/colors.json` |
-| из обоев | текущие обои hyprpaper, swww/awww, swaybg или из конфига waypaper / hyprpaper |
+| из обоев | текущие обои hyprpaper, swww/awww, wpaperd, swaybg или из конфига waypaper / hyprpaper |
 | встроенная светлая или тёмная | по `color-scheme` из xdg-desktop-portal |
 
 Файлы отслеживаются: смена обоев перекрашивает открытое окно сразу. Палитру «из обоев» Shelf

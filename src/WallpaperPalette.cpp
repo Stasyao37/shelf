@@ -120,7 +120,7 @@ QString expand(QString path)
     return QFileInfo(path).isFile() ? path : QString();
 }
 
-// Командные строки запущенных программ: swaybg -i путь, wpaperd и т.п.
+// Командная строка запущенной программы по имени (swaybg -i путь) или пустой список
 QStringList cmdlineOf(const QString &name)
 {
     for (const QString &pid : QDir(QStringLiteral("/proc")).entryList(QDir::Dirs)) {
@@ -165,6 +165,16 @@ QString current()
         if (m.hasMatch())
             if (const QString p = expand(m.captured(1)); !p.isEmpty())
                 return p;
+    }
+    // wpaperd: «монитор: путь» на строку
+    if (!cmdlineOf(QStringLiteral("wpaperd")).isEmpty()) {
+        const QString out = run(QStringLiteral("wpaperctl"), {QStringLiteral("all-wallpapers")});
+        for (const QString &line : out.split(QLatin1Char('\n'))) {
+            const qsizetype colon = line.indexOf(QLatin1String(": "));
+            if (colon >= 0)
+                if (const QString p = expand(line.mid(colon + 2)); !p.isEmpty())
+                    return p;
+        }
     }
     // swaybg -i путь
     const QStringList swaybg = cmdlineOf(QStringLiteral("swaybg"));
