@@ -1,8 +1,10 @@
 #include "ThemeSource.h"
+#include "WallpaperPalette.h"
 
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -11,6 +13,8 @@
 #include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QFutureWatcher>
+#include <QtConcurrent/QtConcurrentRun>
 
 namespace {
 const QString kPortalService = QStringLiteral("org.freedesktop.portal.Desktop");
@@ -99,6 +103,8 @@ ThemeSource::ThemeSource(QObject *parent)
     readSystemScheme();
     portalBus().connect(kPortalService, kPortalPath, kPortalSettings, QStringLiteral("SettingChanged"),
                                           this, SLOT(portalSettingChanged(QString, QString, QDBusVariant)));
+    m_wallTimer.setInterval(4000);
+    connect(&m_wallTimer, &QTimer::timeout, this, &ThemeSource::pollWallpaper);
     load();
 }
 
@@ -159,6 +165,7 @@ QVariantList ThemeSource::sources() const
         {"qs_theme", QStringLiteral("Как у Quickshell")},
         {"matugen", QStringLiteral("matugen — шаблон Shelf")},
         {"material", QStringLiteral("Material из шелла (colors.json)")},
+        {"wallpaper", QStringLiteral("Из обоев")},
         {"system", QStringLiteral("Как в системе")},
         {"light", QStringLiteral("Светлая")},
         {"dark", QStringLiteral("Тёмная")},
@@ -167,8 +174,17 @@ QVariantList ThemeSource::sources() const
     for (const auto &[id, name] : list) {
         const QString sid = QLatin1String(id);
         const bool needsFile = !fileOf(sid).isEmpty();
+        bool available = !needsFile || fileUsable(sid);
+        if (sid == QLatin1String("wallpaper")) {
+            // Обои ещё не искали (цвета берутся из шелла) — ищем для окна настроек
+            if (!m_wallChecked && !m_wallProbed) {
+                m_wallProbe = WallpaperPalette::current();
+                m_wallProbed = true;
+            }
+            available = !m_wall.palette.isEmpty() || !m_wallProbe.isEmpty();
+        }
         res << QVariantMap{{QStringLiteral("id"), sid}, {QStringLiteral("name"), name},
-                           {QStringLiteral("available"), !needsFile || fileUsable(sid)}};
+                           {QStringLiteral("available"), available}};
     }
     return res;
 }
@@ -183,6 +199,8 @@ QVariantMap ThemeSource::paletteFor(const QString &id) const
         return builtin(false);
     if (id == QLatin1String("dark"))
         return builtin(true);
+    if (id == QLatin1String("wallpaper") && !m_wall.palette.isEmpty())
+        return m_wall.palette;
     return builtin(m_systemDark);
 }
 
@@ -284,7 +302,62 @@ void ThemeSource::portalSettingChanged(const QString &ns, const QString &key, co
     if (dark == m_systemDark)
         return;
     m_systemDark = dark;
+    if (wallpaperWanted())
+        refreshWallpaper(false); // палитра обоев своя для светлой и тёмной
     load();
+}
+
+bool ThemeSource::wallpaperWanted() const
+{
+    const QString id = sourceSetting();
+    if (id == QLatin1String("wallpaper"))
+        return true;
+    if (id != QLatin1String("auto") && !(!fileOf(id).isEmpty() && !fileUsable(id)))
+        return false;
+    for (const char *candidate : {"qs_theme", "matugen", "material"})
+        if (fileUsable(QLatin1String(candidate)))
+            return false;
+    return true;
+}
+
+void ThemeSource::refreshWallpaper(bool sync)
+{
+    if (m_wallBusy)
+        return;
+    m_wallChecked = true;
+    auto job = [dark = m_systemDark, old = m_wall]() {
+        Wallpaper w;
+        w.path = WallpaperPalette::current();
+        if (w.path.isEmpty())
+            return w;
+        w.key = w.path + QLatin1Char('|') + QString::number(QFileInfo(w.path).lastModified().toMSecsSinceEpoch())
+                + (dark ? QLatin1String("|dark") : QLatin1String("|light"));
+        w.palette = w.key == old.key ? old.palette : WallpaperPalette::fromFile(w.path, dark);
+        return w;
+    };
+    if (sync) {
+        applyWallpaper(job(), false);
+        return;
+    }
+    // В фоне: ищем по /proc и hyprctl, PNG в 4K читается заметное время
+    m_wallBusy = true;
+    auto *watcher = new QFutureWatcher<Wallpaper>(this);
+    connect(watcher, &QFutureWatcher<Wallpaper>::finished, this, [this, watcher] {
+        watcher->deleteLater();
+        m_wallBusy = false;
+        applyWallpaper(watcher->result(), true);
+    });
+    watcher->setFuture(QtConcurrent::run(job));
+}
+
+void ThemeSource::applyWallpaper(const Wallpaper &w, bool reload)
+{
+    if (w.key == m_wall.key && w.path == m_wall.path)
+        return;
+    m_wall = w;
+    m_wallProbe = w.path;
+    if (reload)
+        load();
 }
 
 void ThemeSource::rewatch()
@@ -308,9 +381,15 @@ void ThemeSource::load()
     rewatch();
     QString id = sourceSetting();
     const bool fromFile = !fileOf(id).isEmpty();
-    // Выбранный файл ещё не появился — как в auto
-    if (id == QLatin1String("auto") || (fromFile && !fileUsable(id))) {
-        id = QStringLiteral("system");
+    const bool wantWall = wallpaperWanted();
+    if (wantWall && !m_wallChecked)
+        refreshWallpaper(true); // первый раз — сразу, чтобы не мигнуть встроенной палитрой
+    if (wantWall != m_wallTimer.isActive())
+        wantWall ? m_wallTimer.start() : m_wallTimer.stop();
+    // Выбранный файл ещё не появился или обоев не нашли — как в auto
+    if (id == QLatin1String("auto") || (fromFile && !fileUsable(id))
+        || (id == QLatin1String("wallpaper") && m_wall.palette.isEmpty())) {
+        id = m_wall.palette.isEmpty() || !wantWall ? QStringLiteral("system") : QStringLiteral("wallpaper");
         for (const char *candidate : {"qs_theme", "matugen", "material"})
             if (fileUsable(QLatin1String(candidate))) {
                 id = QLatin1String(candidate);

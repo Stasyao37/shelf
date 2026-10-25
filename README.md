@@ -40,8 +40,8 @@ Wayland-приложение со своим `app_id` и `.desktop` (его мо
 
 **Цвета из обоев.** Палитру Shelf берёт у [matugen](https://github.com/InioX/matugen) — или у бара,
 если он собран на Quickshell, — и перекрашивается вместе с ними при смене обоев, без перезапуска.
-Иконки получают мягкий оттенок той же палитры. Нет ни того, ни другого — встроенная светлая или
-тёмная тема по системной схеме.
+Нет ни того, ни другого — Shelf сам находит текущие обои (hyprpaper, swww, swaybg, waypaper) и
+берёт оттенок из них. Иконки получают мягкий оттенок той же палитры.
 
 **Готов из коробки.** При первом запуске Shelf проверит систему и подскажет, чего не хватает;
 терминал, значки интерфейса и тема подбираются сами, без правки конфигов.
@@ -196,7 +196,7 @@ cmake --install build
 | терминал | «Открыть в терминале»: kitty, foot, alacritty, wezterm, ghostty, konsole, gnome-terminal или `xdg-terminal-exec` | желательно |
 | [tumbler](https://docs.xfce.org/xfce/tumbler/start) | миниатюры картинок и PDF; без него — только уже готовые из кэша | нет |
 | `ffmpegthumbnailer` | миниатюры видео (через tumbler) | нет |
-| [matugen](https://github.com/InioX/matugen) | палитра из обоев, если нет Quickshell | нет |
+| [matugen](https://github.com/InioX/matugen) | палитра Material из обоев (без него Shelf считает свою, попроще) | нет |
 
 При первом запуске Shelf сам проверит, что есть, и подскажет команды установки для вашего
 дистрибутива. Сам пакеты он не ставит.
@@ -222,9 +222,13 @@ xdg-mime default io.github.nook_apps.Shelf.desktop inode/directory
 | Quickshell | `~/.local/state/quickshell/user/generated/qs_theme.json` |
 | matugen — шаблон Shelf | `~/.local/state/shelf/colors.json` |
 | Material из шелла (формат end-4) | `~/.local/state/quickshell/user/generated/colors.json` |
+| из обоев | текущие обои hyprpaper, swww/awww, swaybg или из конфига waypaper / hyprpaper |
 | встроенная светлая или тёмная | по `color-scheme` из xdg-desktop-portal |
 
-Файлы отслеживаются: смена обоев перекрашивает открытое окно сразу.
+Файлы отслеживаются: смена обоев перекрашивает открытое окно сразу. Палитру «из обоев» Shelf
+считает сам: главный насыщенный оттенок картинки на светлотах встроенной темы, так что текст
+читается на любых обоях; светлая или тёмная — по системной схеме. Обои проверяются раз в
+четыре секунды, и только пока этот источник выбран.
 
 **Подключить к matugen** можно из первой настройки: Shelf положит свой шаблон в
 `~/.config/shelf/matugen/` и допишет блок `[templates.shelf]` в конец

@@ -74,6 +74,7 @@ qt_add_qml_module(shelf
         src/FileOps.h src/FileOps.cpp
         src/Places.h src/Places.cpp
         src/ThemeSource.h src/ThemeSource.cpp
+        src/WallpaperPalette.h src/WallpaperPalette.cpp
         src/IconProvider.h
         src/FileEntry.h src/FileEntry.cpp
         src/Thumbnailer.h src/Thumbnailer.cpp

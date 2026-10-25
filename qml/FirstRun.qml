@@ -24,6 +24,7 @@ GlassDialog {
         if (dlg.available("qs_theme")) return "qs_theme"
         if (dlg.available("material")) return "material"
         if (Environment.matugenConnected && dlg.available("matugen")) return "matugen"
+        if (dlg.available("wallpaper")) return "wallpaper"
         return "system"
     }
     function available(id) {
@@ -243,6 +244,13 @@ GlassDialog {
                     color: Theme.overlay1
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 4
+                }
+                ChoiceRow {
+                    visible: dlg.available("wallpaper")
+                    label: "Из обоев"
+                    note: "оттенок текущих обоев, без matugen"
+                    checked: dlg.pick === "wallpaper"
+                    onPicked: dlg.pick = "wallpaper"
                 }
                 ChoiceRow {
                     label: "Как в системе"
