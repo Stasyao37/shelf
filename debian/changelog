@@ -1,3 +1,10 @@
+shelf (0.3.1) unstable; urgency=medium
+
+  * Open files with the chosen default app; office files no longer go to
+    the zip handler.
+
+ -- Stasyao37 <kapitonov.stass@gmail.com>  Mon, 26 Oct 2026 14:30:00 +0300
+
 shelf (0.3.0) unstable; urgency=medium
 
   * Icon zoom (Ctrl+wheel), thumbnails sized to the icon.

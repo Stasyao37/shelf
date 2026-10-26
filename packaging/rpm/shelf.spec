@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.3.0
+Version:        0.3.1
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -63,6 +63,9 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.nook_apps.S
 %{_datadir}/xdg-desktop-portal/portals/shelf.portal
 
 %changelog
+* Mon Oct 26 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.3.1-1
+- Open files with the chosen default app; office files no longer go to the zip handler
+
 * Sun Oct 25 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.3.0-1
 - Icon zoom (Ctrl+wheel), thumbnails sized to the icon
 - Color palette from the current wallpaper without matugen
