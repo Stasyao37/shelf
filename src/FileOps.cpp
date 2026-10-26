@@ -159,11 +159,6 @@ FileOps::~FileOps()
     m_job.waitForFinished();
 }
 
-void FileOps::open(const QString &path)
-{
-    QProcess::startDetached(QStringLiteral("xdg-open"), {path});
-}
-
 void FileOps::openTerminal(const QString &dir)
 {
     if (!Terminal::openIn(dir))

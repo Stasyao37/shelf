@@ -188,12 +188,16 @@ Apps::Assoc Apps::readAssociations() const
 
 QString Apps::defaultFor(const QString &mime, const Assoc &assoc) const
 {
-    // Первое установленное из списка; для text/x-c++src подойдёт и умолчание text/plain
+    // Первое установленное из списка; для text/x-c++src подойдёт и умолчание text/plain.
+    // Контейнеры не наследуем: .pptx, .xlsx, .odt, .epub — это ZIP внутри, но открывать
+    // их архиватором или проводником (у zip по умолчанию часто Nautilus) — не то
     QStringList chain = {mime};
     const QMimeType mt = QMimeDatabase().mimeTypeForName(mime);
     if (mt.isValid()) {
         chain << mt.aliases();
-        chain << mt.allAncestors();
+        for (const QString &anc : mt.allAncestors())
+            if (anc != QLatin1String("application/zip") && anc != QLatin1String("application/octet-stream"))
+                chain << anc;
     }
     for (const QString &m : std::as_const(chain))
         for (const QString &id : assoc.defaults.value(m))
@@ -284,6 +288,13 @@ QString Apps::defaultName(const QString &mimeType)
     scan();
     const QString id = defaultFor(mimeType, readAssociations());
     return id.isEmpty() ? QString() : m_apps.at(m_byId.value(id)).name;
+}
+
+bool Apps::open(const QString &path, const QString &mimeType)
+{
+    scan();
+    const QString id = defaultFor(mimeType, readAssociations());
+    return !id.isEmpty() && launch(id, {path});
 }
 
 bool Apps::launch(const QString &appId, const QStringList &paths)

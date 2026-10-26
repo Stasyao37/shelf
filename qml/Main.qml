@@ -338,12 +338,17 @@ Window {
         var p = dir.pathAt(row)
         if (dir.isDirAt(row)) go(p)
         else if (picking) { pane.selectRow(row); pickAccept() }
-        else FileOps.open(p)
+        else openFile(row)
+    }
+    // Программой по умолчанию; если её для этого типа нет — спрашиваем, чем открыть
+    function openFile(row) {
+        if (!Apps.open(dir.pathAt(row), dir.mimeTypeAt(row)))
+            openWithDlg.showFor([dir.pathAt(row)], dir.mimeTypeAt(row), dir.mimeCommentAt(row))
     }
     function openSelected() {
         var paths = pane.selectedPaths()
         if (paths.length === 1) { openRow(dir.indexOfPath(paths[0])); return }
-        paths.forEach(function (p) { if (dir.isDirAt(dir.indexOfPath(p))) return; FileOps.open(p) })
+        paths.forEach(function (p) { var r = dir.indexOfPath(p); if (!dir.isDirAt(r)) openFile(r) })
     }
     function trashSelected() {
         var paths = pane.selectedPaths()

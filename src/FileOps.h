@@ -34,7 +34,6 @@ public:
     bool clipboardHasFiles() const { return !m_clipFiles.isEmpty(); }
     bool clipboardIsCut() const { return m_clipCut; }
 
-    Q_INVOKABLE void open(const QString &path);
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
     Q_INVOKABLE QString trash(const QStringList &paths);

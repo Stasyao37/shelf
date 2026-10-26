@@ -29,6 +29,10 @@ public:
     Q_INVOKABLE QVariantList allApps();
     Q_INVOKABLE QString defaultName(const QString &mimeType);
     Q_INVOKABLE bool launch(const QString &appId, const QStringList &paths);
+    // Открыть файл программой по умолчанию для его типа — тип Shelf определил сам
+    // (по содержимому и расширению). Не xdg-open: на Hyprland тот смотрит тип через
+    // file(1), а для неё .pptx и .xlsx — просто ZIP. false — программы для типа нет
+    Q_INVOKABLE bool open(const QString &path, const QString &mimeType);
     // Записывает в ~/.config/mimeapps.list, как xdg-mime default
     Q_INVOKABLE bool setDefault(const QString &appId, const QString &mimeType);
 
