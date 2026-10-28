@@ -44,8 +44,31 @@ Item {
 
     readonly property real tabWidth: Math.max(96, Math.min(220, (width - addBtn.width - 6) / Math.max(1, tabs.length)))
 
+    // Кнопки строятся по shown, а не прямо по tabs: Repeater пересоздаёт их при каждом
+    // изменении списка, и соседи закрытой вкладки прыгали бы на место. Перед сменой
+    // запоминаем, где стояла и какой ширины была каждая, — новые кнопки доезжают оттуда
+    // (Translate и добавка к ширине; привязку x, на которой держится перетаскивание, не трогаем)
+    property var shown: []
+    property var _was: []   // [{ tab, x, w }]
+    property bool _ready: false
+    onTabsChanged: {
+        var was = []
+        for (var i = 0; i < tabRep.count; ++i) {
+            var it = tabRep.itemAt(i)
+            if (it) was.push({ tab: it.modelData, x: it.x + it.slideX, w: it.width })
+        }
+        _was = was
+        shown = tabs
+        if (_ready) { _moving = true; movingDone.restart() }
+    }
+    // Список только что сменился — кнопка «+» едет к новому месту, а не прыгает
+    property bool _moving: false
+    Timer { id: movingDone; interval: 260; onTriggered: strip._moving = false }
+    Component.onCompleted: Qt.callLater(function () { strip._ready = true })
+
     Repeater {
-        model: strip.tabs
+        id: tabRep
+        model: strip.shown
 
         delegate: Item {
             id: tabItem
@@ -55,9 +78,37 @@ Item {
             readonly property bool dropHere: drop.containsDrag
             property bool dragging: false
             property real dragX: 0
+            property real slideX: 0
+            property real growW: 0
 
-            width: strip.tabWidth
+            width: strip.tabWidth + growW
             height: strip.height
+            transform: Translate { x: tabItem.slideX }
+            Component.onCompleted: {
+                for (var i = 0; i < strip._was.length; ++i) {
+                    var w = strip._was[i]
+                    if (w.tab !== modelData) continue
+                    slideX = w.x - x
+                    growW = w.w - width
+                    if (slideX !== 0 || growW !== 0) settle.start()
+                    return
+                }
+                // Новая вкладка проявляется, чуть въезжая слева, — когда её папка уже нарисована
+                if (!strip._ready) return
+                opacity = 0
+                slideX = -14
+                Theme.afterFrame(tabItem, function () { appear.start() })
+            }
+            ParallelAnimation {
+                id: settle
+                NumberAnimation { target: tabItem; property: "slideX"; to: 0; duration: Theme.dur(200); easing.type: Easing.OutCubic }
+                NumberAnimation { target: tabItem; property: "growW"; to: 0; duration: Theme.dur(200); easing.type: Easing.OutCubic }
+            }
+            ParallelAnimation {
+                id: appear
+                NumberAnimation { target: tabItem; property: "opacity"; to: 1; duration: Theme.dur(180); easing.type: Easing.OutCubic }
+                NumberAnimation { target: tabItem; property: "slideX"; to: 0; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+            }
             x: dragging ? dragX : strip.slotOf(index) * strip.tabWidth
             z: dragging || index === strip.dragFrom ? 2 : 0
             Behavior on x { enabled: !tabItem.dragging; NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -182,6 +233,8 @@ Item {
     GlassButton {
         id: addBtn
         x: Math.min(strip.tabs.length * strip.tabWidth + 2, strip.width - width)
+        // Едет вместе с вкладками; при перетаскивании края окна — без задержки
+        Behavior on x { enabled: strip._moving; NumberAnimation { duration: Theme.dur(200); easing.type: Easing.OutCubic } }
         anchors.verticalCenter: parent.verticalCenter
         text: "\u{f067}"
         iconSize: Theme.fontSize - 2

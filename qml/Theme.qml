@@ -138,4 +138,43 @@ QtObject {
     readonly property bool animations: _motion.animations
     function setAnimations(on) { _motion.animations = on }
     function dur(ms) { return _motion.animations ? ms : 0 }
+
+    // Запустить анимацию, когда окно покажет следующий кадр. Новая вкладка или папка
+    // строятся синхронно, и их первый кадр тяжёлый; анимация идёт по часам, и запущенная
+    // сразу проскакивала бы эти кадры — на экране оставались два-три шага.
+    // Окно не рисуется (свёрнуто, под другим) — запасной таймер, чтобы не застрять
+    function afterFrame(item, fn) {
+        var w = item.Window.window
+        if (!w || !animations) { fn(); return }
+        // Два кадра: первый, пришедший после синхронной работы, мог быть нарисован ещё до неё.
+        // frameSwapped приходит парами с разницей в пару миллисекунд — такая пара считается одним кадром
+        var done = false, frames = 0, last = 0
+        function stop() {
+            if (done) return false
+            done = true
+            w.frameSwapped.disconnect(onFrame)
+            return true
+        }
+        function once() { if (stop()) fn() }
+        function onFrame() {
+            var now = Date.now()
+            if (now - last < 8) return
+            last = now
+            if (++frames < 2) { w.update(); return }
+            once()
+        }
+        w.frameSwapped.connect(onFrame)
+        // Живёт внутри item: удалили item раньше кадра — подписка снимается вместе с ним
+        _fallback.createObject(item, { fire: once, cancel: stop })
+    }
+    readonly property Component _fallback: Component {
+        Timer {
+            property var fire
+            property var cancel
+            interval: 250
+            running: true
+            onTriggered: { fire(); destroy() }
+            Component.onDestruction: cancel()
+        }
+    }
 }

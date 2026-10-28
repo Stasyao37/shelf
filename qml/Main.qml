@@ -192,13 +192,21 @@ Window {
             anchors.fill: parent
             // Смена вкладки — короткое перетекание; текущая поверх уходящей
             readonly property bool shown: win.tab === t
-            opacity: shown ? 1 : 0
+            // Новая вкладка сначала рисуется едва видимой — её первый кадр самый тяжёлый, —
+            // и проявляется уже потом, ровно, а не рывками поверх этого кадра.
+            // Первая вкладка при запуске — сразу: окно и так появляется целиком
+            property bool fresh: false
+            opacity: shown ? (fresh ? 0.01 : 1) : 0
             visible: opacity > 0
             z: shown ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: Theme.dur(140); easing.type: Easing.OutCubic } }
             title: t.dir.searchQuery ? "Поиск «" + t.dir.searchQuery + "»" : win.folderName(t.dir.path)
             onMessage: (m) => win.toast(m)
             Component.onCompleted: {
+                if (win.tabs.length > 0) {
+                    t.fresh = true
+                    Theme.afterFrame(t, function () { t.fresh = false })
+                }
                 t.pane.gridMode = win.gridMode
                 t.pane.iconSize = win.iconSteps.indexOf(win.iconSize) >= 0 ? win.iconSize : 56
                 t.dir.showHidden = win.showHidden
@@ -1083,8 +1091,11 @@ Window {
                     }
                 }
                 Text {
-                    // В окне выбора то же пишет нижняя панель
-                    visible: !FileOps.busy && !restoreNotice.visible && !win.picking
+                    // В окне выбора то же пишет нижняя панель. Статус и прогресс операции
+                    // сменяют друг друга перетеканием, а не рывком
+                    opacity: !FileOps.busy && !restoreNotice.visible && !win.picking ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
                     anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
                     readonly property var sel: pane.selectedCount > 0 ? pane.selectedPaths() : []
                     text: sel.length > 0
@@ -1095,7 +1106,9 @@ Window {
                     font.pixelSize: Theme.fontSize - 3
                 }
                 Text {
-                    visible: !FileOps.busy
+                    opacity: FileOps.busy ? 0 : 1
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
                     anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
                     text: dir.freeSpace
                     color: Theme.subtext0
@@ -1104,7 +1117,9 @@ Window {
                 }
 
                 RowLayout {
-                    visible: FileOps.busy
+                    opacity: FileOps.busy ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
                     anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
                     spacing: 10
                     Text {

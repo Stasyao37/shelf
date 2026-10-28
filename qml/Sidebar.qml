@@ -16,7 +16,16 @@ Rectangle {
 
     color: Theme.material ? Theme.surface0 : Qt.rgba(0, 0, 0, Theme.light ? 0.04 : 0.14)
 
+    // shown = false — заголовок плавно сворачивается (пустые «Закладки»)
     component Section: Text {
+        id: sec
+        property bool shown: true
+        height: shown ? implicitHeight : 0
+        opacity: shown ? 1 : 0
+        visible: height > 0.5
+        clip: true
+        Behavior on height { NumberAnimation { duration: Theme.dur(200); easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Theme.dur(160) } }
         leftPadding: 14
         topPadding: 14
         bottomPadding: 4
@@ -34,8 +43,25 @@ Rectangle {
         readonly property bool isTrash: modelData.path === Places.trashPath
         property bool dropHere: false
 
+        // Новая строка выезжает из-под предыдущей, раздвигая соседей; ушедшая — сворачивается.
+        // Только высота, прозрачность и сдвиг — без слоёв и шейдеров
+        property bool entering: false
+        property bool leaving: false
+        property real shown: entering ? 0 : 1
         width: column.width
-        height: 32
+        height: 32 * shown
+        opacity: shown
+        clip: shown < 1
+        enabled: !leaving
+        transform: Translate { y: -10 * (1 - item.shown) }
+        NumberAnimation {
+            running: item.entering
+            target: item; property: "shown"; to: 1; duration: Theme.dur(240); easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            running: item.leaving
+            target: item; property: "shown"; to: 0; duration: Theme.dur(200); easing.type: Easing.InOutCubic
+        }
 
         Rectangle {
             anchors.fill: parent
@@ -160,6 +186,9 @@ Rectangle {
         }
     }
 
+    KeyedModel { id: bookmarks; source: Places.bookmarks }
+    KeyedModel { id: devices; source: Places.devices }
+
     Flickable {
         anchors { left: parent.left; right: parent.right; top: parent.top; bottom: settingsBtn.top; bottomMargin: 4 }
         contentHeight: column.height + 12
@@ -177,16 +206,27 @@ Rectangle {
                 PlaceItem {}
             }
 
-            Section { text: "Закладки"; visible: Places.bookmarks.length > 0 }
+            Section { text: "Закладки"; shown: Places.bookmarks.length > 0 }
             Repeater {
-                model: Places.bookmarks
-                PlaceItem { isBookmark: true }
+                model: bookmarks.model
+                PlaceItem {
+                    required property string key
+                    required entering
+                    required leaving
+                    modelData: { bookmarks.rev; return bookmarks.item(key) }
+                    isBookmark: true
+                }
             }
 
             Section { text: "Устройства" }
             Repeater {
-                model: Places.devices
-                PlaceItem {}
+                model: devices.model
+                PlaceItem {
+                    required property string key
+                    required entering
+                    required leaving
+                    modelData: { devices.rev; return devices.item(key) }
+                }
             }
         }
     }

@@ -32,6 +32,7 @@ set(QML_FILES
     qml/TextButton.qml
     qml/ConfirmDialog.qml
     qml/ConflictDialog.qml
+    qml/KeyedModel.qml
     qml/OpenWithDialog.qml
     qml/FolderTab.qml
     qml/TabStrip.qml

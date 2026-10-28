@@ -193,7 +193,7 @@ FocusScope {
         }
         for (var f in byFolder) {
             var cell = view.itemAtIndex(model.indexOfPath(f))
-            if (cell && cell.isDir) cell.folder.spit(byFolder[f])
+            if (cell && cell.folder) cell.folder.spit(byFolder[f])
         }
     }
 
@@ -209,7 +209,9 @@ FocusScope {
         navigating = true
         viewShift.x = 18 * dir
         view.opacity = 0.35
-        enterAnim.restart()
+        enterAnim.stop()
+        // Новая папка только что построена синхронно — едем, когда её кадр уже на экране
+        Theme.afterFrame(pane, function () { enterAnim.restart() })
     }
     ParallelAnimation {
         id: enterAnim
@@ -420,7 +422,7 @@ FocusScope {
             readonly property bool renaming: pane.renamingPath === path
             readonly property bool searchMode: pane.model.searchQuery.length > 0
             readonly property bool dropHere: pane.dropFolder === path
-            readonly property alias folder: folderIcon
+            readonly property FolderIcon folder: folderLoader.item as FolderIcon
 
             width: view.cellWidth
             height: view.cellHeight
@@ -450,41 +452,61 @@ FocusScope {
                 x: pane.gridMode ? (parent.width - width) / 2 : 8
                 y: pane.gridMode ? 10 : (parent.height - height) / 2
 
-                FolderIcon {
-                    id: folderIcon
-                    visible: cell.isDir
-                    size: iconBox.size
-                    iconName: cell.icon
-                    open: ma.containsMouse || cell.selected || cell.dropHere
+                // Создаётся только нужное: у папки — FolderIcon, у файла — FileIcon и миниатюра,
+                // если она есть. Раньше в каждой плитке жило всё сразу (лишнее — скрытым,
+                // со своими слоями и эффектами), и открытие папки стоило ~3 мс на плитку
+                Loader {
+                    id: folderLoader
+                    active: cell.isDir
+                    sourceComponent: FolderIcon {
+                        size: iconBox.size
+                        iconName: cell.icon
+                        open: ma.containsMouse || cell.selected || cell.dropHere
+                    }
                 }
-                FileIcon {
-                    visible: !cell.isDir && !thumb.ready
-                    size: iconBox.size
-                    mimeType: cell.mimeType
-                    fileName: cell.name
-                }
-                Thumbnail {
-                    id: thumb
-                    size: iconBox.size
-                    video: cell.mimeType.startsWith("video/")
-                    // revision и mtime — чтобы перечитать, когда tumbler закончит или файл изменится.
-                    // Они в самом выражении: голые строки-зависимости компилятор QML выбрасывает
-                    source: cell.isDir || Thumbnailer.revision < 0 || cell.mtime < 0
-                            ? "" : Thumbnailer.thumbnail(cell.path, cell.mimeType, pane.gridMode ? pane.iconSize : 22)
+                Loader {
+                    active: !cell.isDir
+                    sourceComponent: Item {
+                        width: iconBox.size
+                        height: iconBox.size
+                        FileIcon {
+                            visible: !(thumbLoader.item as Thumbnail)?.ready
+                            size: iconBox.size
+                            mimeType: cell.mimeType
+                            fileName: cell.name
+                        }
+                        Loader {
+                            id: thumbLoader
+                            // revision и mtime — чтобы перечитать, когда tumbler закончит или файл изменится.
+                            // Они в самом выражении: голые строки-зависимости компилятор QML выбрасывает
+                            readonly property string src: Thumbnailer.revision < 0 || cell.mtime < 0
+                                ? "" : Thumbnailer.thumbnail(cell.path, cell.mimeType, pane.gridMode ? pane.iconSize : 22)
+                            active: src !== ""
+                            sourceComponent: Thumbnail {
+                                size: iconBox.size
+                                video: cell.mimeType.startsWith("video/")
+                                source: thumbLoader.src
+                            }
+                        }
+                    }
                 }
 
                 // Ссылка — слева внизу, замок — справа внизу: оба могут быть сразу
-                Badge {
-                    visible: cell.isLink
-                    name: "link"
-                    size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                Loader {
+                    active: cell.isLink
                     anchors { left: parent.left; bottom: parent.bottom; leftMargin: pane.gridMode ? -2 : -3 }
+                    sourceComponent: Badge {
+                        name: "link"
+                        size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                    }
                 }
-                Badge {
-                    visible: cell.isLocked
-                    name: "lock"
-                    size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                Loader {
+                    active: cell.isLocked
                     anchors { right: parent.right; bottom: parent.bottom; rightMargin: pane.gridMode ? -2 : -3 }
+                    sourceComponent: Badge {
+                        name: "lock"
+                        size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                    }
                 }
             }
 
@@ -585,7 +607,10 @@ FocusScope {
                     if (drag.accepted) pane.dropFolder = cell.path
                 }
                 onExited: if (pane.dropFolder === cell.path) pane.dropFolder = ""
-                onDropped: (drop) => folderIcon.swallow(pane.handleDrop(drop, cell.path))
+                onDropped: (drop) => {
+                    const dropped = pane.handleDrop(drop, cell.path)
+                    if (cell.folder) cell.folder.swallow(dropped)
+                }
                 Timer {
                     interval: 900
                     running: cell.dropHere
@@ -593,22 +618,27 @@ FocusScope {
                 }
             }
 
-            ToolTip {
-                id: whereTip
-                visible: ma.containsMouse && pane.gridMode && cell.searchMode
-                delay: 600
-                text: cell.dir.replace(/^\/home\/[^/]+/, "~")
-                // Как у кнопок: без этого Basic рисует чёрный прямоугольник с крупным шрифтом
-                contentItem: Text {
-                    text: whereTip.text
-                    color: Theme.text
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize - 3
-                }
-                background: Rectangle {
-                    color: Theme.surface0
-                    radius: 6
-                    border.color: Theme.glassBorder
+            // Подсказка нужна только в сетке результатов поиска — в остальных плитках её нет
+            Loader {
+                active: pane.gridMode && cell.searchMode
+                sourceComponent: ToolTip {
+                    id: whereTip
+                    parent: cell
+                    visible: ma.containsMouse
+                    delay: 600
+                    text: cell.dir.replace(/^\/home\/[^/]+/, "~")
+                    // Как у кнопок: без этого Basic рисует чёрный прямоугольник с крупным шрифтом
+                    contentItem: Text {
+                        text: whereTip.text
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 3
+                    }
+                    background: Rectangle {
+                        color: Theme.surface0
+                        radius: 6
+                        border.color: Theme.glassBorder
+                    }
                 }
             }
 
