@@ -45,6 +45,7 @@ DirModel::DirModel(QObject *parent)
 
 DirModel::~DirModel()
 {
+    stopSniff();
     stopSearch();
 }
 
@@ -124,6 +125,8 @@ void DirModel::setPath(const QString &path)
         m_watcher.removePath(m_path);
     m_path = p;
     m_watcher.addPath(m_path);
+    stopSniff();
+    m_sniffed.clear();
     // Другая папка — не правка этой: строки по одной не меняем, иначе GridView играет
     // анимации удаления и вставки поверх перехода, и удалённые строки повисают призраками
     m_resetNext = true;
@@ -195,13 +198,22 @@ void DirModel::listDir()
 {
     if (m_path.isEmpty())
         return;
+    stopSniff();
     const QDir dir(m_path);
     const QFileInfoList infos = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
     m_all.clear();
     m_all.reserve(infos.size());
+    QList<FileEntry> pending;
     const bool inTrash = trashRoot();
+    // Типы — сколько успеем за кадр-другой, остальные доопределит фон:
+    // обычная папка выглядит сразу как надо, огромная не замирает
+    QElapsedTimer budget;
+    budget.start();
     for (const QFileInfo &fi : infos) {
-        FileEntry e = FileEntry::fromInfo(fi, m_mime, true);
+        FileEntry e = FileEntry::fromInfo(fi, m_mime, true,
+                                          budget.elapsed() < 30 ? FileEntry::Typing::ByName : FileEntry::Typing::Later);
+        if (e.typePending && !useSniffed(e))
+            pending.append(e);
         if (inTrash) {
             const Trash::Info info = Trash::readInfo(e.path);
             e.origin = QFileInfo(info.origPath).absolutePath();
@@ -210,6 +222,87 @@ void DirModel::listDir()
         m_all.append(e);
     }
     applyFilterAndSort();
+    if (!pending.isEmpty())
+        startSniff(pending);
+}
+
+void DirModel::startSniff(const QList<FileEntry> &pending)
+{
+    const quint64 gen = m_sniffGen;
+    auto cancel = std::make_shared<std::atomic_bool>(false);
+    m_sniffCancel = cancel;
+    m_sniffFuture = QtConcurrent::run([this, gen, cancel, pending] {
+        QMimeDatabase db;
+        QList<FileEntry> batch;
+        QElapsedTimer flushTimer;
+        flushTimer.start();
+        auto flush = [&] {
+            if (batch.isEmpty())
+                return;
+            QMetaObject::invokeMethod(this, [this, gen, b = std::move(batch)] { applySniffed(gen, b); },
+                                      Qt::QueuedConnection);
+            batch.clear();
+            flushTimer.restart();
+        };
+        for (FileEntry e : pending) {
+            if (cancel->load())
+                return;
+            e.setMime(mimeForFile(QFileInfo(e.path), db));
+            e.typePending = false;
+            batch.append(e);
+            if (flushTimer.elapsed() > 120)
+                flush();
+        }
+        flush();
+    });
+}
+
+void DirModel::stopSniff()
+{
+    ++m_sniffGen;
+    if (m_sniffCancel)
+        m_sniffCancel->store(true);
+    if (m_sniffFuture.isRunning())
+        m_sniffFuture.waitForFinished();
+}
+
+// Узнанный тип подходит, только если файл с тех пор не менялся
+bool DirModel::useSniffed(FileEntry &e) const
+{
+    const auto it = m_sniffed.constFind(e.path);
+    if (it == m_sniffed.cend() || it->mtime != e.mtime || it->size != e.size)
+        return false;
+    e.mimeType = it->mimeType;
+    e.mimeComment = it->mimeComment;
+    e.icon = it->icon;
+    e.typePending = false;
+    return true;
+}
+
+void DirModel::applySniffed(quint64 gen, const QList<FileEntry> &batch)
+{
+    if (gen != m_sniffGen)
+        return;
+    for (const FileEntry &s : batch)
+        m_sniffed.insert(s.path, s);
+    for (FileEntry &e : m_all)
+        if (e.typePending)
+            useSniffed(e);
+    // От типа зависят фильтры окна выбора и сортировка по типу — тогда список перестраивается
+    if (!m_mimeFilters.isEmpty() || m_sortKey == QLatin1String("type")) {
+        applyFilterAndSort();
+        return;
+    }
+    int first = -1, last = -1;
+    for (int i = 0; i < m_rows.size(); ++i) {
+        if (!m_rows.at(i).typePending || !useSniffed(m_rows[i]))
+            continue;
+        if (first < 0)
+            first = i;
+        last = i;
+    }
+    if (first >= 0)
+        emit dataChanged(index(first), index(last), {MimeTypeRole, MimeCommentRole, IconRole});
 }
 
 bool DirModel::lessThan(const FileEntry &a, const FileEntry &b) const

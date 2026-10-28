@@ -52,13 +52,13 @@ QString folderIcon(const QString &path)
     return icon + QStringLiteral(",folder");
 }
 
-QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db)
+QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db, bool sniff)
 {
     // По расширению — без чтения содержимого, иначе большие папки тормозят
     QMimeType mt = db.mimeTypeForFile(fi, QMimeDatabase::MatchExtension);
-    // Незнакомое расширение (.db, без расширения) — смотрим сигнатуру
-    // в начале файла; таких файлов мало, папку это не тормозит
-    if (mt.isDefault() && fi.size() > 0)
+    // Незнакомое расширение (.db, без расширения) — смотрим сигнатуру в начале файла.
+    // Обычно таких мало, но в /usr/bin это тысячи файлов — там листинг их не открывает
+    if (sniff && mt.isDefault() && fi.size() > 0)
         mt = db.mimeTypeForFile(fi, QMimeDatabase::MatchContent);
     // shared-mime-info знает только *.sqlite3, а базы часто зовут иначе
     static const QStringList sqliteSuffixes = {
@@ -69,7 +69,14 @@ QMimeType mimeForFile(const QFileInfo &fi, const QMimeDatabase &db)
     return mt;
 }
 
-FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool countChildren)
+void FileEntry::setMime(const QMimeType &mt)
+{
+    mimeType = mt.name();
+    mimeComment = mt.comment();
+    icon = mt.iconName() + QLatin1Char(',') + mt.genericIconName();
+}
+
+FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool countChildren, Typing typing)
 {
     FileEntry e;
     e.name = fi.fileName();
@@ -89,10 +96,14 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
             e.childCount = int(QDir(e.path).count()) - 2; // без . и ..
     } else {
         e.size = fi.size();
-        const QMimeType mt = mimeForFile(fi, db);
-        e.mimeType = mt.name();
-        e.mimeComment = mt.comment();
-        e.icon = mt.iconName() + QLatin1Char(',') + mt.genericIconName();
+        if (typing == Typing::Later) {
+            e.setMime(db.mimeTypeForName(QStringLiteral("application/octet-stream")));
+            e.typePending = true;
+        } else {
+            const QMimeType mt = mimeForFile(fi, db, typing == Typing::Full);
+            e.setMime(mt);
+            e.typePending = typing == Typing::ByName && mt.isDefault() && e.size > 0;
+        }
     }
     return e;
 }

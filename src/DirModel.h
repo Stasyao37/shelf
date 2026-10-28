@@ -114,6 +114,10 @@ private:
     void startSearch();
     void stopSearch();
     void appendResults(quint64 gen, const QList<FileEntry> &batch);
+    void startSniff(const QList<FileEntry> &pending);
+    void stopSniff();
+    void applySniffed(quint64 gen, const QList<FileEntry> &batch);
+    bool useSniffed(FileEntry &e) const;
     void setError(const QString &e);
     bool lessThan(const FileEntry &a, const FileEntry &b) const;
     bool passesFilters(const FileEntry &e) const;
@@ -143,4 +147,11 @@ private:
     quint64 m_searchGen = 0;
     std::shared_ptr<std::atomic_bool> m_searchCancel;
     QFuture<void> m_searchFuture;
+
+    // Что не успели или не стали определять при листинге (FileEntry::typePending),
+    // определяется в фоне; узнанное помним до смены папки, чтобы не определять заново
+    QHash<QString, FileEntry> m_sniffed;
+    quint64 m_sniffGen = 0;
+    std::shared_ptr<std::atomic_bool> m_sniffCancel;
+    QFuture<void> m_sniffFuture;
 };

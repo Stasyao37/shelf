@@ -121,6 +121,27 @@ private slots:
         QCOMPARE(model.pathAt(0), m_dir + "/two/b.txt");
     }
 
+    // Файл без расширения: листинг его не открывает, тип по содержимому приходит
+    // из фона одной правкой строки; перечитывание берёт его из памяти, без повторного захода
+    void contentTypeInBackground()
+    {
+        write(m_dir + "/doc", "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n");
+        write(m_dir + "/a.txt");
+        DirModel model;
+        QAbstractItemModelTester tester(&model, QAbstractItemModelTester::FailureReportingMode::QtTest);
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        model.setPath(m_dir);
+        const int row = model.indexOfPath(m_dir + "/doc");
+        QCOMPARE(model.mimeTypeAt(row), QStringLiteral("application/octet-stream"));
+        QTRY_COMPARE(model.mimeTypeAt(row), QStringLiteral("application/pdf"));
+        QCOMPARE(changed.count(), 1);
+
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        model.reload();
+        QCOMPARE(model.mimeTypeAt(row), QStringLiteral("application/pdf"));
+        QCOMPARE(reset.count(), 0);
+    }
+
     // ── Конфликты при переносе ─────────────────────────────────────
     void conflictsListsOnlyClashes()
     {
