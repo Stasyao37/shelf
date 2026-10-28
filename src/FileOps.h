@@ -56,6 +56,8 @@ public:
     Q_INVOKABLE QString uriList(const QStringList &paths) const;
     Q_INVOKABLE QStringList localPaths(const QList<QUrl> &urls) const;
     Q_INVOKABLE bool dropMoves(const QStringList &sources, const QString &destDir) const;
+    // Тип брошенного файла — для его листка в анимации броска (файл ещё на старом месте)
+    Q_INVOKABLE QString mimeTypeOf(const QString &path) const;
     Q_INVOKABLE void cancel();
 
     Q_INVOKABLE QVariantMap info(const QString &path);

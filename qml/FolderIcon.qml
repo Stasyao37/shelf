@@ -30,15 +30,35 @@ Item {
     readonly property bool dim: iconName.startsWith("folder-dim")
     opacity: dim ? 0.45 : 1.0
 
+    // Брошенные в папку файлы: листки проскальзывают между стенками, потом папка захлопывается.
+    // Пока они падают, папка открыта, даже если курсор уже ушёл
+    property var swallowed: []
+    readonly property bool swallowing: swallowed.length > 0
+    function swallow(paths) {
+        if (!Theme.animations || paths.length === 0) return
+        var items = []
+        for (var i = 0; i < Math.min(paths.length, 3); ++i)
+            items.push({ name: paths[i].substring(paths[i].lastIndexOf("/") + 1), mime: FileOps.mimeTypeOf(paths[i]) })
+        swallowed = items
+        swallowDone.restart()
+    }
+    Timer {
+        id: swallowDone
+        // Последний листок: задержка + падение + угасание (см. делегат ниже)
+        interval: (root.swallowed.length - 1) * 90 + 130 + 340 + 200
+        onTriggered: root.swallowed = []
+    }
+
     // 0 — закрыта, 1 — открыта
-    property real openness: open ? 1 : 0
+    property real openness: open || swallowing ? 1 : 0
     Behavior on openness { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
     // Открытая чуть «приподнимается» — с пружинкой
-    scale: open ? 1.06 : 1.0
+    scale: open || swallowing ? 1.06 : 1.0
     Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2.5 } }
 
-    Item {
+    // Стенки подкрашиваются каждая своим слоем: между ними проходят листки, у них свой оттенок
+    component Tinted: Item {
         anchors.fill: parent
         layer.enabled: Theme.iconTinted("folder")
         layer.effect: MultiEffect {
@@ -46,10 +66,12 @@ Item {
             colorizationColor: Theme.iconColor("folder")
             brightness: Theme.iconBrightness("folder")
         }
+    }
 
-        // Задняя стенка неподвижна; передняя — отдельной картинкой в кадре своего
-        // прямоугольника, откидывается тем же отображением, что и эмблема.
-        // Двух наложенных картинок закрытой и открытой папки больше нет
+    // Задняя стенка неподвижна; передняя — отдельной картинкой в кадре своего
+    // прямоугольника, откидывается тем же отображением, что и эмблема.
+    // Двух наложенных картинок закрытой и открытой папки больше нет
+    Tinted {
         Image {
             anchors.fill: parent
             source: Qt.resolvedUrl("icons/folder-back.svg")
@@ -57,6 +79,58 @@ Item {
             smooth: true
             mipmap: true
         }
+    }
+
+    // Листки падают сверху и уходят за переднюю стенку; ниже дна папки их обрезает
+    Item {
+        visible: root.swallowing
+        y: -root.size
+        width: root.size
+        height: root.size + root.frontClosed[3][1] * root.size / 24
+        clip: true
+
+        Repeater {
+            model: root.swallowed
+            FileIcon {
+                id: sheet
+                required property var modelData
+                required property int index
+                readonly property real spread: index - (root.swallowed.length - 1) / 2
+                size: Math.max(12, Math.round(root.size * 0.5))
+                mimeType: modelData.mime
+                fileName: modelData.name
+                x: (root.size - size) / 2 + spread * root.size * 0.14
+                // Над папкой → между стенками, верхушка торчит над передней (иначе сквозь
+                // стекло кажется, что листок лежит перед папкой) → утоплен целиком
+                readonly property real fromY: root.size - size * 0.95
+                readonly property real peekY: root.size + root.frontOpen[0][1] * root.size / 24 - size * 0.3
+                readonly property real toY: peekY + size * 0.4
+                y: fromY
+                rotation: spread * 9
+                opacity: 0
+
+                SequentialAnimation {
+                    running: true
+                    PauseAnimation { duration: sheet.index * 90 }
+                    ParallelAnimation {
+                        NumberAnimation { target: sheet; property: "opacity"; to: 1; duration: 130 }
+                        NumberAnimation { target: sheet; property: "y"; from: sheet.fromY + 6; to: sheet.fromY; duration: 130; easing.type: Easing.OutCubic }
+                    }
+                    ParallelAnimation {
+                        NumberAnimation { target: sheet; property: "y"; to: sheet.peekY; duration: 340; easing.type: Easing.InOutCubic }
+                        NumberAnimation { target: sheet; property: "rotation"; to: 0; duration: 340; easing.type: Easing.OutCubic }
+                    }
+                    // Сквозь стекло листок ещё виден — гаснет, уходя вглубь
+                    ParallelAnimation {
+                        NumberAnimation { target: sheet; property: "y"; to: sheet.toY; duration: 200; easing.type: Easing.InCubic }
+                        NumberAnimation { target: sheet; property: "opacity"; to: 0; duration: 200; easing.type: Easing.InCubic }
+                    }
+                }
+            }
+        }
+    }
+
+    Tinted {
         // Кадр картинки — стенка с полями frontPad со всех сторон (см. folder-front.svg)
         Image {
             id: frontItem

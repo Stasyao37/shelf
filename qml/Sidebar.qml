@@ -67,6 +67,7 @@ Rectangle {
             readonly property bool emblem: src.indexOf("/emblems/") > 0
 
             FolderIcon {
+                id: folderIcon
                 visible: glyph.src === ""
                 anchors.fill: parent
                 size: 22
@@ -127,6 +128,7 @@ Rectangle {
                 var move = item.isTrash || FileOps.dropMoves(ps, item.modelData.path)
                 drop.accept(move ? Qt.MoveAction : Qt.CopyAction)
                 side.filesDropped(ps, item.modelData.path, move)
+                if (folderIcon.visible) folderIcon.swallow(ps)
             }
             Timer {
                 interval: 900

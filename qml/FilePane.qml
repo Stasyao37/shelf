@@ -75,13 +75,15 @@ FocusScope {
         // Папку в саму себя не бросаем
         return ps.length > 0 && ps.indexOf(dest) < 0
     }
+    // Возвращает брошенные пути (пусто — бросать нечего)
     function handleDrop(drop, dest) {
         dropFolder = ""
         var ps = FileOps.localPaths(drop.urls)
-        if (ps.length === 0) return
+        if (ps.length === 0) return ps
         var move = FileOps.dropMoves(ps, dest)
         drop.accept(move ? Qt.MoveAction : Qt.CopyAction)
         filesDropped(ps, dest, move)
+        return ps
     }
 
     Item {
@@ -422,6 +424,7 @@ FocusScope {
                 y: pane.gridMode ? 10 : (parent.height - height) / 2
 
                 FolderIcon {
+                    id: folderIcon
                     visible: cell.isDir
                     size: iconBox.size
                     iconName: cell.icon
@@ -555,7 +558,7 @@ FocusScope {
                     if (drag.accepted) pane.dropFolder = cell.path
                 }
                 onExited: if (pane.dropFolder === cell.path) pane.dropFolder = ""
-                onDropped: (drop) => pane.handleDrop(drop, cell.path)
+                onDropped: (drop) => folderIcon.swallow(pane.handleDrop(drop, cell.path))
                 Timer {
                     interval: 900
                     running: cell.dropHere

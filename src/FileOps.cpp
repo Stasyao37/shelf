@@ -445,6 +445,14 @@ QStringList FileOps::localPaths(const QList<QUrl> &urls) const
     return res;
 }
 
+QString FileOps::mimeTypeOf(const QString &path) const
+{
+    // По имени: файл может быть большим или на медленном диске, а листок мелькнёт на полсекунды
+    static const QMimeDatabase db;
+    return QFileInfo(path).isDir() ? QStringLiteral("inode/directory")
+                                   : db.mimeTypeForFile(path, QMimeDatabase::MatchExtension).name();
+}
+
 bool FileOps::dropMoves(const QStringList &sources, const QString &destDir) const
 {
     const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
