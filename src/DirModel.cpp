@@ -205,13 +205,13 @@ void DirModel::listDir()
     m_all.reserve(infos.size());
     QList<FileEntry> pending;
     const bool inTrash = trashRoot();
-    // Типы — сколько успеем за кадр-другой, остальные доопределит фон:
+    // Типы — сколько успеем за кадр (16 мс), остальные доопределит фон:
     // обычная папка выглядит сразу как надо, огромная не замирает
     QElapsedTimer budget;
     budget.start();
     for (const QFileInfo &fi : infos) {
         FileEntry e = FileEntry::fromInfo(fi, m_mime, true,
-                                          budget.elapsed() < 30 ? FileEntry::Typing::ByName : FileEntry::Typing::Later);
+                                          budget.elapsed() < 16 ? FileEntry::Typing::ByName : FileEntry::Typing::Later);
         if (e.typePending && !useSniffed(e))
             pending.append(e);
         if (inTrash) {

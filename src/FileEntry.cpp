@@ -97,7 +97,16 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
     } else {
         e.size = fi.size();
         if (typing == Typing::Later) {
-            e.setMime(db.mimeTypeForName(QStringLiteral("application/octet-stream")));
+            // Заглушка — один раз на всю программу: база типов в Qt одна на всех под одним
+            // замком, и пока фон читает под ним файлы, каждое обращение отсюда ждало бы его
+            static const FileEntry placeholder = [&db] {
+                FileEntry p;
+                p.setMime(db.mimeTypeForName(QStringLiteral("application/octet-stream")));
+                return p;
+            }();
+            e.mimeType = placeholder.mimeType;
+            e.mimeComment = placeholder.mimeComment;
+            e.icon = placeholder.icon;
             e.typePending = true;
         } else {
             const QMimeType mt = mimeForFile(fi, db, typing == Typing::Full);
