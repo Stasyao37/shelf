@@ -2,6 +2,7 @@
 // Корзина и настройки — тоже во временной папке: HOME и XDG_* подменяются до первого обращения
 #include "DirModel.h"
 #include "FileOps.h"
+#include "Language.h"
 
 #include <QAbstractItemModelTester>
 #include <QDir>
@@ -52,6 +53,8 @@ private slots:
         qputenv("XDG_CONFIG_HOME", (m_home.path() + "/.config").toUtf8());
         // Qt создаёт корзину без mkpath: ~/.local/share должна уже быть
         QVERIFY(QDir().mkpath(m_home.path() + "/.local/share"));
+        // Язык системы на сборочной машине может быть любым — сообщения проверяем по-русски
+        Language::apply(QStringLiteral("ru"));
     }
     void init()
     {
@@ -291,6 +294,39 @@ private slots:
         QVERIFY(waitJob(ops));
         QCOMPARE(failed.count(), 1);
         QVERIFY(QFile::exists(m_dir + "/b.txt"));
+    }
+
+    // ── Язык ───────────────────────────────────────────────────────
+    // Русские формы слов при числах — из ru.json, английский — из en.json,
+    // и модель перечитывает свои строки сама, когда язык меняется
+    void languageSwitch()
+    {
+        QDir().mkpath(m_dir + "/sub");
+        write(m_dir + "/sub/a.txt");
+        write(m_dir + "/sub/b.txt");
+        write(m_dir + "/sub/c.txt");
+        FileOps ops;
+        DirModel model;
+        model.setPath(m_dir);
+        const QModelIndex sub = model.index(model.indexOfPath(m_dir + "/sub"));
+        QCOMPARE(model.data(sub, DirModel::SizeTextRole).toString(), QStringLiteral("3 эл."));
+        QCOMPARE(ops.rename(m_dir + "/sub", "a/b"), QStringLiteral("Недопустимое имя"));
+        QCOMPARE(QCoreApplication::translate("FileOps", "%n объект(ов)", nullptr, 3), QStringLiteral("3 объекта"));
+        QCOMPARE(QCoreApplication::translate("FileOps", "%n объект(ов)", nullptr, 11), QStringLiteral("11 объектов"));
+        QCOMPARE(formatSize(10), QStringLiteral("10 Б"));
+
+        QSignalSpy reset(&model, &QAbstractItemModel::modelReset);
+        Language::apply(QStringLiteral("en"));
+        QCOMPARE(Language::current(), QStringLiteral("en"));
+        QCOMPARE(ops.rename(m_dir + "/sub", "a/b"), QStringLiteral("Invalid name"));
+        QCOMPARE(QCoreApplication::translate("FileOps", "%n объект(ов)", nullptr, 1), QStringLiteral("1 item"));
+        QCOMPARE(QCoreApplication::translate("FileOps", "%n объект(ов)", nullptr, 3), QStringLiteral("3 items"));
+        QCOMPARE(formatSize(2560), QStringLiteral("2.5 KB"));
+        QCOMPARE(model.data(sub, DirModel::SizeTextRole).toString(), QStringLiteral("3 items"));
+        QCOMPARE(model.mimeCommentAt(model.indexOfPath(m_dir + "/sub")), QStringLiteral("Folder"));
+
+        Language::apply(QStringLiteral("ru"));
+        QCOMPARE(model.mimeCommentAt(model.indexOfPath(m_dir + "/sub")), QStringLiteral("Папка"));
     }
 };
 

@@ -200,13 +200,13 @@ Rectangle {
             id: column
             width: side.width
 
-            Section { text: "Места" }
+            Section { text: qsTr("Места") }
             Repeater {
                 model: Places.places
                 PlaceItem {}
             }
 
-            Section { text: "Закладки"; shown: Places.bookmarks.length > 0 }
+            Section { text: qsTr("Закладки"); shown: Places.bookmarks.length > 0 }
             Repeater {
                 model: bookmarks.model
                 PlaceItem {
@@ -218,7 +218,7 @@ Rectangle {
                 }
             }
 
-            Section { text: "Устройства" }
+            Section { text: qsTr("Устройства") }
             Repeater {
                 model: devices.model
                 PlaceItem {
@@ -238,7 +238,7 @@ Rectangle {
         implicitWidth: 28; implicitHeight: 26
         text: "\u{f013}"
         iconSize: Theme.fontSize - 2
-        tooltip: "Настройки (Ctrl+,)"
+        tooltip: qsTr("Настройки (Ctrl+,)")
         onClicked: side.openSettings()
     }
 }

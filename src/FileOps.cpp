@@ -5,6 +5,7 @@
 #include "Trash.h"
 
 #include <QClipboard>
+#include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
 #include <QElapsedTimer>
@@ -66,11 +67,11 @@ bool copyFile(const QString &src, const QString &dst, CopyCtx &ctx)
 {
     QFile in(src), out(dst);
     if (!in.open(QIODevice::ReadOnly)) {
-        ctx.error = QStringLiteral("Не удалось прочитать %1").arg(src);
+        ctx.error = QCoreApplication::translate("FileOps", "Не удалось прочитать %1").arg(src);
         return false;
     }
     if (!out.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
-        ctx.error = QStringLiteral("Не удалось создать %1").arg(dst);
+        ctx.error = QCoreApplication::translate("FileOps", "Не удалось создать %1").arg(dst);
         return false;
     }
     QByteArray buf(4 << 20, Qt::Uninitialized);
@@ -83,7 +84,7 @@ bool copyFile(const QString &src, const QString &dst, CopyCtx &ctx)
         }
         const qint64 n = in.read(buf.data(), buf.size());
         if (n < 0 || out.write(buf.constData(), n) != n) {
-            ctx.error = QStringLiteral("Ошибка записи %1").arg(dst);
+            ctx.error = QCoreApplication::translate("FileOps", "Ошибка записи %1").arg(dst);
             out.close();
             out.remove();
             return false;
@@ -100,11 +101,11 @@ bool copyTree(const QString &src, const QString &dst, CopyCtx &ctx)
 {
     const QFileInfo fi(src);
     if (fi.isSymLink())
-        return QFile::link(fi.symLinkTarget(), dst) || (ctx.error = QStringLiteral("Не удалось создать ссылку %1").arg(dst), false);
+        return QFile::link(fi.symLinkTarget(), dst) || (ctx.error = QCoreApplication::translate("FileOps", "Не удалось создать ссылку %1").arg(dst), false);
     if (!fi.isDir())
         return copyFile(src, dst, ctx);
     if (!QDir().mkpath(dst)) {
-        ctx.error = QStringLiteral("Не удалось создать папку %1").arg(dst);
+        ctx.error = QCoreApplication::translate("FileOps", "Не удалось создать папку %1").arg(dst);
         return false;
     }
     const QFileInfoList children =
@@ -170,9 +171,7 @@ bool sameDevice(const QString &a, const QString &b)
 // «отчёт.pdf», «3 объекта»
 QString objects(qsizetype n)
 {
-    const qsizetype d = n % 10, h = n % 100;
-    const char *w = d == 1 && h != 11 ? "объект" : d >= 2 && d <= 4 && (h < 12 || h > 14) ? "объекта" : "объектов";
-    return QStringLiteral("%1 %2").arg(n).arg(QString::fromUtf8(w));
+    return QCoreApplication::translate("FileOps", "%n объект(ов)", nullptr, int(n));
 }
 QString subject(const QStringList &paths)
 {
@@ -196,7 +195,7 @@ bool trashTarget(const QString &target, CopyCtx &ctx, QList<UndoStep> &steps)
 {
     QString where;
     if (!QFile::moveToTrash(target, &where)) {
-        ctx.error = QStringLiteral("Не удалось убрать в корзину заменяемый %1").arg(target);
+        ctx.error = QCoreApplication::translate("FileOps", "Не удалось убрать в корзину заменяемый %1").arg(target);
         return false;
     }
     steps.append({UndoStep::Trashed, target, where});
@@ -227,7 +226,7 @@ bool placeItem(const QString &src, const QString &dst, bool move, CopyCtx &ctx, 
     }
     if (move && !removeTree(src)) {
         steps.append({UndoStep::Created, dst, {}});
-        ctx.error = QStringLiteral("Скопировано, но не удалось удалить исходник %1").arg(src);
+        ctx.error = QCoreApplication::translate("FileOps", "Скопировано, но не удалось удалить исходник %1").arg(src);
         return false;
     }
     steps.append(move ? UndoStep{UndoStep::Moved, src, dst} : UndoStep{UndoStep::Created, dst, {}});
@@ -323,7 +322,7 @@ FileOps::~FileOps()
 void FileOps::openTerminal(const QString &dir)
 {
     if (!Terminal::openIn(dir))
-        emit failed(QStringLiteral("Не найден терминал — укажите его в настройках"));
+        emit failed(tr("Не найден терминал — укажите его в настройках"));
 }
 
 QString FileOps::trash(const QStringList &paths)
@@ -340,8 +339,8 @@ QString FileOps::trash(const QStringList &paths)
         }
     }
     if (!done.isEmpty())
-        record(QStringLiteral("удаление в корзину %1").arg(subject(done)), steps);
-    return failed.isEmpty() ? QString() : QStringLiteral("Не удалось убрать в корзину: %1").arg(failed.join(QStringLiteral(", ")));
+        record(QStringLiteral("trash"), tr("удаление в корзину %1").arg(subject(done)), steps);
+    return failed.isEmpty() ? QString() : tr("Не удалось убрать в корзину: %1").arg(failed.join(QStringLiteral(", ")));
 }
 
 QVariantMap FileOps::restore(const QStringList &paths)
@@ -372,7 +371,7 @@ QVariantMap FileOps::restore(const QStringList &paths)
     QVariantMap res;
     res[QStringLiteral("paths")] = restored;
     if (!failed.isEmpty())
-        res[QStringLiteral("error")] = QStringLiteral("Не удалось восстановить: %1").arg(failed.join(QStringLiteral(", ")));
+        res[QStringLiteral("error")] = tr("Не удалось восстановить: %1").arg(failed.join(QStringLiteral(", ")));
     return res;
 }
 
@@ -380,10 +379,10 @@ void FileOps::deleteForever(const QStringList &paths)
 {
     for (const QString &p : paths)
         if (!Trash::contains(p)) {
-            emit failed(QStringLiteral("Удалять навсегда можно только из корзины"));
+            emit failed(tr("Удалять навсегда можно только из корзины"));
             return;
         }
-    removeInBackground(paths, QStringLiteral("Удаление…"));
+    removeInBackground(paths, tr("Удаление…"));
 }
 
 void FileOps::emptyTrash()
@@ -397,7 +396,7 @@ void FileOps::emptyTrash()
             QFile::remove(fi.absoluteFilePath());
     if (paths.isEmpty())
         return;
-    removeInBackground(paths, QStringLiteral("Очистка корзины…"));
+    removeInBackground(paths, tr("Очистка корзины…"));
 }
 
 void FileOps::removeInBackground(const QStringList &paths, const QString &text)
@@ -418,7 +417,7 @@ void FileOps::removeInBackground(const QStringList &paths, const QString &text)
             QMetaObject::invokeMethod(this, [this, progress, text] { setProgress(progress, text); }, Qt::QueuedConnection);
         }
         const QString error = failed.isEmpty() ? QString()
-                                               : QStringLiteral("Не удалось удалить: %1").arg(failed.join(QStringLiteral(", ")));
+                                               : tr("Не удалось удалить: %1").arg(failed.join(QStringLiteral(", ")));
         const bool cancelled = cancel->load();
         QMetaObject::invokeMethod(this, [this, error, cancelled] { finishJob({}, error, cancelled); }, Qt::QueuedConnection);
     });
@@ -438,16 +437,16 @@ QString FileOps::rename(const QString &path, const QString &newName)
 {
     const QString name = newName.trimmed();
     if (name.isEmpty() || name.contains(QLatin1Char('/')) || name == QLatin1String(".") || name == QLatin1String(".."))
-        return QStringLiteral("Недопустимое имя");
+        return tr("Недопустимое имя");
     const QFileInfo fi(path);
     if (name == fi.fileName())
         return {};
     const QString target = fi.absolutePath() + QLatin1Char('/') + name;
     if (QFileInfo::exists(target))
-        return QStringLiteral("«%1» уже есть").arg(name);
+        return tr("«%1» уже есть").arg(name);
     if (!QDir().rename(path, target))
-        return QStringLiteral("Не удалось переименовать");
-    record(QStringLiteral("переименование «%1»").arg(fi.fileName()), {{UndoStep::Moved, path, target}});
+        return tr("Не удалось переименовать");
+    record(QStringLiteral("rename"), tr("переименование «%1»").arg(fi.fileName()), {{UndoStep::Moved, path, target}});
     return {};
 }
 
@@ -456,7 +455,7 @@ QString FileOps::makeDir(const QString &dir, const QString &baseName)
     const QString target = uniquePath(dir, baseName, true);
     if (!QDir().mkdir(target))
         return {};
-    record(QStringLiteral("создание папки «%1»").arg(QFileInfo(target).fileName()), {{UndoStep::MadeDir, target, {}}});
+    record(QStringLiteral("mkdir"), tr("создание папки «%1»").arg(QFileInfo(target).fileName()), {{UndoStep::MadeDir, target, {}}});
     return target;
 }
 
@@ -519,7 +518,7 @@ QVariantList FileOps::conflicts(const QStringList &sources, const QString &destD
         if (!realDir(fi))
             return formatSize(fi.size()) + QStringLiteral(" · ") + when;
         const qsizetype n = QDir(fi.absoluteFilePath()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System).size();
-        return QStringLiteral("папка, %1 · %2").arg(objects(n), when);
+        return tr("папка, %1 · %2").arg(objects(n), when);
     };
     QVariantList res;
     QStringList seen;
@@ -563,18 +562,18 @@ void FileOps::paste(const QString &destDir, const QVariantMap &resolutions)
 void FileOps::transfer(const QStringList &sources, const QString &destDir, bool move, const QVariantMap &resolutions)
 {
     if (m_busy) {
-        emit failed(QStringLiteral("Дождитесь окончания текущей операции"));
+        emit failed(tr("Дождитесь окончания текущей операции"));
         return;
     }
     const QString dest = QDir::cleanPath(destDir);
     for (const QString &s : sources) {
         const QString src = QDir::cleanPath(s);
         if (dest == src || dest.startsWith(src + QLatin1Char('/'))) {
-            emit failed(QStringLiteral("Нельзя скопировать папку внутрь самой себя"));
+            emit failed(tr("Нельзя скопировать папку внутрь самой себя"));
             return;
         }
     }
-    if (!startJob(move ? QStringLiteral("Перемещение…") : QStringLiteral("Копирование…")))
+    if (!startJob(move ? tr("Перемещение…") : tr("Копирование…")))
         return;
 
     auto cancel = m_cancel;
@@ -594,9 +593,8 @@ void FileOps::transfer(const QStringList &sources, const QString &destDir, bool 
                 return;
             tick.restart();
             const double p = ctx.total > 0 ? qMin(1.0, double(ctx.done) / double(ctx.total)) : 0;
-            const QString text = QStringLiteral("%1 %2 — %3 из %4")
-                                     .arg(move ? QStringLiteral("Перемещение") : QStringLiteral("Копирование"), name,
-                                          formatSize(ctx.done), formatSize(ctx.total));
+            const QString text = (move ? tr("Перемещение %1 — %2 из %3") : tr("Копирование %1 — %2 из %3"))
+                                     .arg(name, formatSize(ctx.done), formatSize(ctx.total));
             QMetaObject::invokeMethod(this, [this, p, text] { setProgress(p, text); }, Qt::QueuedConnection);
         };
 
@@ -632,13 +630,13 @@ void FileOps::transfer(const QStringList &sources, const QString &destDir, bool 
             done << src;
         }
 
-        const QString label = (move ? QStringLiteral("перемещение %1") : QStringLiteral("копирование %1")).arg(subject(done));
+        const QString label = (move ? tr("перемещение %1") : tr("копирование %1")).arg(subject(done));
         const QString error = ctx.error;
         const bool cancelled = cancel->load();
-        QMetaObject::invokeMethod(this, [this, created, error, cancelled, label, steps] {
+        QMetaObject::invokeMethod(this, [this, created, error, cancelled, label, steps, move] {
             // Прерванное тоже записываем — сделанную часть можно откатить
             if (!steps.isEmpty())
-                record(label, steps);
+                record(move ? QStringLiteral("move") : QStringLiteral("copy"), label, steps);
             finishJob(created, error, cancelled);
         }, Qt::QueuedConnection);
     });
@@ -662,12 +660,12 @@ void FileOps::undo()
     if (m_undo.isEmpty())
         return;
     if (m_busy) {
-        emit failed(QStringLiteral("Дождитесь окончания текущей операции"));
+        emit failed(tr("Дождитесь окончания текущей операции"));
         return;
     }
     const UndoEntry entry = m_undo.takeLast();
     emit undoChanged();
-    if (!startJob(QStringLiteral("Отмена: %1…").arg(entry.label)))
+    if (!startJob(tr("Отмена: %1…").arg(entry.label)))
         return;
 
     auto cancel = m_cancel;
@@ -679,11 +677,11 @@ void FileOps::undo()
             if (!undoStep(st, ctx, restored))
                 failed << QFileInfo(st.from).fileName();
             const double p = double(entry.steps.size() - i) / double(entry.steps.size());
-            QMetaObject::invokeMethod(this, [this, p, entry] { setProgress(p, QStringLiteral("Отмена: %1…").arg(entry.label)); },
+            QMetaObject::invokeMethod(this, [this, p, entry] { setProgress(p, tr("Отмена: %1…").arg(entry.label)); },
                                       Qt::QueuedConnection);
         }
         const QString error = failed.isEmpty() ? QString()
-            : QStringLiteral("Не удалось отменить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")));
+            : tr("Не удалось отменить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")));
         const bool cancelled = cancel->load();
         QMetaObject::invokeMethod(this, [this, restored, error, cancelled, label = entry.label] {
             finishJob(restored, error, cancelled);
@@ -754,7 +752,7 @@ void FileOps::setProgress(double p, const QString &text)
 bool FileOps::startJob(const QString &text)
 {
     if (m_busy) {
-        emit failed(QStringLiteral("Дождитесь окончания текущей операции"));
+        emit failed(tr("Дождитесь окончания текущей операции"));
         return false;
     }
     m_cancel = std::make_shared<std::atomic_bool>(false);
@@ -764,11 +762,11 @@ bool FileOps::startJob(const QString &text)
     return true;
 }
 
-void FileOps::record(const QString &label, const QList<UndoStep> &steps)
+void FileOps::record(const QString &kind, const QString &label, const QList<UndoStep> &steps)
 {
     if (steps.isEmpty())
         return;
-    m_undo.append({label, steps});
+    m_undo.append({kind, label, steps});
     // Помним последние операции — дальше вряд ли кто-то отматывает
     while (m_undo.size() > 50)
         m_undo.removeFirst();
@@ -808,7 +806,8 @@ QVariantMap FileOps::info(const QString &path)
     m[QStringLiteral("permissions")] = perms;
 
     if (fi.isDir()) {
-        m[QStringLiteral("type")] = QStringLiteral("Папка");
+        m[QStringLiteral("type")] = tr("Папка");
+        m[QStringLiteral("isDir")] = true;
         // Размер папки считаем с потолком, чтобы окно не зависало на /
         qint64 total = 0;
         int files = 0, dirs = 0;
@@ -828,13 +827,17 @@ QVariantMap FileOps::info(const QString &path)
                 break;
             }
         }
-        m[QStringLiteral("size")] = (truncated ? QStringLiteral("больше ") : QString()) + formatSize(total);
-        m[QStringLiteral("contents")] = QStringLiteral("%1 файлов, %2 папок").arg(files).arg(dirs);
+        m[QStringLiteral("size")] = truncated ? tr("больше %1").arg(formatSize(total)) : formatSize(total);
+        m[QStringLiteral("contents")] = tr("%n файл(ов)", nullptr, int(files)) + QStringLiteral(", ") + tr("%n папка(ок)", nullptr, int(dirs));
     } else {
         const QMimeType mt = mimeForFile(fi, QMimeDatabase());
         m[QStringLiteral("type")] = QStringLiteral("%1 (%2)").arg(mt.comment(), mt.name());
         m[QStringLiteral("mimeType")] = mt.name();
-        m[QStringLiteral("size")] = QStringLiteral("%1 (%2 байт)").arg(formatSize(fi.size()), QLocale(QLocale::Russian).toString(fi.size()));
+        // Форма слова зависит только от двух последних цифр — а %n у Qt не шире int.
+        // Само число — %1 с разрядами, %n в строке нет
+        const qint64 bytes = fi.size();
+        const int form = bytes < 100 ? int(bytes) : int(bytes % 100) + 100;
+        m[QStringLiteral("size")] = tr("%1 (%2 байт(а))", nullptr, form).arg(formatSize(bytes), QLocale().toString(bytes));
     }
     return m;
 }

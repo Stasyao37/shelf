@@ -238,7 +238,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: "\u{f067}"
         iconSize: Theme.fontSize - 2
-        tooltip: "Новая вкладка (Ctrl+T)"
+        tooltip: qsTr("Новая вкладка (Ctrl+T)")
         onClicked: strip.newTab()
     }
 }

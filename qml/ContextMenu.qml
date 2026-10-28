@@ -15,7 +15,9 @@ Popup {
         for (var i = 0; i < list.length; ++i) h += list[i].separator === true ? 9 : 32
         return h
     }
-    function show(px, py, list) {
+    // aboveY — для меню у кнопки: не влезает ниже — раскрыться над этой точкой (верх кнопки),
+    // а не над py, иначе меню закроет саму кнопку
+    function show(px, py, list, aboveY) {
         items = list
         var w = parent ? parent.width : 0
         var h = parent ? parent.height : 0
@@ -23,7 +25,7 @@ Popup {
         // Не влезает ниже или правее курсора — открываем выше или левее, как в других программах
         var left = px + mw + 4 > w, up = py + mh + 4 > h
         x = left ? Math.max(4, px - mw) : px
-        y = up ? Math.max(4, py - mh) : py
+        y = up ? Math.max(4, (aboveY === undefined ? py : aboveY) - mh) : py
         // Раскрывается из того угла, где курсор
         transformOrigin = up ? (left ? Item.BottomRight : Item.BottomLeft) : (left ? Item.TopRight : Item.TopLeft)
         open()

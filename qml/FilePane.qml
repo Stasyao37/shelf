@@ -257,13 +257,13 @@ FocusScope {
             }
         }
 
-        HeaderCell { label: "Имя"; key: "name"; x: 0; width: parent.width - pane.nameRight }
-        HeaderCell { label: pane.model.trashRoot ? "Откуда" : "Тип"; key: "type"; x: parent.width - 330; width: 120; visible: pane.wideList }
+        HeaderCell { label: qsTr("Имя"); key: "name"; x: 0; width: parent.width - pane.nameRight }
+        HeaderCell { label: pane.model.trashRoot ? qsTr("Откуда") : qsTr("Тип"); key: "type"; x: parent.width - 330; width: 120; visible: pane.wideList }
         HeaderCell {
-            label: pane.model.searchQuery && !pane.wideList ? "Где" : pane.model.trashRoot ? "Удалён" : "Изменён"
+            label: pane.model.searchQuery && !pane.wideList ? qsTr("Где") : pane.model.trashRoot ? qsTr("Удалён") : qsTr("Изменён")
             key: "date"; x: parent.width - 210; width: 120
         }
-        HeaderCell { label: "Размер"; key: "size"; x: parent.width - 90; width: 90; align: Text.AlignRight }
+        HeaderCell { label: qsTr("Размер"); key: "size"; x: parent.width - 90; width: 90; align: Text.AlignRight }
     }
 
     // Клик по пустому месту: снять выделение / меню папки
@@ -704,8 +704,8 @@ FocusScope {
         anchors.centerIn: view
         visible: pane.model.count === 0
         text: pane.model.error.length > 0 ? pane.model.error
-            : pane.model.searchQuery.length === 0 ? (pane.inTrash ? "Корзина пуста" : "Папка пуста")
-            : pane.model.searching ? "Ищу…" : "Ничего не найдено"
+            : pane.model.searchQuery.length === 0 ? (pane.inTrash ? qsTr("Корзина пуста") : qsTr("Папка пуста"))
+            : pane.model.searching ? qsTr("Ищу…") : qsTr("Ничего не найдено")
         color: Theme.subtext0
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSize

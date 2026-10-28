@@ -19,7 +19,7 @@ Window {
     // Прозрачный фон — Hyprland размоет то, что под окном, как у бара
     color: "transparent"
     title: picking ? (Picker.title || win.pickDefaultTitle)
-                   : (dir.searchQuery ? "Поиск «" + dir.searchQuery + "»" : folderName(dir.path)) + " — Shelf"
+                   : (dir.searchQuery ? qsTr("Поиск «%1»").arg(dir.searchQuery) : folderName(dir.path)) + " — Shelf"
 
     // undefined — по ширине окна; F9 закрепляет выбор до конца сеанса
     property var sidebarShown: undefined
@@ -98,10 +98,10 @@ Window {
     readonly property string pickMode: Picker.mode
     readonly property bool pickSave: pickMode === "save"
     readonly property bool pickFolder: pickMode === "folder" || pickMode === "saveFiles"
-    readonly property string pickDefaultTitle: pickSave ? "Сохранить файл" : pickMode === "saveFiles" ? "Сохранить файлы в папку"
-                                              : pickMode === "folder" ? "Выбрать папку" : Picker.multiple ? "Открыть файлы" : "Открыть файл"
+    readonly property string pickDefaultTitle: pickSave ? qsTr("Сохранить файл") : pickMode === "saveFiles" ? qsTr("Сохранить файлы в папку")
+                                              : pickMode === "folder" ? qsTr("Выбрать папку") : Picker.multiple ? qsTr("Открыть файлы") : qsTr("Открыть файл")
     readonly property string pickAcceptText: Picker.acceptLabel ? Picker.acceptLabel.replace("_", "")
-                                            : pickSave || pickMode === "saveFiles" ? "Сохранить" : pickMode === "folder" ? "Выбрать" : "Открыть"
+                                            : pickSave || pickMode === "saveFiles" ? qsTr("Сохранить") : pickMode === "folder" ? qsTr("Выбрать") : qsTr("Открыть")
     property int pickFilter: Picker.currentFilter >= 0 ? Picker.currentFilter : (Picker.filters.length > 0 ? 0 : -1)
     // id → значение для choices портала
     property var pickChoices: ({})
@@ -140,11 +140,11 @@ Window {
             pickFinish([sel.length === 1 && dir.isDirAt(dir.indexOfPath(sel[0])) ? sel[0] : dir.path])
         } else if (pickSave) {
             var name = pickName.text.trim()
-            if (!name || name.indexOf("/") >= 0) { toast("Введите имя файла"); pickName.forceActiveFocus(); return }
+            if (!name || name.indexOf("/") >= 0) { toast(qsTr("Введите имя файла")); pickName.forceActiveFocus(); return }
             var path = (dir.path === "/" ? "" : dir.path) + "/" + name
             if (Picker.exists(path) && dir.isDirAt(dir.indexOfPath(path))) { go(path); return }
             if (Picker.exists(path))
-                confirm.ask("Заменить «" + name + "»?", "Файл с таким именем уже есть в этой папке.", "Заменить",
+                confirm.ask(qsTr("Заменить «%1»?").arg(name), qsTr("Файл с таким именем уже есть в этой папке."), qsTr("Заменить"),
                             function () { pickFinish([path]) })
             else pickFinish([path])
         } else {
@@ -153,14 +153,10 @@ Window {
             var out = Picker.files.map(function (n) { return (target === "/" ? "" : target) + "/" + n })
             var clash = out.filter(function (p) { return Picker.exists(p) })
             if (clash.length > 0)
-                confirm.ask("Заменить " + many(clash.length) + "?", "В папке уже есть файлы с такими именами.", "Заменить",
+                confirm.ask(qsTr("Заменить %n файл(ов)?", "", clash.length), qsTr("В папке уже есть файлы с такими именами."), qsTr("Заменить"),
                             function () { pickFinish(out) })
             else pickFinish(out)
         }
-    }
-    function tabsWord(n) {
-        return n + " " + (n % 10 === 1 && n % 100 !== 11 ? "вкладку"
-            : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "вкладки" : "вкладок")
     }
     function restoreTabs() {
         var o = restoreOffer
@@ -200,7 +196,7 @@ Window {
             visible: opacity > 0
             z: shown ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: Theme.dur(140); easing.type: Easing.OutCubic } }
-            title: t.dir.searchQuery ? "Поиск «" + t.dir.searchQuery + "»" : win.folderName(t.dir.path)
+            title: t.dir.searchQuery ? qsTr("Поиск «%1»").arg(t.dir.searchQuery) : win.folderName(t.dir.path)
             onMessage: (m) => win.toast(m)
             Component.onCompleted: {
                 if (win.tabs.length > 0) {
@@ -245,20 +241,20 @@ Window {
         function onFailed(message) { win.toast(message) }
         function onFinished(newPaths) {
             // Перемещение — самое частое, что делают нечаянно (промахнулись папкой), — сразу с отменой
-            if (win.moveToast && newPaths.length > 0 && FileOps.undoText.startsWith("перемещение"))
-                win.undoToast("Перемещено: " + (newPaths.length === 1 ? win.folderName(newPaths[0]) : win.many(newPaths.length)))
+            if (win.moveToast && newPaths.length > 0 && FileOps.undoKind === "move")
+                win.undoToast(qsTr("Перемещено: %1").arg(newPaths.length === 1 ? win.folderName(newPaths[0]) : win.many(newPaths.length)))
             win.moveToast = false
             if (!win.tab) return
             win.tab.pendingSelect = newPaths
             dir.reload()
         }
-        function onUndone(label) { win.toast("Отменено: " + label) }
+        function onUndone(label) { win.toast(qsTr("Отменено: %1").arg(label)) }
     }
 
     // ── Навигация ────────────────────────────────────────────────────
     function folderName(p) {
-        if (p === Places.places[0].path) return "Домашняя"
-        if (p === Places.trashPath) return "Корзина"
+        if (p === Places.places[0].path) return qsTr("Домашняя")
+        if (p === Places.trashPath) return qsTr("Корзина")
         if (p === "/") return "/"
         return p.substring(p.lastIndexOf("/") + 1)
     }
@@ -343,8 +339,7 @@ Window {
 
     // ── Действия ─────────────────────────────────────────────────────
     readonly property bool inTrash: dir.path === Places.trashPath || dir.path.startsWith(Places.trashPath + "/")
-    function many(n) { return n + " " + (n % 10 === 1 && n % 100 !== 11 ? "объект"
-        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "объекта" : "объектов") }
+    function many(n) { return qsTr("%n объект(ов)", "", n) }
 
     function openRow(row) {
         if (row < 0) return
@@ -370,14 +365,14 @@ Window {
         tab.pendingRow = dir.indexOfPath(paths[0])
         var err = FileOps.trash(paths)
         if (err) toast(err)
-        else undoToast(paths.length === 1 ? "В корзине: " + folderName(paths[0]) : "В корзине: " + many(paths.length))
+        else undoToast(qsTr("В корзине: %1").arg(paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
         dir.reload()
     }
     // ── Корзина ──────────────────────────────────────────────────────
     function deleteForever(paths) {
-        confirm.ask(paths.length === 1 ? "Удалить «" + folderName(paths[0]) + "» навсегда?"
-                                       : "Удалить навсегда " + many(paths.length) + "?",
-                    "Это действие нельзя отменить.", "Удалить", function () {
+        confirm.ask(paths.length === 1 ? qsTr("Удалить «%1» навсегда?").arg(folderName(paths[0]))
+                                       : qsTr("Удалить навсегда %n объект(ов)?", "", paths.length),
+                    qsTr("Это действие нельзя отменить."), qsTr("Удалить"), function () {
             tab.pendingRow = dir.indexOfPath(paths[0])
             FileOps.deleteForever(paths)
         })
@@ -390,13 +385,13 @@ Window {
         if (res.error) toast(res.error)
         else if (res.paths.length === 1) {
             var p = res.paths[0]
-            toast("Восстановлено в " + (p.substring(0, p.lastIndexOf("/")) || "/").replace(/^\/home\/[^/]+/, "~"))
-        } else toast("Восстановлено: " + many(res.paths.length))
+            toast(qsTr("Восстановлено в %1").arg((p.substring(0, p.lastIndexOf("/")) || "/").replace(/^\/home\/[^/]+/, "~")))
+        } else toast(qsTr("Восстановлено: %1").arg(many(res.paths.length)))
         dir.reload()
     }
     function emptyTrash() {
-        if (!Places.trashFull) { toast("Корзина уже пуста"); return }
-        confirm.ask("Очистить корзину?", "Всё, что в ней лежит, будет удалено навсегда.", "Очистить",
+        if (!Places.trashFull) { toast(qsTr("Корзина уже пуста")); return }
+        confirm.ask(qsTr("Очистить корзину?"), qsTr("Всё, что в ней лежит, будет удалено навсегда."), qsTr("Очистить"),
                     function () { FileOps.emptyTrash() })
     }
     function openWith() {
@@ -407,7 +402,7 @@ Window {
     }
     function paste(target) {
         if (target === Places.trashPath || target.startsWith(Places.trashPath + "/")) {
-            toast("В корзину файлы убирают клавишей Del"); return
+            toast(qsTr("В корзину файлы убирают клавишей Del")); return
         }
         var paths = FileOps.clipboardPaths()
         if (paths.length === 0) return
@@ -416,7 +411,7 @@ Window {
     // Совпадения имён в папке назначения — сначала спросить, что с ними делать
     property bool moveToast: false
     function startTransfer(paths, dest, move, run) {
-        if (FileOps.busy) { toast("Дождитесь окончания текущей операции"); return }
+        if (FileOps.busy) { toast(qsTr("Дождитесь окончания текущей операции")); return }
         var go = function (res) { win.moveToast = move; run(res) }
         var cs = FileOps.conflicts(paths, dest)
         if (cs.length === 0) go({})
@@ -425,14 +420,14 @@ Window {
     // ── Отмена (Ctrl+Z) ──────────────────────────────────────────────
     function undo() {
         moveToast = false
-        if (!FileOps.undoText) { toast("Отменять нечего"); return }
+        if (!FileOps.undoText) { toast(qsTr("Отменять нечего")); return }
         pane.flyOut(FileOps.undoTargets())
         FileOps.undo()
     }
     // Уведомление с кнопкой «Отменить» — только пока последней остаётся эта операция
     function undoToast(text) {
         var label = FileOps.undoText
-        toast(text, "Отменить", function () { if (FileOps.undoText === label) win.undo() })
+        toast(text, qsTr("Отменить"), function () { if (FileOps.undoText === label) win.undo() })
     }
 
     // Перетащили файлы: в корзину — убрать, иначе скопировать или переместить
@@ -442,7 +437,7 @@ Window {
             if (paths.length === 0) return
             var err = FileOps.trash(paths)
             if (err) toast(err)
-            else undoToast("В корзине: " + (paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
+            else undoToast(qsTr("В корзине: %1").arg(paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
             dir.reload()
             return
         }
@@ -471,8 +466,8 @@ Window {
     function newFolder() {
         if (inTrash) return
         if (dir.searchQuery) searchField.text = ""
-        var p = FileOps.makeDir(dir.path, "Новая папка")
-        if (!p) { toast("Не удалось создать папку"); return }
+        var p = FileOps.makeDir(dir.path, qsTr("Новая папка"))
+        if (!p) { toast(qsTr("Не удалось создать папку")); return }
         tab.pendingSelect = [p]
         dir.reload()
         pane.renamingPath = p
@@ -481,9 +476,9 @@ Window {
         var paths = pane.selectedPaths()
         if (paths.length === 0) return
         // Вырезанное из корзины потеряло бы запись, откуда оно, — только «Восстановить»
-        if (cut && inTrash) { toast("Из корзины — через «Восстановить» или копированием"); return }
+        if (cut && inTrash) { toast(qsTr("Из корзины — через «Восстановить» или копированием")); return }
         FileOps.copyToClipboard(paths, cut)
-        toast((cut ? "Вырезано: " : "Скопировано: ") + (paths.length === 1 ? folderName(paths[0]) : paths.length + " объектов"))
+        toast((cut ? qsTr("Вырезано: %1") : qsTr("Скопировано: %1")).arg(paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
     }
     function showProperties() {
         var paths = pane.selectedPaths()
@@ -491,23 +486,23 @@ Window {
         props.showFor(paths[0], dir.iconAt(dir.indexOfPath(paths[0])))
     }
     function toggleBookmark(path) {
-        if (Places.isBookmarked(path)) { Places.removeBookmark(path); toast("Закладка убрана") }
-        else { Places.addBookmark(path); toast("Добавлено в закладки") }
+        if (Places.isBookmarked(path)) { Places.removeBookmark(path); toast(qsTr("Закладка убрана")) }
+        else { Places.addBookmark(path); toast(qsTr("Добавлено в закладки")) }
     }
 
     function trashFileMenu(x, y) {
         var paths = pane.selectedPaths()
         var single = paths.length === 1
         menu.show(x, y, [
-            { text: "Открыть", icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
-            { text: "Восстановить", icon: "\u{f0e2}", enabled: dir.trashRoot, act: restoreSelected },
+            { text: qsTr("Открыть"), icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
+            { text: qsTr("Восстановить"), icon: "\u{f0e2}", enabled: dir.trashRoot, act: restoreSelected },
             { separator: true },
-            { text: "Копировать", icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } },
-            { text: "Копировать путь", icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast("Путь скопирован") } },
+            { text: qsTr("Копировать"), icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } },
+            { text: qsTr("Копировать путь"), icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast(qsTr("Путь скопирован")) } },
             { separator: true },
-            { text: "Удалить навсегда", icon: "\u{f1f8}", shortcut: "Del", danger: true, act: function () { deleteForever(paths) } },
+            { text: qsTr("Удалить навсегда"), icon: "\u{f1f8}", shortcut: "Del", danger: true, act: function () { deleteForever(paths) } },
             { separator: true },
-            { text: "Свойства", icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties },
+            { text: qsTr("Свойства"), icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties },
         ])
     }
     function fileMenu(row, x, y) {
@@ -517,33 +512,33 @@ Window {
         var isDir = single && dir.isDirAt(row)
         var p = paths[0]
         var items = [
-            { text: "Открыть", icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
-            { text: "Открыть с помощью…", icon: "\u{f1b2}", act: openWith },
+            { text: qsTr("Открыть"), icon: "\u{f07c}", shortcut: "Enter", act: openSelected },
+            { text: qsTr("Открыть с помощью…"), icon: "\u{f1b2}", act: openWith },
         ]
         if (dir.searchQuery)
-            items.push({ text: "Показать в папке", icon: "\u{f07b}", enabled: single, act: function () {
+            items.push({ text: qsTr("Показать в папке"), icon: "\u{f07b}", enabled: single, act: function () {
                 var parent = p.substring(0, p.lastIndexOf("/")) || "/"
                 go(parent); tab.pendingSelect = [p]; dir.reload()
             } })
         if (isDir) {
-            items.push({ text: "Открыть в новой вкладке", icon: "\u{f0db}", act: function () { newTab(p, true) } })
-            items.push({ text: "Открыть в терминале", icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } })
+            items.push({ text: qsTr("Открыть в новой вкладке"), icon: "\u{f0db}", act: function () { newTab(p, true) } })
+            items.push({ text: qsTr("Открыть в терминале"), icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } })
         }
         items.push({ separator: true })
-        items.push({ text: "Вырезать", icon: "\u{f0c4}", shortcut: "Ctrl+X", act: function () { copySelected(true) } })
-        items.push({ text: "Копировать", icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } })
+        items.push({ text: qsTr("Вырезать"), icon: "\u{f0c4}", shortcut: "Ctrl+X", act: function () { copySelected(true) } })
+        items.push({ text: qsTr("Копировать"), icon: "\u{f0c5}", shortcut: "Ctrl+C", act: function () { copySelected(false) } })
         if (isDir)
-            items.push({ text: "Вставить в папку", icon: "\u{f0ea}", enabled: FileOps.clipboardHasFiles,
+            items.push({ text: qsTr("Вставить в папку"), icon: "\u{f0ea}", enabled: FileOps.clipboardHasFiles,
                          act: function () { paste(p) } })
-        items.push({ text: "Копировать путь", icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast("Путь скопирован") } })
+        items.push({ text: qsTr("Копировать путь"), icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast(qsTr("Путь скопирован")) } })
         items.push({ separator: true })
-        items.push({ text: "Переименовать", icon: "\u{f040}", shortcut: "F2", enabled: single, act: renameSelected })
+        items.push({ text: qsTr("Переименовать"), icon: "\u{f040}", shortcut: "F2", enabled: single, act: renameSelected })
         if (isDir)
-            items.push({ text: Places.isBookmarked(p) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}",
+            items.push({ text: Places.isBookmarked(p) ? qsTr("Убрать из закладок") : qsTr("В закладки"), icon: "\u{f02e}",
                          shortcut: "Ctrl+D", act: function () { toggleBookmark(p) } })
-        items.push({ text: "В корзину", icon: "\u{f1f8}", shortcut: "Del", danger: true, act: trashSelected })
+        items.push({ text: qsTr("В корзину"), icon: "\u{f1f8}", shortcut: "Del", danger: true, act: trashSelected })
         items.push({ separator: true })
-        items.push({ text: "Свойства", icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties })
+        items.push({ text: qsTr("Свойства"), icon: "\u{f05a}", shortcut: "Alt+Enter", enabled: single, act: showProperties })
         menu.show(x, y, items)
     }
     function folderMenu(x, y) {
@@ -553,30 +548,30 @@ Window {
                 else { win.sortKey = key; win.sortDesc = false }
             } }
         }
-        var undoItem = { text: FileOps.undoText ? "Отменить " + FileOps.undoText : "Отменить", icon: "\u{f0e2}",
+        var undoItem = { text: FileOps.undoText ? qsTr("Отменить %1").arg(FileOps.undoText) : qsTr("Отменить"), icon: "\u{f0e2}",
                          shortcut: "Ctrl+Z", enabled: FileOps.undoText !== "" && !FileOps.busy, act: undo }
         var top = inTrash ? [
             undoItem,
-            { text: "Очистить корзину", icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: emptyTrash },
+            { text: qsTr("Очистить корзину"), icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: emptyTrash },
             { separator: true },
         ] : [
             undoItem,
-            { text: "Новая папка", icon: "\u{f07b}", shortcut: "Ctrl+Shift+N", act: newFolder },
-            { text: "Вставить", icon: "\u{f0ea}", shortcut: "Ctrl+V", enabled: FileOps.clipboardHasFiles,
+            { text: qsTr("Новая папка"), icon: "\u{f07b}", shortcut: "Ctrl+Shift+N", act: newFolder },
+            { text: qsTr("Вставить"), icon: "\u{f0ea}", shortcut: "Ctrl+V", enabled: FileOps.clipboardHasFiles,
               act: function () { paste(dir.path) } },
-            { text: "Открыть в терминале", icon: "\u{f120}", shortcut: "F4", act: function () { FileOps.openTerminal(dir.path) } },
+            { text: qsTr("Открыть в терминале"), icon: "\u{f120}", shortcut: "F4", act: function () { FileOps.openTerminal(dir.path) } },
             { separator: true },
         ]
         menu.show(x, y, top.concat([
-            sortItem("По имени", "name"), sortItem("По дате", "date"), sortItem("По размеру", "size"), sortItem("По типу", "type"),
+            sortItem(qsTr("По имени"), "name"), sortItem(qsTr("По дате"), "date"), sortItem(qsTr("По размеру"), "size"), sortItem(qsTr("По типу"), "type"),
             { separator: true },
-            { text: "Скрытые файлы", checked: dir.showHidden, icon: "\u{f070}", shortcut: "Ctrl+H",
+            { text: qsTr("Скрытые файлы"), checked: dir.showHidden, icon: "\u{f070}", shortcut: "Ctrl+H",
               act: function () { win.showHidden = !win.showHidden } },
-            { text: Places.isBookmarked(dir.path) ? "Убрать из закладок" : "В закладки", icon: "\u{f02e}", shortcut: "Ctrl+D",
+            { text: Places.isBookmarked(dir.path) ? qsTr("Убрать из закладок") : qsTr("В закладки"), icon: "\u{f02e}", shortcut: "Ctrl+D",
               act: function () { toggleBookmark(dir.path) } },
-            { text: "Свойства папки", icon: "\u{f05a}", act: function () { props.showFor(dir.path, "folder") } },
+            { text: qsTr("Свойства папки"), icon: "\u{f05a}", act: function () { props.showFor(dir.path, "folder") } },
             { separator: true },
-            { text: "Настройки Shelf", icon: "\u{f013}", shortcut: "Ctrl+,", act: function () { settingsDlg.open() } },
+            { text: qsTr("Настройки Shelf"), icon: "\u{f013}", shortcut: "Ctrl+,", act: function () { settingsDlg.open() } },
         ]))
     }
 
@@ -675,19 +670,19 @@ Window {
             onTrashMenu: (x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
                 menu.show(pt.x, pt.y, [
-                    { text: "Открыть", icon: "\u{f07c}", act: function () { win.go(Places.trashPath) } },
+                    { text: qsTr("Открыть"), icon: "\u{f07c}", act: function () { win.go(Places.trashPath) } },
                     { separator: true },
-                    { text: "Очистить корзину", icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: win.emptyTrash },
+                    { text: qsTr("Очистить корзину"), icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: win.emptyTrash },
                 ])
             }
             onBookmarkMenu: (p, x, y) => {
                 var pt = mapToItem(win.contentItem, x, y)
                 menu.show(pt.x, pt.y, [
-                    { text: "Открыть", icon: "\u{f07c}", act: function () { win.go(p) } },
-                    { text: "Открыть в новой вкладке", icon: "\u{f0db}", act: function () { win.newTab(p, true) } },
-                    { text: "Открыть в терминале", icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } },
+                    { text: qsTr("Открыть"), icon: "\u{f07c}", act: function () { win.go(p) } },
+                    { text: qsTr("Открыть в новой вкладке"), icon: "\u{f0db}", act: function () { win.newTab(p, true) } },
+                    { text: qsTr("Открыть в терминале"), icon: "\u{f120}", act: function () { FileOps.openTerminal(p) } },
                     { separator: true },
-                    { text: "Убрать из закладок", icon: "\u{f02e}", danger: true, act: function () { Places.removeBookmark(p) } },
+                    { text: qsTr("Убрать из закладок"), icon: "\u{f02e}", danger: true, act: function () { Places.removeBookmark(p) } },
                 ])
             }
         }
@@ -728,9 +723,9 @@ Window {
                 Layout.margins: 8
                 spacing: 4
 
-                GlassButton { text: "\u{f060}"; tooltip: "Назад (Alt+←)"; enabled: (win.tab?.histIndex ?? 0) > 0; onClicked: win.back() }
-                GlassButton { text: "\u{f061}"; tooltip: "Вперёд (Alt+→)"; enabled: win.tab ? win.tab.histIndex < win.tab.history.length - 1 : false; onClicked: win.forward() }
-                GlassButton { text: "\u{f062}"; tooltip: "Вверх (Alt+↑)"; enabled: dir.path !== "/"; onClicked: win.up() }
+                GlassButton { text: "\u{f060}"; tooltip: qsTr("Назад (Alt+←)"); enabled: (win.tab?.histIndex ?? 0) > 0; onClicked: win.back() }
+                GlassButton { text: "\u{f061}"; tooltip: qsTr("Вперёд (Alt+→)"); enabled: win.tab ? win.tab.histIndex < win.tab.history.length - 1 : false; onClicked: win.forward() }
+                GlassButton { text: "\u{f062}"; tooltip: qsTr("Вверх (Alt+↑)"); enabled: dir.path !== "/"; onClicked: win.up() }
 
                 PathBar {
                     id: pathBar
@@ -786,7 +781,7 @@ Window {
                         Text {
                             visible: !searchField.text
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Поиск в «" + win.folderName(dir.path) + "»"
+                            text: qsTr("Поиск в «%1»").arg(win.folderName(dir.path))
                             elide: Text.ElideRight
                             width: parent.width
                             color: Theme.overlay1
@@ -818,13 +813,13 @@ Window {
                 GlassButton {
                     Layout.leftMargin: 4
                     text: pane.gridMode ? "\u{f03a}" : "\u{f00a}"
-                    tooltip: pane.gridMode ? "Списком (Ctrl+2)" : "Значками (Ctrl+1)"
+                    tooltip: pane.gridMode ? qsTr("Списком (Ctrl+2)") : qsTr("Значками (Ctrl+1)")
                     onClicked: win.gridMode = !win.gridMode
                 }
                 GlassButton {
                     text: dir.showHidden ? "\u{f06e}" : "\u{f070}"
                     active: dir.showHidden
-                    tooltip: "Скрытые файлы (Ctrl+H)"
+                    tooltip: qsTr("Скрытые файлы (Ctrl+H)")
                     onClicked: win.showHidden = !win.showHidden
                 }
             }
@@ -859,9 +854,9 @@ Window {
                 }
                 Text {
                     anchors { left: trashIcon.right; leftMargin: 10; right: trashButtons.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                    text: !dir.trashRoot ? "Внутри удалённой папки — восстановить её можно из корня корзины"
-                        : Places.trashFull ? "Del удаляет навсегда, «Восстановить» возвращает на прежнее место"
-                        : "Корзина пуста"
+                    text: !dir.trashRoot ? qsTr("Внутри удалённой папки — восстановить её можно из корня корзины")
+                        : Places.trashFull ? qsTr("Del удаляет навсегда, «Восстановить» возвращает на прежнее место")
+                        : qsTr("Корзина пуста")
                     elide: Text.ElideRight
                     color: Theme.subtext0
                     font.family: Theme.fontFamily
@@ -873,14 +868,14 @@ Window {
                     spacing: 4
                     TextButton {
                         implicitHeight: 32
-                        text: "Восстановить"
+                        text: qsTr("Восстановить")
                         visible: dir.trashRoot
                         enabled: pane.selectedCount > 0
                         onClicked: win.restoreSelected()
                     }
                     TextButton {
                         implicitHeight: 32
-                        text: "Очистить корзину"
+                        text: qsTr("Очистить корзину")
                         danger: true
                         enabled: Places.trashFull && !FileOps.busy
                         onClicked: win.emptyTrash()
@@ -942,7 +937,7 @@ Window {
                             Text {
                                 visible: !pickName.text
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "Имя файла"
+                                text: qsTr("Имя файла")
                                 color: Theme.overlay1
                                 font: pickName.font
                             }
@@ -951,10 +946,10 @@ Window {
                     Text {
                         visible: !win.pickSave
                         Layout.fillWidth: true
-                        text: win.pickMode === "saveFiles" ? "Файлы сохранятся в «" + win.folderName(dir.path) + "»: " + Picker.files.join(", ")
-                            : win.pickMode === "folder" ? "Папка: «" + win.folderName(pane.selectedCount === 1 && dir.isDirAt(dir.indexOfPath(pane.selectedPaths()[0])) ? pane.selectedPaths()[0] : dir.path) + "»"
-                            : pane.selectedCount > 0 ? "Выбрано: " + pane.selectedCount
-                            : Picker.multiple ? "Выберите файлы" : "Выберите файл"
+                        text: win.pickMode === "saveFiles" ? qsTr("Файлы сохранятся в «%1»: %2").arg(win.folderName(dir.path)).arg(Picker.files.join(", "))
+                            : win.pickMode === "folder" ? qsTr("Папка: «%1»").arg(win.folderName(pane.selectedCount === 1 && dir.isDirAt(dir.indexOfPath(pane.selectedPaths()[0])) ? pane.selectedPaths()[0] : dir.path))
+                            : pane.selectedCount > 0 ? qsTr("Выбрано: %1").arg(pane.selectedCount)
+                            : Picker.multiple ? qsTr("Выберите файлы") : qsTr("Выберите файл")
                         elide: Text.ElideRight
                         color: Theme.subtext0
                         font.family: Theme.fontFamily
@@ -1015,7 +1010,7 @@ Window {
                         Layout.preferredHeight: 34
                         implicitHeight: 34
                         Layout.maximumWidth: 240
-                        text: (Picker.filters[win.pickFilter] || {}).name || "Все файлы"
+                        text: (Picker.filters[win.pickFilter] || {}).name || qsTr("Все файлы")
                         onClicked: {
                             var pt = mapToItem(win.contentItem, 0, 0)
                             menu.show(pt.x, pt.y, Picker.filters.map(function (f, i) {
@@ -1026,7 +1021,7 @@ Window {
                     TextButton {
                         Layout.preferredHeight: 34
                         implicitHeight: 34
-                        text: "Отмена"
+                        text: qsTr("Отмена")
                         onClicked: Picker.cancel()
                     }
                     TextButton {
@@ -1069,7 +1064,7 @@ Window {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: win.restoreOffer ? "Shelf закрылся неожиданно — вернуть " + win.tabsWord(win.restoreOffer.paths.length) + "?" : ""
+                        text: win.restoreOffer ? qsTr("Shelf закрылся неожиданно — вернуть %n вкладку(и)?", "", win.restoreOffer.paths.length) : ""
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 3
@@ -1077,7 +1072,7 @@ Window {
                     TextButton {
                         anchors.verticalCenter: parent.verticalCenter
                         implicitHeight: 24
-                        text: "Восстановить"
+                        text: qsTr("Восстановить")
                         primary: true
                         onClicked: win.restoreTabs()
                     }
@@ -1086,7 +1081,7 @@ Window {
                         implicitHeight: 24; implicitWidth: 26
                         text: "\u{f00d}"
                         iconSize: Theme.fontSize - 3
-                        tooltip: "Не восстанавливать"
+                        tooltip: qsTr("Не восстанавливать")
                         onClicked: win.restoreOffer = null
                     }
                 }
@@ -1099,8 +1094,8 @@ Window {
                     anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
                     readonly property var sel: pane.selectedCount > 0 ? pane.selectedPaths() : []
                     text: sel.length > 0
-                        ? "Выбрано: " + sel.length + (dir.sizeOf(sel) ? "  ·  " + dir.sizeOf(sel) : "")
-                        : (dir.searchQuery ? "Найдено: " : "Объектов: ") + dir.count
+                        ? qsTr("Выбрано: %1").arg(sel.length) + (dir.sizeOf(sel) ? "  ·  " + dir.sizeOf(sel) : "")
+                        : (dir.searchQuery ? qsTr("Найдено: %1") : qsTr("Объектов: %1")).arg(dir.count)
                     color: Theme.subtext0
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 3
@@ -1146,7 +1141,7 @@ Window {
                     GlassButton {
                         implicitHeight: 24; implicitWidth: 26
                         text: "\u{f00d}"
-                        tooltip: "Отменить (Esc)"
+                        tooltip: qsTr("Отменить (Esc)")
                         onClicked: FileOps.cancel()
                     }
                 }

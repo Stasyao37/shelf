@@ -27,7 +27,7 @@ Rectangle {
         var rest = path
         var acc = ""
         if (path === home || path.startsWith(home + "/")) {
-            res.push({ name: "Домашняя", path: home, icon: "\u{f015}" })
+            res.push({ name: qsTr("Домашняя"), path: home, icon: "\u{f015}" })
             rest = path.slice(home.length)
             acc = home
         } else {

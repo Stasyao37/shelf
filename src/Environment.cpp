@@ -165,7 +165,7 @@ QString Environment::connectMatugen()
     QDir().mkpath(QFileInfo(shelfTemplate()).absolutePath());
     QFile::remove(shelfTemplate());
     if (!QFile::copy(QStringLiteral(":/qt/qml/Shelf/data/matugen/shelf-colors.json"), shelfTemplate()))
-        return QStringLiteral("Не удалось записать шаблон в %1").arg(shelfTemplate());
+        return tr("Не удалось записать шаблон в %1").arg(shelfTemplate());
     QFile::setPermissions(shelfTemplate(), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther);
 
     // 2. Блок в config.toml — только если его ещё нет; до первой правки — резервная копия
@@ -175,7 +175,7 @@ QString Environment::connectMatugen()
         QFile f(cfg);
         if (f.exists()) {
             if (!f.open(QIODevice::ReadOnly))
-                return QStringLiteral("Не удалось прочитать %1").arg(cfg);
+                return tr("Не удалось прочитать %1").arg(cfg);
             text = f.readAll();
         }
     }
@@ -184,11 +184,11 @@ QString Environment::connectMatugen()
         return {};
     }
     if (QFile::exists(cfg) && !QFile::exists(cfg + QStringLiteral(".bak-shelf")) && !QFile::copy(cfg, cfg + QStringLiteral(".bak-shelf")))
-        return QStringLiteral("Не удалось сделать резервную копию %1").arg(cfg);
+        return tr("Не удалось сделать резервную копию %1").arg(cfg);
     QDir().mkpath(QFileInfo(cfg).absolutePath());
     QFile f(cfg);
     if (!f.open(QIODevice::Append | QIODevice::Text))
-        return QStringLiteral("Не удалось дописать %1").arg(cfg);
+        return tr("Не удалось дописать %1").arg(cfg);
     QByteArray block;
     // Без таблицы [config] matugen не читает файл вовсе
     if (text.trimmed().isEmpty())
@@ -337,7 +337,7 @@ QString Environment::portalInstallCommand() const
 QString Environment::setPortalPicker(bool on)
 {
     if (on && !portalBackend())
-        return QStringLiteral("Бэкенд портала не установлен — %1").arg(portalInstallCommand());
+        return tr("Бэкенд портала не установлен — %1").arg(portalInstallCommand());
 
     // 1. Портал: FileChooser=shelf. Своего файла нет — берём системный как основу,
     //    иначе пользовательский файл заменил бы его целиком
@@ -359,7 +359,7 @@ QString Environment::setPortalPicker(bool on)
         st.remove(QStringLiteral("portal/previousFileChooser"));
     }
     if (!writeText(conf, text))
-        return QStringLiteral("Не удалось записать %1").arg(conf);
+        return tr("Не удалось записать %1").arg(conf);
 
     // 2. Hyprland: GTK-программам — портал, окну выбора — плавающее по центру
     if (hyprland() && QFile::exists(hyprConf())) {
@@ -375,7 +375,7 @@ QString Environment::setPortalPicker(bool on)
                 "windowrulev2 = size 940 600, class:^(io.github.nook_apps.Shelf.Picker)$\n"
                 "windowrulev2 = center, class:^(io.github.nook_apps.Shelf.Picker)$\n");
             if (!writeText(hyprSnippet(), snippet))
-                return QStringLiteral("Не удалось записать %1").arg(hyprSnippet());
+                return tr("Не удалось записать %1").arg(hyprSnippet());
             if (!hasSource) {
                 backupOnce(hyprConf());
                 if (!hc.endsWith(QLatin1Char('\n')))

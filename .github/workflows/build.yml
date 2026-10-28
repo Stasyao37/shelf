@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Зависимости
-        run: dnf -y -q install cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel
+        run: dnf -y -q install cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel python3
       - name: Сборка
         run: |
           cmake -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr -DSHELF_TESTS=ON

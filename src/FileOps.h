@@ -40,6 +40,8 @@ class FileOps : public QObject
     Q_PROPERTY(bool clipboardIsCut READ clipboardIsCut NOTIFY clipboardChanged)
     // Что отменит undo(): «перемещение «отчёт.pdf»»; пусто — отменять нечего
     Q_PROPERTY(QString undoText READ undoText NOTIFY undoChanged)
+    // Что это за операция — для логики, текст undoText переведён: move, copy, trash, rename, mkdir
+    Q_PROPERTY(QString undoKind READ undoKind NOTIFY undoChanged)
 
 public:
     explicit FileOps(QObject *parent = nullptr);
@@ -51,6 +53,7 @@ public:
     bool clipboardHasFiles() const { return !m_clipFiles.isEmpty(); }
     bool clipboardIsCut() const { return m_clipCut; }
     QString undoText() const { return m_undo.isEmpty() ? QString() : m_undo.last().label; }
+    QString undoKind() const { return m_undo.isEmpty() ? QString() : m_undo.last().kind; }
 
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
@@ -108,9 +111,10 @@ private:
     void removeInBackground(const QStringList &paths, const QString &text);
     void finishJob(const QStringList &created, const QString &error, bool cancelled);
     bool startJob(const QString &text);
-    void record(const QString &label, const QList<UndoStep> &steps);
+    void record(const QString &kind, const QString &label, const QList<UndoStep> &steps);
 
     struct UndoEntry {
+        QString kind;
         QString label;
         QList<UndoStep> steps;
     };

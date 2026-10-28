@@ -1,5 +1,6 @@
 #include "DirModel.h"
 
+#include "Language.h"
 #include "Trash.h"
 
 #include <QDir>
@@ -41,6 +42,14 @@ DirModel::DirModel(QObject *parent)
             listDir();
     });
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, [this] { m_reloadTimer.start(); });
+    // Другой язык — другие названия типов, даты и размеры: перечитываем, узнанное забываем
+    connect(Language::notifier(), &LanguageNotifier::changed, this, [this] {
+        stopSniff();
+        m_sniffed.clear();
+        if (!m_path.isEmpty())
+            reload();
+        emit freeSpaceChanged();
+    });
 }
 
 DirModel::~DirModel()
@@ -72,7 +81,7 @@ QVariant DirModel::data(const QModelIndex &index, int role) const
     case SizeTextRole:
         if (!e.isDir)
             return formatSize(e.size);
-        return e.childCount < 0 ? QString() : QStringLiteral("%1 эл.").arg(e.childCount);
+        return e.childCount < 0 ? QString() : tr("%n эл.", nullptr, e.childCount);
     case DateTextRole: return formatDate(e.deleted.isValid() ? e.deleted : e.mtime);
     case MimeTypeRole: return e.mimeType;
     case MimeCommentRole: return e.mimeComment;
@@ -111,11 +120,11 @@ void DirModel::setPath(const QString &path)
     const QString p = expandPath(path);
     const QFileInfo fi(p);
     if (!fi.isDir()) {
-        setError(QStringLiteral("Нет такой папки: %1").arg(p));
+        setError(tr("Нет такой папки: %1").arg(p));
         return;
     }
     if (!fi.isReadable()) {
-        setError(QStringLiteral("Нет доступа: %1").arg(p));
+        setError(tr("Нет доступа: %1").arg(p));
         return;
     }
     if (p == m_path && m_query.isEmpty())
@@ -138,6 +147,7 @@ void DirModel::setPath(const QString &path)
     }
     setError({});
     emit pathChanged();
+    emit freeSpaceChanged();
     listDir();
 }
 
@@ -618,5 +628,5 @@ QString DirModel::freeSpace() const
     const QStorageInfo si(m_path);
     if (!si.isValid())
         return {};
-    return QStringLiteral("свободно %1").arg(formatSize(si.bytesAvailable()));
+    return tr("свободно %1").arg(formatSize(si.bytesAvailable()));
 }

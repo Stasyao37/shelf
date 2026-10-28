@@ -48,16 +48,16 @@ GlassDialog {
         if (id === "connect") {
             var err = Environment.connectMatugen()
             if (err) { msg = err; id = "system" }
-            else { id = "matugen"; msg = "Shelf подключён к matugen — цвета появятся при следующей смене обоев" }
+            else { id = "matugen"; msg = qsTr("Shelf подключён к matugen — цвета появятся при следующей смене обоев") }
         }
         ThemeSource.sourceSetting = id
         // Стекло трогаем, только если выбор отличается от того, что дал шелл / Hyprland
         if (glass === Theme.material) ThemeSource.setGlass(glass)
         if (makeDefault && !Apps.defaultFileManager && !Apps.makeDefaultFileManager())
-            msg = msg ? msg + "; не удалось сделать Shelf проводником по умолчанию"
-                      : "Не удалось сделать Shelf проводником по умолчанию — нужен xdg-mime (xdg-utils)"
+            msg = msg ? msg + qsTr("; не удалось сделать Shelf проводником по умолчанию")
+                      : qsTr("Не удалось сделать Shelf проводником по умолчанию — нужен xdg-mime (xdg-utils)")
         else if (makeDefault && !msg)
-            msg = "Shelf теперь проводник по умолчанию"
+            msg = qsTr("Shelf теперь проводник по умолчанию")
         if (usePicker && !Environment.portalPicker) {
             var perr = Environment.setPortalPicker(true)
             if (perr) msg = msg ? msg + "; " + perr : perr
@@ -150,7 +150,7 @@ GlassDialog {
                         width: content.width - 66
                         spacing: 3
                         Text {
-                            text: "Добро пожаловать в Shelf"
+                            text: qsTr("Добро пожаловать в Shelf")
                             color: Theme.text
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize + 3
@@ -158,7 +158,7 @@ GlassDialog {
                         }
                         Text {
                             width: parent.width
-                            text: "Пара вопросов, чтобы Shelf подошёл к системе. Всё это можно поменять потом в настройках (Ctrl+,)."
+                            text: qsTr("Пара вопросов, чтобы Shelf подошёл к системе. Всё это можно поменять потом в настройках (Ctrl+,).")
                             wrapMode: Text.Wrap
                             color: Theme.subtext0
                             font.family: Theme.fontFamily
@@ -167,69 +167,69 @@ GlassDialog {
                     }
                 }
 
-                SectionTitle { text: "ЧТО НАШЛОСЬ" }
+                SectionTitle { text: qsTr("ЧТО НАШЛОСЬ") }
                 Check {
                     ok: Environment.hyprland
-                    label: ok ? "Hyprland" : "Не Hyprland"
-                    hint: ok ? "" : "Shelf пока проверялся только на Hyprland — что-то может выглядеть иначе"
+                    label: ok ? "Hyprland" : qsTr("Не Hyprland")
+                    hint: ok ? "" : qsTr("Shelf пока проверялся только на Hyprland — что-то может выглядеть иначе")
                 }
                 Check {
                     ok: Environment.quickshell
-                    label: ok ? "Quickshell запущен" : "Quickshell не найден"
-                    hint: ok ? "" : "Без него — цвета от matugen или встроенная тема"
+                    label: ok ? qsTr("Quickshell запущен") : qsTr("Quickshell не найден")
+                    hint: ok ? "" : qsTr("Без него — цвета от matugen или встроенная тема")
                 }
                 Check {
                     ok: Environment.matugen
-                    label: ok ? "matugen — палитра из обоев" : "matugen не установлен"
-                    hint: ok ? "" : "Палитра из обоев: " + (Environment.installCommand("matugen") || "matugen")
+                    label: ok ? qsTr("matugen — палитра из обоев") : qsTr("matugen не установлен")
+                    hint: ok ? "" : qsTr("Палитра из обоев: %1").arg(Environment.installCommand("matugen") || "matugen")
                 }
                 Check {
                     ok: Environment.blur
-                    label: ok ? "Размытие в Hyprland — будет стекло" : "Размытие выключено"
-                    hint: ok ? "" : "Без размытия стекло не смотрится — по умолчанию сплошной фон"
+                    label: ok ? qsTr("Размытие в Hyprland — будет стекло") : qsTr("Размытие выключено")
+                    hint: ok ? "" : qsTr("Без размытия стекло не смотрится — по умолчанию сплошной фон")
                 }
                 Check {
                     ok: Environment.tumbler
-                    label: ok ? "Миниатюры картинок и PDF (tumbler)" : "Нет tumbler — без миниатюр"
+                    label: ok ? qsTr("Миниатюры картинок и PDF (tumbler)") : qsTr("Нет tumbler — без миниатюр")
                     hint: ok ? "" : Environment.installCommand("tumbler")
                 }
                 Check {
                     ok: Environment.ffmpegthumbnailer
-                    label: ok ? "Миниатюры видео (ffmpegthumbnailer)" : "Нет ffmpegthumbnailer — видео без миниатюр"
+                    label: ok ? qsTr("Миниатюры видео (ffmpegthumbnailer)") : qsTr("Нет ffmpegthumbnailer — видео без миниатюр")
                     hint: ok ? "" : Environment.installCommand("ffmpegthumbnailer")
                 }
                 Check {
                     ok: Terminal.current !== ""
-                    label: ok ? "Терминал: " + Terminal.current : "Терминал не найден"
-                    hint: ok ? "" : "«Открыть в терминале» не будет работать: " + (Environment.installCommand("kitty") || "установите любой терминал")
+                    label: ok ? qsTr("Терминал: %1").arg(Terminal.current) : qsTr("Терминал не найден")
+                    hint: ok ? "" : qsTr("«Открыть в терминале» не будет работать: %1").arg(Environment.installCommand("kitty") || qsTr("установите любой терминал"))
                 }
                 Check {
                     ok: Environment.gio && Environment.xdgUtils
                     required: true
-                    label: ok ? "gio и xdg-utils — открытие файлов" : "Нет gio или xdg-utils — файлы не будут открываться"
+                    label: ok ? qsTr("gio и xdg-utils — открытие файлов") : qsTr("Нет gio или xdg-utils — файлы не будут открываться")
                     hint: ok ? "" : [!Environment.gio ? Environment.installCommand("glib2") : "",
                                      !Environment.xdgUtils ? Environment.installCommand("xdg-utils") : ""].filter(function (x) { return x }).join("  ·  ")
                 }
 
-                SectionTitle { text: "КАК ВЫГЛЯДЕТЬ" }
+                SectionTitle { text: qsTr("КАК ВЫГЛЯДЕТЬ") }
                 ChoiceRow {
                     visible: dlg.available("qs_theme")
-                    label: "Как у Quickshell"
-                    note: "цвета и стекло шелла"
+                    label: qsTr("Как у Quickshell")
+                    note: qsTr("цвета и стекло шелла")
                     checked: dlg.pick === "qs_theme"
                     onPicked: dlg.pick = "qs_theme"
                 }
                 ChoiceRow {
                     visible: dlg.available("material")
-                    label: "Material из шелла"
+                    label: qsTr("Material из шелла")
                     note: "colors.json"
                     checked: dlg.pick === "material"
                     onPicked: dlg.pick = "material"
                 }
                 ChoiceRow {
                     visible: Environment.matugen
-                    label: Environment.matugenConnected ? "matugen — шаблон Shelf" : "Подключить к matugen"
-                    note: Environment.matugenConnected ? "уже подключён" : "палитра из обоев"
+                    label: Environment.matugenConnected ? qsTr("matugen — шаблон Shelf") : qsTr("Подключить к matugen")
+                    note: Environment.matugenConnected ? qsTr("уже подключён") : qsTr("палитра из обоев")
                     checked: dlg.pick === (Environment.matugenConnected ? "matugen" : "connect")
                     onPicked: dlg.pick = Environment.matugenConnected ? "matugen" : "connect"
                 }
@@ -239,7 +239,7 @@ GlassDialog {
                     leftPadding: 38
                     rightPadding: 12
                     bottomPadding: 4
-                    text: "Shelf положит свой шаблон в ~/.config/shelf/matugen и допишет его в конец ~/.config/matugen/config.toml (копия — config.toml.bak-shelf). Сам matugen не запускается: цвета появятся при следующей смене обоев."
+                    text: qsTr("Shelf положит свой шаблон в ~/.config/shelf/matugen и допишет его в конец ~/.config/matugen/config.toml (копия — config.toml.bak-shelf). Сам matugen не запускается: цвета появятся при следующей смене обоев.")
                     wrapMode: Text.Wrap
                     color: Theme.overlay1
                     font.family: Theme.fontFamily
@@ -247,24 +247,24 @@ GlassDialog {
                 }
                 ChoiceRow {
                     visible: dlg.available("wallpaper")
-                    label: "Из обоев"
-                    note: "оттенок текущих обоев, без matugen"
+                    label: qsTr("Из обоев")
+                    note: qsTr("оттенок текущих обоев, без matugen")
                     checked: dlg.pick === "wallpaper"
                     onPicked: dlg.pick = "wallpaper"
                 }
                 ChoiceRow {
-                    label: "Как в системе"
-                    note: "светлая или тёмная — по системной схеме"
+                    label: qsTr("Как в системе")
+                    note: qsTr("светлая или тёмная — по системной схеме")
                     checked: dlg.pick === "system"
                     onPicked: dlg.pick = "system"
                 }
                 ChoiceRow {
-                    label: "Светлая"
+                    label: qsTr("Светлая")
                     checked: dlg.pick === "light"
                     onPicked: dlg.pick = "light"
                 }
                 ChoiceRow {
-                    label: "Тёмная"
+                    label: qsTr("Тёмная")
                     checked: dlg.pick === "dark"
                     onPicked: dlg.pick = "dark"
                 }
@@ -275,7 +275,7 @@ GlassDialog {
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Стеклянный вид"
+                        text: qsTr("Стеклянный вид")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -295,7 +295,7 @@ GlassDialog {
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: Environment.portalPicker ? "Выбор файлов в окнах Shelf включён" : "Выбор файлов в окнах Shelf"
+                        text: Environment.portalPicker ? qsTr("Выбор файлов в окнах Shelf включён") : qsTr("Выбор файлов в окнах Shelf")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -323,7 +323,7 @@ GlassDialog {
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: Apps.defaultFileManager ? "Shelf — проводник по умолчанию" : "Сделать Shelf проводником по умолчанию"
+                        text: Apps.defaultFileManager ? qsTr("Shelf — проводник по умолчанию") : qsTr("Сделать Shelf проводником по умолчанию")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -351,11 +351,11 @@ GlassDialog {
             anchors { right: parent.right; bottom: parent.bottom; rightMargin: 20; bottomMargin: 16 }
             spacing: 8
             TextButton {
-                text: "Пропустить"
+                text: qsTr("Пропустить")
                 onClicked: { ThemeSource.sourceSetting = "auto"; dlg.close(); dlg.finished("") }
             }
             TextButton {
-                text: "Готово"
+                text: qsTr("Готово")
                 primary: true
                 onClicked: dlg.apply()
             }

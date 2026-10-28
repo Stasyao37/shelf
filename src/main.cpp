@@ -1,6 +1,7 @@
 #include "DirModel.h"
 #include "Environment.h"
 #include "IconProvider.h"
+#include "Language.h"
 #include "Picker.h"
 
 #include <QDir>
@@ -50,6 +51,8 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("shelf"));
     app.setApplicationDisplayName(QStringLiteral("Shelf"));
     app.setApplicationVersion(QStringLiteral(SHELF_VERSION));
+    // Язык — до QML: первые же строки окна должны быть уже переведены
+    Language::init();
 
     // Становится app_id окна в Wayland — по нему Hyprland и .desktop узнают приложение
     app.setDesktopFileName(QStringLiteral("io.github.nook_apps.Shelf"));

@@ -68,7 +68,7 @@ GlassDialog {
         }
         Text {
             visible: ver.newer
-            text: "новее"
+            text: qsTr("новее")
             color: Theme.accent
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 2
@@ -90,7 +90,7 @@ GlassDialog {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 width: dlg.availableWidth - 40
-                text: (dlg.cur.merge ? "Папка «" : "«") + dlg.cur.name + "» уже есть в «" + dlg.destName + "»"
+                text: (dlg.cur.merge ? qsTr("Папка «%1» уже есть в «%2»") : qsTr("«%1» уже есть в «%2»")).arg(dlg.cur.name).arg(dlg.destName)
                 wrapMode: Text.Wrap
                 color: Theme.text
                 font.family: Theme.fontFamily
@@ -102,16 +102,16 @@ GlassDialog {
         Column {
             x: 36
             spacing: 4
-            Version { label: "Новый"; info: dlg.cur.srcInfo || ""; newer: dlg.cur.newer === "src" }
-            Version { label: "Тот, что здесь"; info: dlg.cur.dstInfo || ""; newer: dlg.cur.newer === "dst" }
+            Version { label: qsTr("Новый"); info: dlg.cur.srcInfo || ""; newer: dlg.cur.newer === "src" }
+            Version { label: qsTr("Тот, что здесь"); info: dlg.cur.dstInfo || ""; newer: dlg.cur.newer === "dst" }
         }
 
         Text {
             x: 36
             width: dlg.availableWidth - 36
-            text: !dlg.cur.canReplace ? "Внутри этой папки лежит то, что вы переносите, — заменить её нельзя."
-                : dlg.cur.merge ? "Объединить: содержимое сложится в одну папку, файлы с теми же именами заменятся. Заменённое уйдёт в корзину — Ctrl+Z вернёт всё как было."
-                : "Заменённый уйдёт в корзину — Ctrl+Z вернёт его."
+            text: !dlg.cur.canReplace ? qsTr("Внутри этой папки лежит то, что вы переносите, — заменить её нельзя.")
+                : dlg.cur.merge ? qsTr("Объединить: содержимое сложится в одну папку, файлы с теми же именами заменятся. Заменённое уйдёт в корзину — Ctrl+Z вернёт всё как было.")
+                : qsTr("Заменённый уйдёт в корзину — Ctrl+Z вернёт его.")
             wrapMode: Text.Wrap
             color: Theme.subtext0
             font.family: Theme.fontFamily
@@ -129,7 +129,7 @@ GlassDialog {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Для всех совпадений (" + dlg.left + ")"
+                text: qsTr("Для всех совпадений (%1)").arg(dlg.left)
                 color: Theme.text
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize - 1
@@ -142,22 +142,22 @@ GlassDialog {
             anchors.right: parent.right
             spacing: 8
             TextButton {
-                text: "Отмена"
+                text: qsTr("Отмена")
                 onClicked: dlg.close()
             }
             TextButton {
-                text: "Пропустить"
+                text: qsTr("Пропустить")
                 onClicked: dlg.answer("skip")
             }
             TextButton {
                 id: keepBtn
-                text: "Оставить оба"
+                text: qsTr("Оставить оба")
                 onClicked: dlg.answer("keep")
             }
             TextButton {
                 id: replaceBtn
                 visible: dlg.cur.canReplace === true
-                text: dlg.cur.merge ? "Объединить" : "Заменить"
+                text: dlg.cur.merge ? qsTr("Объединить") : qsTr("Заменить")
                 primary: true
                 onClicked: dlg.answer("replace")
             }

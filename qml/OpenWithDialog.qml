@@ -44,9 +44,9 @@ GlassDialog {
         var app = apps[index]
         if (!app) return
         if (remember && !Apps.setDefault(app.id, mimeType))
-            failed("Не удалось назначить приложение по умолчанию")
+            failed(qsTr("Не удалось назначить приложение по умолчанию"))
         if (!Apps.launch(app.id, paths))
-            failed("Не удалось запустить " + app.name)
+            failed(qsTr("Не удалось запустить %1").arg(app.name))
         close()
     }
     function iconSource(icon) {
@@ -83,8 +83,8 @@ GlassDialog {
                 spacing: 2
                 Text {
                     width: parent.width
-                    text: dlg.paths.length === 1 ? "Открыть «" + dlg.fileName(dlg.paths[0]) + "»"
-                                                 : "Открыть " + dlg.paths.length + " файлов"
+                    text: dlg.paths.length === 1 ? qsTr("Открыть «%1»").arg(dlg.fileName(dlg.paths[0]))
+                                                 : qsTr("Открыть %n файл(ов)", "", dlg.paths.length)
                     elide: Text.ElideMiddle
                     color: Theme.text
                     font.family: Theme.fontFamily
@@ -136,7 +136,7 @@ GlassDialog {
                 Text {
                     visible: !filter.text
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Найти приложение"
+                    text: qsTr("Найти приложение")
                     color: Theme.overlay1
                     font: filter.font
                 }
@@ -202,7 +202,7 @@ GlassDialog {
                 Text {
                     id: tag
                     anchors { right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
-                    text: row.modelData.isDefault ? "по умолчанию" : ""
+                    text: row.modelData.isDefault ? qsTr("по умолчанию") : ""
                     color: Theme.overlay1
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 4
@@ -220,7 +220,7 @@ GlassDialog {
             Text {
                 anchors.centerIn: parent
                 visible: appList.count === 0
-                text: "Ничего не нашлось"
+                text: qsTr("Ничего не нашлось")
                 color: Theme.overlay1
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize - 2
@@ -230,7 +230,7 @@ GlassDialog {
         // Переключатель «все приложения» — когда не ищем
         Text {
             visible: !filter.text && dlg.recommended.length > 0
-            text: dlg.showAll ? "\u{f077}  Только подходящие" : "\u{f078}  Все приложения"
+            text: dlg.showAll ? "\u{f077}  " + qsTr("Только подходящие") : "\u{f078}  " + qsTr("Все приложения")
             color: allMa.containsMouse ? Theme.accent : Theme.subtext0
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 2
@@ -268,7 +268,7 @@ GlassDialog {
             }
             Text {
                 anchors { left: box.right; leftMargin: 10; right: parent.right; verticalCenter: parent.verticalCenter }
-                text: "Всегда открывать так: " + (dlg.mimeComment || dlg.mimeType)
+                text: qsTr("Всегда открывать так: %1").arg(dlg.mimeComment || dlg.mimeType)
                 elide: Text.ElideRight
                 color: Theme.text
                 font.family: Theme.fontFamily
@@ -284,9 +284,9 @@ GlassDialog {
         Row {
             anchors.right: parent.right
             spacing: 8
-            TextButton { text: "Отмена"; onClicked: dlg.close() }
+            TextButton { text: qsTr("Отмена"); onClicked: dlg.close() }
             TextButton {
-                text: "Открыть"
+                text: qsTr("Открыть")
                 primary: true
                 enabled: appList.count > 0
                 onClicked: dlg.launch(appList.currentIndex)

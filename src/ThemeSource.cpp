@@ -1,4 +1,5 @@
 #include "ThemeSource.h"
+#include "Language.h"
 #include "WallpaperPalette.h"
 
 #include <QDBusConnection>
@@ -93,6 +94,8 @@ QVariantMap builtin(bool dark)
 ThemeSource::ThemeSource(QObject *parent)
     : QObject(parent)
 {
+    // Названия источников цветов — на языке интерфейса
+    connect(Language::notifier(), &LanguageNotifier::changed, this, &ThemeSource::changed);
     // matugen пишет файл не одним куском — читаем, когда запись утихла
     m_debounce.setSingleShot(true);
     m_debounce.setInterval(150);
@@ -161,14 +164,14 @@ void ThemeSource::setSourceSetting(const QString &id)
 QVariantList ThemeSource::sources() const
 {
     const std::pair<const char *, QString> list[] = {
-        {"auto", QStringLiteral("Автоматически")},
-        {"qs_theme", QStringLiteral("Как у Quickshell")},
-        {"matugen", QStringLiteral("matugen — шаблон Shelf")},
-        {"material", QStringLiteral("Material из шелла (colors.json)")},
-        {"wallpaper", QStringLiteral("Из обоев")},
-        {"system", QStringLiteral("Как в системе")},
-        {"light", QStringLiteral("Светлая")},
-        {"dark", QStringLiteral("Тёмная")},
+        {"auto", tr("Автоматически")},
+        {"qs_theme", tr("Как у Quickshell")},
+        {"matugen", tr("matugen — шаблон Shelf")},
+        {"material", tr("Material из шелла (colors.json)")},
+        {"wallpaper", tr("Из обоев")},
+        {"system", tr("Как в системе")},
+        {"light", tr("Светлая")},
+        {"dark", tr("Тёмная")},
     };
     QVariantList res;
     for (const auto &[id, name] : list) {

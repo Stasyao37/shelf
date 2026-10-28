@@ -13,7 +13,7 @@ class Places : public QObject
     QML_ELEMENT
     QML_SINGLETON
 
-    Q_PROPERTY(QVariantList places READ places CONSTANT)
+    Q_PROPERTY(QVariantList places READ places NOTIFY placesChanged)
     Q_PROPERTY(QVariantList bookmarks READ bookmarks NOTIFY bookmarksChanged)
     Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
     Q_PROPERTY(QString trashPath READ trashPath CONSTANT)
@@ -34,11 +34,13 @@ public:
     Q_INVOKABLE void refreshDevices();
 
 signals:
+    void placesChanged();
     void bookmarksChanged();
     void devicesChanged();
     void trashFullChanged();
 
 private:
+    void buildPlaces();
     void loadBookmarks();
     void saveBookmarks(const QStringList &lines);
     QStringList bookmarkLines() const;

@@ -1,5 +1,6 @@
 #include "FileEntry.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
@@ -91,7 +92,7 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
     if (e.isDir) {
         e.icon = folderIcon(e.path);
         e.mimeType = QStringLiteral("inode/directory");
-        e.mimeComment = QStringLiteral("Папка");
+        e.mimeComment = QCoreApplication::translate("FileEntry", "Папка");
         if (countChildren)
             e.childCount = int(QDir(e.path).count()) - 2; // без . и ..
     } else {
@@ -119,30 +120,33 @@ FileEntry FileEntry::fromInfo(const QFileInfo &fi, const QMimeDatabase &db, bool
 
 QString formatSize(qint64 bytes)
 {
-    static const char *units[] = {"Б", "КБ", "МБ", "ГБ", "ТБ"};
+    const QString units[] = {QCoreApplication::translate("FileEntry", "Б"), QCoreApplication::translate("FileEntry", "КБ"),
+                             QCoreApplication::translate("FileEntry", "МБ"), QCoreApplication::translate("FileEntry", "ГБ"),
+                             QCoreApplication::translate("FileEntry", "ТБ")};
     double v = double(bytes);
     int u = 0;
     while (v >= 1024.0 && u < 4) {
         v /= 1024.0;
         ++u;
     }
-    const QLocale loc(QLocale::Russian);
-    return (u == 0 ? QString::number(bytes) : loc.toString(v, 'f', v < 10 ? 1 : 0))
-           + QLatin1Char(' ') + QString::fromUtf8(units[u]);
+    // Язык интерфейса (Language ставит его локалью по умолчанию): 2,4 МБ / 2.4 MB
+    const QLocale loc;
+    return (u == 0 ? QString::number(bytes) : loc.toString(v, 'f', v < 10 ? 1 : 0)) + QLatin1Char(' ') + units[u];
 }
 
 QString formatDate(const QDateTime &dt)
 {
     if (!dt.isValid())
         return {};
-    const QLocale loc(QLocale::Russian);
+    const QLocale loc;
     const QDate today = QDate::currentDate();
     const QString time = dt.toString(QStringLiteral("HH:mm"));
     if (dt.date() == today)
-        return QStringLiteral("Сегодня, ") + time;
+        return QCoreApplication::translate("FileEntry", "Сегодня, %1").arg(time);
     if (dt.date() == today.addDays(-1))
-        return QStringLiteral("Вчера, ") + time;
+        return QCoreApplication::translate("FileEntry", "Вчера, %1").arg(time);
     if (dt.date().year() == today.year())
         return loc.toString(dt.date(), QStringLiteral("d MMM")) + QStringLiteral(", ") + time;
-    return dt.toString(QStringLiteral("dd.MM.yyyy"));
+    // 28.10.2025 / 10/28/25 — как принято в языке интерфейса
+    return loc.toString(dt.date(), QLocale::ShortFormat);
 }

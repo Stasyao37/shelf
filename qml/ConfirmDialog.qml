@@ -8,7 +8,7 @@ GlassDialog {
 
     property string title: ""
     property string message: ""
-    property string actionText: "Удалить"
+    property string actionText: qsTr("Удалить")
     property var acceptFn: null
 
     function ask(t, msg, action, accept) {
@@ -67,7 +67,7 @@ GlassDialog {
             anchors.right: parent.right
             spacing: 8
             TextButton {
-                text: "Отмена"
+                text: qsTr("Отмена")
                 onClicked: dlg.close()
             }
             TextButton {

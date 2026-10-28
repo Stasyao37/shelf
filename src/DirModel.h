@@ -28,7 +28,7 @@ class DirModel : public QAbstractListModel
     Q_PROPERTY(bool searching READ searching NOTIFY searchingChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
-    Q_PROPERTY(QString freeSpace READ freeSpace NOTIFY pathChanged)
+    Q_PROPERTY(QString freeSpace READ freeSpace NOTIFY freeSpaceChanged)
     // Открыт корень корзины: вместо типа — «Откуда», вместо даты изменения — дата удаления
     Q_PROPERTY(bool trashRoot READ trashRoot NOTIFY pathChanged)
     // Окно выбора файлов: показывать только подходящие файлы (папки видны всегда)
@@ -96,6 +96,8 @@ public:
 
 signals:
     void pathChanged();
+    // Другая папка или другой язык
+    void freeSpaceChanged();
     void showHiddenChanged();
     void sortChanged();
     void searchQueryChanged();

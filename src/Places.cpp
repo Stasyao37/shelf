@@ -1,5 +1,7 @@
 #include "Places.h"
 
+#include "Language.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -25,19 +27,13 @@ QVariantMap item(const QString &name, const QString &path, const QString &icon)
 Places::Places(QObject *parent)
     : QObject(parent)
 {
-    m_places << item(QStringLiteral("Домашняя"), QDir::homePath(), QStringLiteral("user-home"));
-    auto add = [this](QStandardPaths::StandardLocation loc, const QString &name, const QString &icon) {
-        const QString p = QStandardPaths::writableLocation(loc);
-        if (!p.isEmpty() && p != QDir::homePath() && QFileInfo(p).isDir())
-            m_places << item(name, p, icon);
-    };
-    add(QStandardPaths::DesktopLocation, QStringLiteral("Рабочий стол"), QStringLiteral("user-desktop"));
-    add(QStandardPaths::DocumentsLocation, QStringLiteral("Документы"), QStringLiteral("folder-documents"));
-    add(QStandardPaths::DownloadLocation, QStringLiteral("Загрузки"), QStringLiteral("folder-download"));
-    add(QStandardPaths::PicturesLocation, QStringLiteral("Изображения"), QStringLiteral("folder-pictures"));
-    add(QStandardPaths::MusicLocation, QStringLiteral("Музыка"), QStringLiteral("folder-music"));
-    add(QStandardPaths::MoviesLocation, QStringLiteral("Видео"), QStringLiteral("folder-videos"));
-    m_places << item(QStringLiteral("Корзина"), trashPath(), QStringLiteral("trash"));
+    buildPlaces();
+    // Названия мест — на языке интерфейса
+    connect(Language::notifier(), &LanguageNotifier::changed, this, [this] {
+        buildPlaces();
+        refreshDevices();
+        emit placesChanged();
+    });
 
     // Редакторы пишут файл через замену — следим и за папкой
     m_watcher.addPath(QFileInfo(bookmarksFile()).absolutePath());
@@ -57,6 +53,24 @@ Places::Places(QObject *parent)
     // появиться позже, при первом удалении
     connect(&m_trashWatcher, &QFileSystemWatcher::directoryChanged, this, &Places::updateTrash);
     updateTrash();
+}
+
+void Places::buildPlaces()
+{
+    m_places.clear();
+    m_places << item(tr("Домашняя"), QDir::homePath(), QStringLiteral("user-home"));
+    auto add = [this](QStandardPaths::StandardLocation loc, const QString &name, const QString &icon) {
+        const QString p = QStandardPaths::writableLocation(loc);
+        if (!p.isEmpty() && p != QDir::homePath() && QFileInfo(p).isDir())
+            m_places << item(name, p, icon);
+    };
+    add(QStandardPaths::DesktopLocation, tr("Рабочий стол"), QStringLiteral("user-desktop"));
+    add(QStandardPaths::DocumentsLocation, tr("Документы"), QStringLiteral("folder-documents"));
+    add(QStandardPaths::DownloadLocation, tr("Загрузки"), QStringLiteral("folder-download"));
+    add(QStandardPaths::PicturesLocation, tr("Изображения"), QStringLiteral("folder-pictures"));
+    add(QStandardPaths::MusicLocation, tr("Музыка"), QStringLiteral("folder-music"));
+    add(QStandardPaths::MoviesLocation, tr("Видео"), QStringLiteral("folder-videos"));
+    m_places << item(tr("Корзина"), trashPath(), QStringLiteral("trash"));
 }
 
 void Places::updateTrash()
@@ -152,7 +166,7 @@ void Places::removeBookmark(const QString &path)
 void Places::refreshDevices()
 {
     QVariantList list;
-    list << item(QStringLiteral("Файловая система"), QStringLiteral("/"), QStringLiteral("drive"));
+    list << item(tr("Файловая система"), QStringLiteral("/"), QStringLiteral("drive"));
     for (const QStorageInfo &si : QStorageInfo::mountedVolumes()) {
         const QString root = si.rootPath();
         if (!si.isValid() || !si.isReady())

@@ -93,7 +93,7 @@ GlassDialog {
                     height: titleText.implicitHeight
                     Text {
                         id: titleText
-                        text: "Настройки"
+                        text: qsTr("Настройки")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize + 2
@@ -108,7 +108,7 @@ GlassDialog {
                     }
                 }
 
-                SectionTitle { text: "ЦВЕТА" }
+                SectionTitle { text: qsTr("ЦВЕТА") }
                 Repeater {
                     model: ThemeSource.sources
                     ChoiceRow {
@@ -116,20 +116,20 @@ GlassDialog {
                         label: modelData.name
                         available: modelData.available
                         checked: ThemeSource.sourceSetting === modelData.id
-                        note: !modelData.available ? "не найден"
-                            : modelData.id === "auto" ? "сейчас: " + dlg.sourceName(ThemeSource.source) : ""
+                        note: !modelData.available ? qsTr("не найден")
+                            : modelData.id === "auto" ? qsTr("сейчас: %1").arg(dlg.sourceName(ThemeSource.source)) : ""
                         onPicked: ThemeSource.sourceSetting = modelData.id
                     }
                 }
 
-                SectionTitle { text: "СТЕКЛО" }
+                SectionTitle { text: qsTr("СТЕКЛО") }
                 Item {
                     width: parent.width
                     height: 34
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Стеклянный вид"
+                        text: qsTr("Стеклянный вид")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -148,7 +148,7 @@ GlassDialog {
                         id: alphaLabel
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Плотность"
+                        text: qsTr("Плотность")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -175,7 +175,7 @@ GlassDialog {
                 Text {
                     visible: ThemeSource.glassOverridden
                     leftPadding: 12
-                    text: "Вернуть как у шелла"
+                    text: qsTr("Вернуть как у шелла")
                     color: resetMa.containsMouse ? Theme.accent : Theme.subtext0
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 3
@@ -188,14 +188,14 @@ GlassDialog {
                     }
                 }
 
-                SectionTitle { text: "ИКОНКИ" }
+                SectionTitle { text: qsTr("ИКОНКИ") }
                 Item {
                     width: parent.width
                     height: 34
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Оттенок палитры"
+                        text: qsTr("Оттенок палитры")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -214,28 +214,28 @@ GlassDialog {
                         anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
                         width: 40
                         horizontalAlignment: Text.AlignRight
-                        text: tintSlide.value === 0 ? "нет" : Math.round(tintSlide.value * 100) + " %"
+                        text: tintSlide.value === 0 ? qsTr("нет") : Math.round(tintSlide.value * 100) + " %"
                         color: Theme.subtext0
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 3
                     }
                 }
 
-                SectionTitle { text: "ИНТЕРФЕЙС" }
+                SectionTitle { text: qsTr("ИНТЕРФЕЙС") }
                 Item {
                     width: parent.width
                     height: 34
                     Text {
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Анимации"
+                        text: qsTr("Анимации")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
                     }
                     Text {
                         anchors { right: animToggle.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                        text: "переходы, окна, появление файлов"
+                        text: qsTr("переходы, окна, появление файлов")
                         color: Theme.overlay1
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 4
@@ -248,7 +248,7 @@ GlassDialog {
                     }
                 }
 
-                SectionTitle { text: "ПРОВОДНИК" }
+                SectionTitle { text: qsTr("ПРОВОДНИК") }
                 Item {
                     width: parent.width
                     height: 38
@@ -257,7 +257,7 @@ GlassDialog {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - (Apps.defaultFileManager ? 40 : 200)
                         elide: Text.ElideRight
-                        text: Apps.defaultFileManager ? "Shelf — проводник по умолчанию" : "Папки открывает другая программа"
+                        text: Apps.defaultFileManager ? qsTr("Shelf — проводник по умолчанию") : qsTr("Папки открывает другая программа")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -274,7 +274,7 @@ GlassDialog {
                         visible: !Apps.defaultFileManager
                         anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
                         implicitHeight: 30
-                        text: "Сделать Shelf"
+                        text: qsTr("Сделать Shelf")
                         primary: true
                         onClicked: Apps.makeDefaultFileManager()
                     }
@@ -289,7 +289,7 @@ GlassDialog {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 80
                         elide: Text.ElideRight
-                        text: "Выбор файлов в окнах Shelf"
+                        text: qsTr("Выбор файлов в окнах Shelf")
                         color: Environment.portalBackend ? Theme.text : Theme.subtext0
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
@@ -301,8 +301,8 @@ GlassDialog {
                         onToggled: (on) => {
                             var err = Environment.setPortalPicker(on)
                             if (err) dlg.message(err)
-                            else dlg.message(on ? "Готово — новые окна выбора откроются в Shelf; GTK-программы — после перезапуска"
-                                                : "Выбор файлов вернулся к прежнему")
+                            else dlg.message(on ? qsTr("Готово — новые окна выбора откроются в Shelf; GTK-программы — после перезапуска")
+                                                : qsTr("Выбор файлов вернулся к прежнему"))
                         }
                     }
                 }
@@ -313,8 +313,8 @@ GlassDialog {
                     bottomPadding: 4
                     wrapMode: Text.Wrap
                     text: Environment.portalBackend
-                        ? "Firefox, Chromium, Telegram, GTK- и Qt-программы будут открывать и сохранять файлы через Shelf. Меняет ~/.config/xdg-desktop-portal и подключает ~/.config/hypr/shelf.conf (с копиями .bak-shelf)."
-                        : "Нужен бэкенд портала: поставьте Shelf пакетом или выполните " + Environment.portalInstallCommand()
+                        ? qsTr("Firefox, Chromium, Telegram, GTK- и Qt-программы будут открывать и сохранять файлы через Shelf. Меняет ~/.config/xdg-desktop-portal и подключает ~/.config/hypr/shelf.conf (с копиями .bak-shelf).")
+                        : qsTr("Нужен бэкенд портала: поставьте Shelf пакетом или выполните %1").arg(Environment.portalInstallCommand())
                     color: Theme.overlay1
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize - 4
@@ -322,14 +322,14 @@ GlassDialog {
                         anchors.fill: parent
                         enabled: !Environment.portalBackend
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: { FileOps.copyText(Environment.portalInstallCommand()); dlg.message("Команда скопирована") }
+                        onClicked: { FileOps.copyText(Environment.portalInstallCommand()); dlg.message(qsTr("Команда скопирована")) }
                     }
                 }
 
-                SectionTitle { text: "ТЕРМИНАЛ" }
+                SectionTitle { text: qsTr("ТЕРМИНАЛ") }
                 ChoiceRow {
-                    label: "Автоматически"
-                    note: Terminal.chosen === "" ? (Terminal.current ? "сейчас: " + Terminal.current : "терминал не найден") : ""
+                    label: qsTr("Автоматически")
+                    note: Terminal.chosen === "" ? (Terminal.current ? qsTr("сейчас: %1").arg(Terminal.current) : qsTr("терминал не найден")) : ""
                     checked: Terminal.chosen === ""
                     onPicked: Terminal.chosen = ""
                 }
@@ -342,6 +342,31 @@ GlassDialog {
                         onPicked: Terminal.chosen = modelData
                     }
                 }
+
+                // Язык меняется сразу, без перезапуска
+                SectionTitle { text: qsTr("ЯЗЫК") }
+                Item {
+                    width: parent.width
+                    height: 42
+                    Text {
+                        x: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Язык интерфейса")
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSize - 1
+                    }
+                    TextButton {
+                        id: langBtn
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                        text: dlg.languageLabel(Language.choice) + "  ▾"
+                        onClicked: {
+                            var p = langBtn.mapToItem(langMenu.parent, langBtn.width - langMenu.implicitWidth, langBtn.height + 4)
+                            var top = langBtn.mapToItem(langMenu.parent, 0, -4).y
+                            langMenu.show(p.x, p.y, dlg.languageItems(), top)
+                        }
+                    }
+                }
             }
         }
 
@@ -350,16 +375,37 @@ GlassDialog {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 20; rightMargin: 20; bottomMargin: 16 }
             height: 34
             TextButton {
-                text: "Первая настройка…"
+                text: qsTr("Первая настройка…")
                 onClicked: { dlg.close(); dlg.firstRunRequested() }
             }
             TextButton {
                 anchors.right: parent.right
-                text: "Готово"
+                text: qsTr("Готово")
                 primary: true
                 onClicked: dlg.close()
             }
         }
+    }
+
+    ContextMenu { id: langMenu; parent: dlg.contentItem }
+
+    function languageName(code) {
+        var list = Language.options
+        for (var i = 0; i < list.length; ++i)
+            if (list[i].code === code) return list[i].name
+        return code
+    }
+    // "" — как в системе: в скобках — какой язык это сейчас
+    function languageLabel(code) {
+        return code === "" ? qsTr("Как в системе (%1)").arg(languageName(Language.system)) : languageName(code)
+    }
+    function languageItems() {
+        var items = [{ text: languageLabel(""), checked: Language.choice === "", act: function () { Language.choice = "" } },
+                     { separator: true }]
+        Language.options.forEach(function (o) {
+            items.push({ text: o.name, checked: Language.choice === o.code, act: function () { Language.choice = o.code } })
+        })
+        return items
     }
 
     function sourceName(id) {

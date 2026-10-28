@@ -86,12 +86,18 @@ qt_add_qml_module(shelf
         src/Terminal.h src/Terminal.cpp
         src/Environment.h src/Environment.cpp
         src/Picker.h src/Picker.cpp
+        src/Language.h src/Language.cpp
 )
 
 # QML компилируется только в байт-код, без C++ для привязок (AOT): сгенерированный C++
 # пользуется закрытым API Qt (Qt_6.x_PRIVATE_API) и привязал бы сборку к точной версии Qt —
 # пакет из Fedora 43 (Qt 6.10) не встал бы на Fedora 44 (Qt 6.11)
 set_target_properties(shelf PROPERTIES QT_QMLCACHEGEN_ARGUMENTS "--only-bytecode")
+# Переводы интерфейса — словари i18n/<код>.json (src/Language.cpp), вшитые в программу.
+# Полнота проверяется tools/i18n.py (в тестах и CI)
+set(I18N_FILES i18n/en.json i18n/ru.json)
+qt_add_resources(shelf "i18n" PREFIX "/" FILES ${I18N_FILES})
+
 target_include_directories(shelf PRIVATE src)
 target_compile_definitions(shelf PRIVATE SHELF_VERSION="${PROJECT_VERSION}")
 target_link_libraries(shelf PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent Qt6::DBus)
@@ -116,10 +122,16 @@ if(SHELF_TESTS)
     enable_testing()
     qt_add_executable(shelf_tests tests/tst_core.cpp
         src/DirModel.h src/DirModel.cpp src/FileOps.h src/FileOps.cpp src/FileEntry.h src/FileEntry.cpp
-        src/Trash.h src/Trash.cpp src/Terminal.h src/Terminal.cpp)
+        src/Trash.h src/Trash.cpp src/Terminal.h src/Terminal.cpp src/Language.h src/Language.cpp)
+    qt_add_resources(shelf_tests "i18n" PREFIX "/" FILES ${I18N_FILES})
     target_include_directories(shelf_tests PRIVATE src)
     target_link_libraries(shelf_tests PRIVATE Qt6::Test Qt6::Gui Qt6::Qml Qt6::Concurrent)
     add_test(NAME core COMMAND shelf_tests)
+    # Все строки интерфейса переведены, лишних в словарях нет
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND)
+        add_test(NAME i18n COMMAND Python3::Interpreter -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/i18n.py)
+    endif()
     # FileOps слушает буфер обмена — нужен QGuiApplication, но без экрана
     set_tests_properties(core PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 endif()
