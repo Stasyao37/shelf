@@ -24,6 +24,7 @@ stdenv.mkDerivation {
       ../../icons
       ../../fonts
       ../../data
+      ../../i18n
       ../../LICENSE
     ];
   };
