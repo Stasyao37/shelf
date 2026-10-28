@@ -124,7 +124,7 @@ sudo install -Dm644 ~/.local/share/xdg-desktop-portal/portals/shelf.portal \
 **Fedora 43 и новее** — готовый пакет на странице [выпусков](https://github.com/nook-apps/shelf/releases):
 
 ```sh
-sudo dnf install ./shelf-0.3.1-1.fc43.x86_64.rpm
+sudo dnf install ./shelf-0.3.2-1.fc43.x86_64.rpm
 ```
 
 Пакету нужен Qt 6.10 или новее, поэтому он ставится и на следующие выпуски Fedora.
@@ -132,13 +132,13 @@ sudo dnf install ./shelf-0.3.1-1.fc43.x86_64.rpm
 **Debian 13, Ubuntu 25.04 и новее** — `.deb` на странице выпусков:
 
 ```sh
-sudo apt install ./shelf_0.3.1_amd64.deb
+sudo apt install ./shelf_0.3.2_amd64.deb
 ```
 
 **Arch Linux** — готовый пакет на странице выпусков или сборка из `PKGBUILD`:
 
 ```sh
-sudo pacman -U ./shelf-fm-0.3.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./shelf-fm-0.3.2-1-x86_64.pkg.tar.zst
 # или
 git clone https://github.com/nook-apps/shelf && cd shelf/packaging/arch && makepkg -si
 ```
