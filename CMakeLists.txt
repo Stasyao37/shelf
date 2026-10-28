@@ -31,6 +31,7 @@ set(QML_FILES
     qml/Thumbnail.qml
     qml/TextButton.qml
     qml/ConfirmDialog.qml
+    qml/ConflictDialog.qml
     qml/OpenWithDialog.qml
     qml/FolderTab.qml
     qml/TabStrip.qml
@@ -105,6 +106,22 @@ install(FILES data/icons/io.github.nook_apps.Shelf.svg DESTINATION ${CMAKE_INSTA
 install(FILES data/icons/io.github.nook_apps.Shelf-small.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/16x16/apps
         RENAME io.github.nook_apps.Shelf.svg)
+
+# ── Тесты: модель папки и операции с файлами, без QML ─────────────
+# cmake -B build -DSHELF_TESTS=ON && cmake --build build && ctest --test-dir build
+option(SHELF_TESTS "Собрать тесты" OFF)
+if(SHELF_TESTS)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    enable_testing()
+    qt_add_executable(shelf_tests tests/tst_core.cpp
+        src/DirModel.h src/DirModel.cpp src/FileOps.h src/FileOps.cpp src/FileEntry.h src/FileEntry.cpp
+        src/Trash.h src/Trash.cpp src/Terminal.h src/Terminal.cpp)
+    target_include_directories(shelf_tests PRIVATE src)
+    target_link_libraries(shelf_tests PRIVATE Qt6::Test Qt6::Gui Qt6::Qml Qt6::Concurrent)
+    add_test(NAME core COMMAND shelf_tests)
+    # FileOps слушает буфер обмена — нужен QGuiApplication, но без экрана
+    set_tests_properties(core PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
+endif()
 
 # ── Бэкенд портала выбора файлов ─────────────────────────────────────
 # xdg-desktop-portal-shelf отвечает на org.freedesktop.impl.portal.FileChooser и

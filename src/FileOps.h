@@ -10,8 +10,23 @@
 #include <atomic>
 #include <memory>
 
+// Шаг операции, который можно откатить (Ctrl+Z)
+struct UndoStep {
+    enum Kind {
+        Created,    // from — появился (копия): откат — удалить
+        Moved,      // from → to (перемещение, переименование): откат — обратно
+        Trashed,    // from убран в корзину, лежит в to: откат — вернуть
+        MadeDir,    // from — новая пустая папка: откат — удалить, если пуста
+        RemovedDir, // from — опустевшая папка после перемещения с объединением: откат — создать
+    };
+    Kind kind;
+    QString from;
+    QString to;
+};
+
 // Действия над файлами. Копирование/перемещение — в фоновом потоке
-// с прогрессом; одновременно идёт одна операция.
+// с прогрессом; одновременно идёт одна операция. Сделанное записывается
+// в журнал, последнее можно отменить
 class FileOps : public QObject
 {
     Q_OBJECT
@@ -23,6 +38,8 @@ class FileOps : public QObject
     Q_PROPERTY(QString jobText READ jobText NOTIFY progressChanged)
     Q_PROPERTY(bool clipboardHasFiles READ clipboardHasFiles NOTIFY clipboardChanged)
     Q_PROPERTY(bool clipboardIsCut READ clipboardIsCut NOTIFY clipboardChanged)
+    // Что отменит undo(): «перемещение «отчёт.pdf»»; пусто — отменять нечего
+    Q_PROPERTY(QString undoText READ undoText NOTIFY undoChanged)
 
 public:
     explicit FileOps(QObject *parent = nullptr);
@@ -33,6 +50,7 @@ public:
     QString jobText() const { return m_jobText; }
     bool clipboardHasFiles() const { return !m_clipFiles.isEmpty(); }
     bool clipboardIsCut() const { return m_clipCut; }
+    QString undoText() const { return m_undo.isEmpty() ? QString() : m_undo.last().label; }
 
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
@@ -49,8 +67,15 @@ public:
 
     Q_INVOKABLE void copyToClipboard(const QStringList &paths, bool cut);
     Q_INVOKABLE void copyText(const QString &text);
-    Q_INVOKABLE void paste(const QString &destDir);
-    Q_INVOKABLE void transfer(const QStringList &sources, const QString &destDir, bool move);
+    Q_INVOKABLE QStringList clipboardPaths();
+    // Что из sources уже есть в destDir — для вопроса перед переносом:
+    // [{ name, isDir, merge, canReplace, srcInfo, dstInfo, newer: "src" | "dst" | "" }]
+    Q_INVOKABLE QVariantList conflicts(const QStringList &sources, const QString &destDir) const;
+    // resolutions: имя → "replace" | "skip" | "keep". Без ответа — «keep»: рядом, с « (2)».
+    // replace: файл — заменить (старый уходит в корзину), папку — объединить с папкой
+    Q_INVOKABLE void paste(const QString &destDir, const QVariantMap &resolutions = {});
+    Q_INVOKABLE void transfer(const QStringList &sources, const QString &destDir, bool move,
+                              const QVariantMap &resolutions = {});
     // Перетаскивание: локальные пути из URL; перемещать или копировать —
     // Ctrl копирует, Shift перемещает, без клавиш — перемещение в пределах диска
     Q_INVOKABLE QString uriList(const QStringList &paths) const;
@@ -59,6 +84,10 @@ public:
     // Тип брошенного файла — для его листка в анимации броска (файл ещё на старом месте)
     Q_INVOKABLE QString mimeTypeOf(const QString &path) const;
     Q_INVOKABLE void cancel();
+    // Откатить последнюю операцию из журнала — в фоне, как перенос
+    Q_INVOKABLE void undo();
+    // Что исчезнет при undo(): копии и перенесённое (для анимации «вылетают из папки»)
+    Q_INVOKABLE QStringList undoTargets() const;
 
     Q_INVOKABLE QVariantMap info(const QString &path);
 
@@ -69,12 +98,23 @@ signals:
     void failed(const QString &message);
     // Операция закончилась; newPaths — что появилось в папке назначения
     void finished(const QStringList &newPaths);
+    void undoChanged();
+    // Отмена закончилась без ошибок; label — что отменили
+    void undone(const QString &label);
 
 private:
     void readClipboard();
     void setProgress(double p, const QString &text);
     void removeInBackground(const QStringList &paths, const QString &text);
     void finishJob(const QStringList &created, const QString &error, bool cancelled);
+    bool startJob(const QString &text);
+    void record(const QString &label, const QList<UndoStep> &steps);
+
+    struct UndoEntry {
+        QString label;
+        QList<UndoStep> steps;
+    };
+    QList<UndoEntry> m_undo;
 
     bool m_busy = false;
     double m_progress = 0;

@@ -220,7 +220,7 @@ Window {
                     if (row < 0) win.folderMenu(pt.x, pt.y)
                     else win.fileMenu(row, pt.x, pt.y)
                 }
-                function onRenameRequested(p, name) { win.doRename(p, name) }
+                function onRenameRequested(p, name, blur) { win.doRename(p, name, blur) }
                 function onFilesDropped(paths, dest, move) { win.dropFiles(paths, dest, move) }
                 function onSpringOpen(p) { win.go(p) }
                 function onOpenInNewTab(p) { win.newTab(p, false) }
@@ -236,10 +236,15 @@ Window {
         target: FileOps
         function onFailed(message) { win.toast(message) }
         function onFinished(newPaths) {
+            // Перемещение — самое частое, что делают нечаянно (промахнулись папкой), — сразу с отменой
+            if (win.moveToast && newPaths.length > 0 && FileOps.undoText.startsWith("перемещение"))
+                win.undoToast("Перемещено: " + (newPaths.length === 1 ? win.folderName(newPaths[0]) : win.many(newPaths.length)))
+            win.moveToast = false
             if (!win.tab) return
             win.tab.pendingSelect = newPaths
             dir.reload()
         }
+        function onUndone(label) { win.toast("Отменено: " + label) }
     }
 
     // ── Навигация ────────────────────────────────────────────────────
@@ -357,7 +362,7 @@ Window {
         tab.pendingRow = dir.indexOfPath(paths[0])
         var err = FileOps.trash(paths)
         if (err) toast(err)
-        else toast(paths.length === 1 ? "В корзине: " + folderName(paths[0]) : "В корзине: " + paths.length + " объектов")
+        else undoToast(paths.length === 1 ? "В корзине: " + folderName(paths[0]) : "В корзине: " + many(paths.length))
         dir.reload()
     }
     // ── Корзина ──────────────────────────────────────────────────────
@@ -396,7 +401,30 @@ Window {
         if (target === Places.trashPath || target.startsWith(Places.trashPath + "/")) {
             toast("В корзину файлы убирают клавишей Del"); return
         }
-        FileOps.paste(target)
+        var paths = FileOps.clipboardPaths()
+        if (paths.length === 0) return
+        startTransfer(paths, target, FileOps.clipboardIsCut, function (res) { FileOps.paste(target, res) })
+    }
+    // Совпадения имён в папке назначения — сначала спросить, что с ними делать
+    property bool moveToast: false
+    function startTransfer(paths, dest, move, run) {
+        if (FileOps.busy) { toast("Дождитесь окончания текущей операции"); return }
+        var go = function (res) { win.moveToast = move; run(res) }
+        var cs = FileOps.conflicts(paths, dest)
+        if (cs.length === 0) go({})
+        else conflictDlg.resolve(cs, dest, go)
+    }
+    // ── Отмена (Ctrl+Z) ──────────────────────────────────────────────
+    function undo() {
+        moveToast = false
+        if (!FileOps.undoText) { toast("Отменять нечего"); return }
+        pane.flyOut(FileOps.undoTargets())
+        FileOps.undo()
+    }
+    // Уведомление с кнопкой «Отменить» — только пока последней остаётся эта операция
+    function undoToast(text) {
+        var label = FileOps.undoText
+        toast(text, "Отменить", function () { if (FileOps.undoText === label) win.undo() })
     }
 
     // Перетащили файлы: в корзину — убрать, иначе скопировать или переместить
@@ -406,7 +434,7 @@ Window {
             if (paths.length === 0) return
             var err = FileOps.trash(paths)
             if (err) toast(err)
-            else toast("В корзине: " + (paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
+            else undoToast("В корзине: " + (paths.length === 1 ? folderName(paths[0]) : many(paths.length)))
             dir.reload()
             return
         }
@@ -414,7 +442,7 @@ Window {
         if (paths.some(function (p) { return p.startsWith(Places.trashPath + "/") })) move = false
         // Уже лежат здесь — перемещать некуда
         if (move && paths.every(function (p) { return (p.substring(0, p.lastIndexOf("/")) || "/") === dest })) return
-        FileOps.transfer(paths, dest, move)
+        startTransfer(paths, dest, move, function (res) { FileOps.transfer(paths, dest, move, res) })
     }
 
     function renameSelected() {
@@ -422,13 +450,15 @@ Window {
         var paths = pane.selectedPaths()
         if (paths.length === 1) pane.renamingPath = paths[0]
     }
-    function doRename(path, newName) {
+    function doRename(path, newName, blur) {
         pane.renamingPath = ""
         var err = FileOps.rename(path, newName)
-        if (err) { toast(err); pane.focusView(); return }
-        tab.pendingSelect = [path.substring(0, path.lastIndexOf("/") + 1) + newName.trim()]
-        dir.reload()
-        pane.focusView()
+        if (err) toast(err)
+        else {
+            tab.pendingSelect = [path.substring(0, path.lastIndexOf("/") + 1) + newName.trim()]
+            dir.reload()
+        }
+        if (!blur) pane.focusView()
     }
     function newFolder() {
         if (inTrash) return
@@ -515,10 +545,14 @@ Window {
                 else { win.sortKey = key; win.sortDesc = false }
             } }
         }
+        var undoItem = { text: FileOps.undoText ? "Отменить " + FileOps.undoText : "Отменить", icon: "\u{f0e2}",
+                         shortcut: "Ctrl+Z", enabled: FileOps.undoText !== "" && !FileOps.busy, act: undo }
         var top = inTrash ? [
+            undoItem,
             { text: "Очистить корзину", icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: emptyTrash },
             { separator: true },
         ] : [
+            undoItem,
             { text: "Новая папка", icon: "\u{f07b}", shortcut: "Ctrl+Shift+N", act: newFolder },
             { text: "Вставить", icon: "\u{f0ea}", shortcut: "Ctrl+V", enabled: FileOps.clipboardHasFiles,
               act: function () { paste(dir.path) } },
@@ -538,9 +572,14 @@ Window {
         ]))
     }
 
-    function toast(text) {
+    // actionText/action — кнопка в уведомлении («Отменить»); с ней оно висит дольше
+    property var toastAction: null
+    function toast(text, actionText, action) {
         toastText.text = text
+        toastBtn.text = actionText || ""
+        toastAction = action || null
         toastBox.opacity = 1
+        toastTimer.interval = action ? 6000 : 2600
         toastTimer.restart()
     }
 
@@ -563,6 +602,7 @@ Window {
     Shortcut { sequence: StandardKey.Cut; onActivated: win.copySelected(true) }
     Shortcut { sequence: StandardKey.Paste; onActivated: win.paste(dir.path) }
     Shortcut { sequence: StandardKey.SelectAll; onActivated: pane.selectAll() }
+    Shortcut { sequences: [StandardKey.Undo]; enabled: !win.picking; onActivated: win.undo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: win.newFolder() }
     Shortcut { sequence: "Ctrl+D"; onActivated: win.toggleBookmark(dir.path) }
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: win.showProperties() }
@@ -1103,7 +1143,7 @@ Window {
     Rectangle {
         id: toastBox
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 44 }
-        width: Math.min(toastText.implicitWidth + 32, parent.width - 40)
+        width: Math.min(toastText.implicitWidth + 32 + (toastBtn.visible ? toastBtn.width + 12 : 0), parent.width - 40)
         height: 36
         radius: Theme.btnRadius(height, false, Theme.widgetRadius)
         color: Theme.material ? Theme.surface2 : Qt.rgba(Theme.base.r, Theme.base.g, Theme.base.b, 0.96)
@@ -1116,21 +1156,39 @@ Window {
         transform: Translate { y: (1 - toastBox.opacity) * 12 }
         Text {
             id: toastText
-            anchors.centerIn: parent
-            width: parent.width - 32
-            horizontalAlignment: Text.AlignHCenter
+            anchors { left: parent.left; leftMargin: 16; right: toastBtn.visible ? toastBtn.left : parent.right
+                      rightMargin: toastBtn.visible ? 10 : 16; verticalCenter: parent.verticalCenter }
+            horizontalAlignment: toastBtn.visible ? Text.AlignLeft : Text.AlignHCenter
             elide: Text.ElideMiddle
             color: Theme.text
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize - 2
         }
-        Timer { id: toastTimer; interval: 2600; onTriggered: toastBox.opacity = 0 }
+        TextButton {
+            id: toastBtn
+            visible: text !== "" && win.toastAction !== null
+            anchors { right: parent.right; rightMargin: 5; verticalCenter: parent.verticalCenter }
+            implicitHeight: 26
+            primary: true
+            onClicked: {
+                var f = win.toastAction
+                win.toastAction = null
+                toastBox.opacity = 0
+                if (f) f()
+            }
+        }
+        Timer { id: toastTimer; interval: 2600; onTriggered: { toastBox.opacity = 0; win.toastAction = null } }
     }
 
     ContextMenu { id: menu; parent: win.contentItem }
     PropertiesDialog { id: props; parent: win.contentItem }
     ConfirmDialog {
         id: confirm
+        parent: win.contentItem
+        onClosed: pane.focusView()
+    }
+    ConflictDialog {
+        id: conflictDlg
         parent: win.contentItem
         onClosed: pane.focusView()
     }

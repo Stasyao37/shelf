@@ -31,21 +31,28 @@ Item {
     opacity: dim ? 0.45 : 1.0
 
     // Брошенные в папку файлы: листки проскальзывают между стенками, потом папка захлопывается.
-    // Пока они падают, папка открыта, даже если курсор уже ушёл
+    // spit — обратное (отменили перенос в папку): листки вылетают из неё наружу.
+    // Пока листки в движении, папка открыта, даже если курсор уже ушёл
     property var swallowed: []
+    property bool outward: false
     readonly property bool swallowing: swallowed.length > 0
-    function swallow(paths) {
+    function swallow(paths) { _sheets(paths, false) }
+    function spit(paths) { _sheets(paths, true) }
+    function _sheets(paths, out) {
         if (!Theme.animations || paths.length === 0) return
         var items = []
         for (var i = 0; i < Math.min(paths.length, 3); ++i)
             items.push({ name: paths[i].substring(paths[i].lastIndexOf("/") + 1), mime: FileOps.mimeTypeOf(paths[i]) })
+        // Сначала сброс: делегаты пересоздаются и запускают анимацию нужного направления
+        swallowed = []
+        outward = out
         swallowed = items
         swallowDone.restart()
     }
     Timer {
         id: swallowDone
-        // Последний листок: задержка + падение + угасание (см. делегат ниже)
-        interval: (root.swallowed.length - 1) * 90 + 130 + 340 + 200
+        // Последний листок: задержка + его анимация (см. делегат ниже)
+        interval: (root.swallowed.length - 1) * 90 + (root.outward ? 200 + 380 : 130 + 340 + 200)
         onTriggered: root.swallowed = []
     }
 
@@ -110,7 +117,7 @@ Item {
                 opacity: 0
 
                 SequentialAnimation {
-                    running: true
+                    running: !root.outward
                     PauseAnimation { duration: sheet.index * 90 }
                     ParallelAnimation {
                         NumberAnimation { target: sheet; property: "opacity"; to: 1; duration: 130 }
@@ -124,6 +131,24 @@ Item {
                     ParallelAnimation {
                         NumberAnimation { target: sheet; property: "y"; to: sheet.toY; duration: 200; easing.type: Easing.InCubic }
                         NumberAnimation { target: sheet; property: "opacity"; to: 0; duration: 200; easing.type: Easing.InCubic }
+                    }
+                }
+                // Обратно: проступает изнутри, поднимается между стенками и вылетает веером вверх
+                SequentialAnimation {
+                    running: root.outward
+                    PauseAnimation { duration: sheet.index * 90 }
+                    PropertyAction { target: sheet; property: "rotation"; value: 0 }
+                    ParallelAnimation {
+                        NumberAnimation { target: sheet; property: "opacity"; from: 0; to: 1; duration: 140 }
+                        NumberAnimation { target: sheet; property: "y"; from: sheet.toY; to: sheet.peekY; duration: 200; easing.type: Easing.OutCubic }
+                    }
+                    ParallelAnimation {
+                        NumberAnimation { target: sheet; property: "y"; to: sheet.fromY - sheet.size * 0.3; duration: 380; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: sheet; property: "rotation"; to: sheet.spread * 14; duration: 380; easing.type: Easing.OutCubic }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 180 }
+                            NumberAnimation { target: sheet; property: "opacity"; to: 0; duration: 200; easing.type: Easing.InCubic }
+                        }
                     }
                 }
             }

@@ -41,7 +41,8 @@ FocusScope {
 
     signal activated(int row)
     signal contextMenuRequested(int row, real x, real y)   // row = -1 — пустое место
-    signal renameRequested(string path, string newName)
+    // blur — поле закрыли кликом мимо: фокус уже у того, куда щёлкнули, не забираем его
+    signal renameRequested(string path, string newName, bool blur)
     signal typed(string text)
     signal filesDropped(var paths, string dest, bool move)
     signal springOpen(string path)   // держали файлы над папкой — открыть её
@@ -170,6 +171,31 @@ FocusScope {
         if (view.currentIndex >= model.count) view.currentIndex = model.count - 1
     }
     function focusView() { view.forceActiveFocus() }
+    // Клик мимо поля переименования — как Enter. Сам по себе фокус не уйдёт: поле внутри
+    // GridView, а view.forceActiveFocus() отдаёт его обратно тому, кто в view уже в фокусе
+    property TextInput renameField: null
+    function commitRename() {
+        if (renamingPath && renameField) renameRequested(renamingPath, renameField.text, true)
+    }
+
+    // Отмена переноса в папку: листки вылетают из той папки здесь, куда переносили.
+    // paths — что исчезнет при отмене (FileOps.undoTargets)
+    function flyOut(paths) {
+        var base = model.path === "/" ? "/" : model.path + "/"
+        var byFolder = {}
+        for (var i = 0; i < paths.length; ++i) {
+            if (!paths[i].startsWith(base)) continue
+            var rest = paths[i].substring(base.length).split("/")
+            if (rest.length < 2) continue
+            var folder = base + rest[0], item = folder + "/" + rest[1]
+            var list = byFolder[folder] || (byFolder[folder] = [])
+            if (list.indexOf(item) < 0) list.push(item)
+        }
+        for (var f in byFolder) {
+            var cell = view.itemAtIndex(model.indexOfPath(f))
+            if (cell && cell.isDir) cell.folder.spit(byFolder[f])
+        }
+    }
 
     // ── Анимации ─────────────────────────────────────────────────────
     // Переход в другую папку: содержимое проявляется со сдвигом — вглубь справа (dir 1),
@@ -242,7 +268,7 @@ FocusScope {
     MouseArea {
         anchors.fill: view
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onPressed: view.forceActiveFocus()
+        onPressed: { pane.commitRename(); view.forceActiveFocus() }
         onClicked: (m) => {
             if (!(m.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) pane.clearSelection()
             if (m.button === Qt.RightButton) {
@@ -394,6 +420,7 @@ FocusScope {
             readonly property bool renaming: pane.renamingPath === path
             readonly property bool searchMode: pane.model.searchQuery.length > 0
             readonly property bool dropHere: pane.dropFolder === path
+            readonly property alias folder: folderIcon
 
             width: view.cellWidth
             height: view.cellHeight
@@ -524,7 +551,7 @@ FocusScope {
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 property point pressPos
-                onPressed: (m) => { view.forceActiveFocus(); pressPos = Qt.point(m.x, m.y) }
+                onPressed: (m) => { if (!cell.renaming) pane.commitRename(); view.forceActiveFocus(); pressPos = Qt.point(m.x, m.y) }
                 onPositionChanged: (m) => {
                     if (!(m.buttons & Qt.LeftButton) || cell.renaming || pane.dragPaths.length > 0) return
                     if (Math.abs(m.x - pressPos.x) + Math.abs(m.y - pressPos.y) < Application.styleHints.startDragDistance) return
@@ -610,14 +637,16 @@ FocusScope {
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSize - 1
                         Component.onCompleted: {
+                            pane.renameField = field
                             forceActiveFocus()
                             var dot = cell.isDir ? -1 : text.lastIndexOf(".")
                             select(0, dot > 0 ? dot : text.length)
                         }
-                        Keys.onReturnPressed: pane.renameRequested(cell.path, text)
-                        Keys.onEnterPressed: pane.renameRequested(cell.path, text)
+                        Keys.onReturnPressed: pane.renameRequested(cell.path, text, false)
+                        Keys.onEnterPressed: pane.renameRequested(cell.path, text, false)
                         Keys.onEscapePressed: { pane.renamingPath = ""; view.forceActiveFocus() }
-                        onActiveFocusChanged: if (!activeFocus && pane.renamingPath === cell.path) pane.renamingPath = ""
+                        // Клик мимо поля — как Enter; Esc уже сбросил renamingPath, и сюда не дойдёт
+                        onActiveFocusChanged: if (!activeFocus && pane.renamingPath === cell.path) pane.renameRequested(cell.path, text, true)
                     }
                 }
             }
