@@ -1,5 +1,5 @@
 Name:           shelf
-Version:        0.3.2
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Glass file manager for Hyprland in Qt 6 / QML
 
@@ -63,6 +63,15 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.nook_apps.S
 %{_datadir}/xdg-desktop-portal/portals/shelf.portal
 
 %changelog
+* Thu Oct 29 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.4.0-1
+- Name clashes on copy, move and paste: replace, skip or keep both; folders merge, replaced files go to the trash
+- Ctrl+Z undoes moves, copies, replaces, trashing, renames and new folders
+- Russian and English interface: system language or chosen in Settings, switched without a restart
+- Big folders open at once; file types are filled in in the background
+- Smoother sidebar, tabs and status bar; new tabs and folders no longer stutter
+- Clicking away from the rename field keeps the new name
+- Tools in ~/.local/bin and ~/.cargo/bin are found when Shelf is started from a launcher
+
 * Wed Oct 28 2026 Stasyao37 <kapitonov.stass@gmail.com> - 0.3.2-1
 - No ghost files in the file chooser grid after its filter is applied
 - Files dropped on a folder slide into it between its walls
