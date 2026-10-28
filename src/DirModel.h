@@ -109,6 +109,7 @@ signals:
 private:
     void listDir();
     void applyFilterAndSort();
+    void refilter();
     void updateRows(const QList<FileEntry> &rows);
     void startSearch();
     void stopSearch();

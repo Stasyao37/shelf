@@ -486,7 +486,7 @@ void DirModel::setNameFilters(const QStringList &globs)
         m_nameRegex << QRegularExpression(QRegularExpression::wildcardToRegularExpression(g),
                                           QRegularExpression::CaseInsensitiveOption);
     emit filtersChanged();
-    reload();
+    refilter();
 }
 
 void DirModel::setMimeFilters(const QStringList &mimes)
@@ -495,7 +495,7 @@ void DirModel::setMimeFilters(const QStringList &mimes)
         return;
     m_mimeFilters = mimes;
     emit filtersChanged();
-    reload();
+    refilter();
 }
 
 void DirModel::setDirsOnly(bool on)
@@ -504,6 +504,14 @@ void DirModel::setDirsOnly(bool on)
         return;
     m_dirsOnly = on;
     emit filtersChanged();
+    refilter();
+}
+
+// Другой фильтр — как другая папка: окно выбора меняет его по нескольку свойств подряд,
+// и построчные анимации одного шага обрываются следующим, оставляя призраков в сетке
+void DirModel::refilter()
+{
+    m_resetNext = true;
     reload();
 }
 
