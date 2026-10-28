@@ -3,6 +3,7 @@
 #include "IconProvider.h"
 #include "Language.h"
 #include "Picker.h"
+#include "UserPath.h"
 
 #include <QDir>
 #include <QFile>
@@ -46,6 +47,8 @@ int main(int argc, char *argv[])
         if (qstrcmp(argv[i], "--pick") == 0)
             pickRequest = QFile::decodeName(argv[i + 1]);
 
+    // До всего остального: по PATH ищутся matugen, терминалы, tumbler и программы для файлов
+    extendUserPath();
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("shelf"));
     app.setOrganizationName(QStringLiteral("shelf"));

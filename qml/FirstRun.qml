@@ -83,11 +83,13 @@ GlassDialog {
         font.weight: Font.DemiBold
     }
 
-    // Строка проверки: галочка или предупреждение, что это и что делать
+    // Строка проверки: галочка или предупреждение, что это и что делать.
+    // optional — без этого всё работает: вместо предупреждения — просто пометка
     component Check: Item {
         id: chk
         property bool ok: true
         property bool required: false
+        property bool optional: false
         property string label
         property string hint
         width: parent ? parent.width : 0
@@ -95,7 +97,7 @@ GlassDialog {
         Text {
             id: mark
             x: 12; y: 6
-            text: chk.ok ? "\u{f00c}" : chk.required ? "\u{f00d}" : "\u{f071}"
+            text: chk.ok ? "\u{f00c}" : chk.required ? "\u{f00d}" : chk.optional ? "\u{f05a}" : "\u{f071}"
             color: chk.ok ? Theme.accent : chk.required ? Theme.red : Theme.overlay1
             font.family: Theme.iconFont
             font.pixelSize: Theme.fontSize - 3
@@ -178,10 +180,14 @@ GlassDialog {
                     label: ok ? qsTr("Quickshell запущен") : qsTr("Quickshell не найден")
                     hint: ok ? "" : qsTr("Без него — цвета от matugen или встроенная тема")
                 }
+                // Оттенок обоев Shelf берёт и сам («Из обоев»); matugen — только для полной
+                // палитры Material по шаблону, в лад с шеллом
                 Check {
                     ok: Environment.matugen
+                    optional: true
                     label: ok ? qsTr("matugen — палитра из обоев") : qsTr("matugen не установлен")
-                    hint: ok ? "" : qsTr("Палитра из обоев: %1").arg(Environment.installCommand("matugen") || "matugen")
+                    hint: ok ? "" : qsTr("Не обязателен: оттенок обоев Shelf берёт и сам. С ним — полная палитра Material: %1")
+                                        .arg(Environment.installCommand("matugen") || "matugen")
                 }
                 Check {
                     ok: Environment.blur

@@ -1,6 +1,7 @@
 // xdg-desktop-portal-shelf: бэкенд org.freedesktop.impl.portal.FileChooser.
 // Запускается шиной по запросу (D-Bus activation) и завершается, когда окна выбора закрыты.
 #include "FileChooser.h"
+#include "../UserPath.h"
 
 #include <QCoreApplication>
 #include <QDBusConnection>
@@ -9,6 +10,8 @@
 
 int main(int argc, char *argv[])
 {
+    // Шина запускает бэкенд с коротким PATH — shelf из ~/.local/bin иначе не найти
+    extendUserPath();
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("xdg-desktop-portal-shelf"));
 
