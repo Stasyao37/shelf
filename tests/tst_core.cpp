@@ -297,6 +297,164 @@ private slots:
         QVERIFY(QFile::exists(m_dir + "/b.txt"));
     }
 
+    // ── Повтор отменённого: undo → redo → undo ────────────────────
+    void redoMove()
+    {
+        write(m_dir + "/a.txt", "a");
+        QDir().mkpath(m_dir + "/dst");
+        FileOps ops;
+        ops.transfer({m_dir + "/a.txt"}, m_dir + "/dst", true);
+        QVERIFY(waitJob(ops));
+        QVERIFY(ops.redoText().isEmpty());
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+        QCOMPARE(ops.redoText(), "перемещение «a.txt»");
+        QVERIFY(ops.undoText().isEmpty());
+
+        QSignalSpy redone(&ops, &FileOps::redone);
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(redone.count(), 1);
+        QVERIFY(!QFile::exists(m_dir + "/a.txt"));
+        QCOMPARE(read(m_dir + "/dst/a.txt"), "a");
+        QCOMPARE(ops.undoText(), "перемещение «a.txt»");
+        QCOMPARE(ops.undoKind(), "move");
+        QVERIFY(ops.redoText().isEmpty());
+
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+        QCOMPARE(names(m_dir + "/dst"), QStringList());
+    }
+
+    void redoCopy()
+    {
+        write(m_dir + "/a.txt", "a");
+        QDir().mkpath(m_dir + "/dst");
+        FileOps ops;
+        ops.transfer({m_dir + "/a.txt"}, m_dir + "/dst", false);
+        QVERIFY(waitJob(ops));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst"), QStringList());
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/dst/a.txt"), "a");
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+        QCOMPARE(ops.undoTargets(), QStringList({m_dir + "/dst/a.txt"}));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst"), QStringList());
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+    }
+
+    void redoTrash()
+    {
+        write(m_dir + "/a.txt", "a");
+        FileOps ops;
+        QCOMPARE(ops.trash({m_dir + "/a.txt"}), QString());
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QVERIFY(!QFile::exists(m_dir + "/a.txt"));
+        QCOMPARE(ops.undoText(), "удаление в корзину «a.txt»");
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/a.txt"), "a");
+    }
+
+    void redoRenameAndMakeDir()
+    {
+        write(m_dir + "/a.txt", "a");
+        FileOps ops;
+        QCOMPARE(ops.rename(m_dir + "/a.txt", "b.txt"), QString());
+        const QString made = ops.makeDir(m_dir, "Новая папка");
+        ops.undo(); // папка
+        QVERIFY(waitJob(ops));
+        ops.undo(); // имя
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir), QStringList({"a.txt"}));
+
+        // Повтор — в обратном порядке отмены: сначала имя, потом папка
+        QCOMPARE(ops.redoText(), "переименование «a.txt»");
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir), QStringList({"b.txt"}));
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QVERIFY(QFileInfo(made).isDir());
+        QVERIFY(ops.redoText().isEmpty());
+
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QVERIFY(!QFileInfo::exists(made));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir), QStringList({"a.txt"}));
+    }
+
+    void redoReplace()
+    {
+        write(m_dir + "/src/a.txt", "new");
+        write(m_dir + "/dst/a.txt", "old");
+        FileOps ops;
+        ops.transfer({m_dir + "/src/a.txt"}, m_dir + "/dst", true, {{"a.txt", "replace"}});
+        QVERIFY(waitJob(ops));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/dst/a.txt"), "old");
+        QCOMPARE(read(m_dir + "/src/a.txt"), "new");
+
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst"), QStringList({"a.txt"}));
+        QCOMPARE(read(m_dir + "/dst/a.txt"), "new");
+        QVERIFY(!QFile::exists(m_dir + "/src/a.txt"));
+
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst"), QStringList({"a.txt"}));
+        QCOMPARE(read(m_dir + "/dst/a.txt"), "old");
+        QCOMPARE(read(m_dir + "/src/a.txt"), "new");
+    }
+
+    void redoMergeMove()
+    {
+        write(m_dir + "/src/d/x.txt", "x");
+        write(m_dir + "/src/d/y.txt", "new y");
+        write(m_dir + "/dst/d/y.txt", "old y");
+        FileOps ops;
+        ops.transfer({m_dir + "/src/d"}, m_dir + "/dst", true, {{"d", "replace"}});
+        QVERIFY(waitJob(ops));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        ops.redo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst/d"), QStringList({"x.txt", "y.txt"}));
+        QCOMPARE(read(m_dir + "/dst/d/y.txt"), "new y");
+        QVERIFY(!QFileInfo::exists(m_dir + "/src/d"));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/src/d"), QStringList({"x.txt", "y.txt"}));
+        QCOMPARE(read(m_dir + "/dst/d/y.txt"), "old y");
+    }
+
+    // Новая операция после отмены — повторять больше нечего
+    void newOperationDropsRedo()
+    {
+        write(m_dir + "/a.txt");
+        FileOps ops;
+        QCOMPARE(ops.rename(m_dir + "/a.txt", "b.txt"), QString());
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QVERIFY(!ops.redoText().isEmpty());
+        QVERIFY(!ops.makeDir(m_dir, "x").isEmpty());
+        QVERIFY(ops.redoText().isEmpty());
+    }
+
     // ── Язык ───────────────────────────────────────────────────────
     // Русские формы слов при числах — из ru.json, английский — из en.json,
     // и модель перечитывает свои строки сама, когда язык меняется

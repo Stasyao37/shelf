@@ -225,11 +225,11 @@ bool placeItem(const QString &src, const QString &dst, bool move, CopyCtx &ctx, 
         return false;
     }
     if (move && !removeTree(src)) {
-        steps.append({UndoStep::Created, dst, {}});
+        steps.append({UndoStep::Created, dst, src});
         ctx.error = QCoreApplication::translate("FileOps", "Скопировано, но не удалось удалить исходник %1").arg(src);
         return false;
     }
-    steps.append(move ? UndoStep{UndoStep::Moved, src, dst} : UndoStep{UndoStep::Created, dst, {}});
+    steps.append(move ? UndoStep{UndoStep::Moved, src, dst} : UndoStep{UndoStep::Created, dst, src});
     return true;
 }
 
@@ -262,8 +262,9 @@ bool mergeTree(const QString &src, const QString &dst, bool move, CopyCtx &ctx, 
     return true;
 }
 
-// Откат одного шага; restored — где оказалось возвращённое
-bool undoStep(const UndoStep &st, CopyCtx &ctx, QStringList &restored)
+// Откат одного шага; restored — где оказалось возвращённое, inverse — шаги,
+// которые откатят сам откат (для повтора), в порядке выполнения
+bool undoStep(const UndoStep &st, CopyCtx &ctx, QStringList &restored, QList<UndoStep> &inverse)
 {
     const auto putBack = [&](const QString &from, const QString &to, bool trashed) {
         if (!present(from))
@@ -282,24 +283,57 @@ bool undoStep(const UndoStep &st, CopyCtx &ctx, QStringList &restored)
         if (trashed)
             forgetTrashed(from);
         restored << target;
+        inverse.append(trashed ? UndoStep{UndoStep::Restored, target, {}} : UndoStep{UndoStep::Moved, from, target});
         return true;
     };
     switch (st.kind) {
     case UndoStep::Created:
-        // Копия — лишний дубль, в корзине ей делать нечего
+        // Копия — лишний дубль, в корзине ей делать нечего: повтор скопирует заново
         if (!present(st.from))
             return true;
         makeWritable(st.from);
-        return removeTree(st.from);
+        if (!removeTree(st.from))
+            return false;
+        if (!st.to.isEmpty())
+            inverse.append({UndoStep::Uncopied, st.from, st.to});
+        return true;
     case UndoStep::Moved:
         return putBack(st.to, st.from, false);
     case UndoStep::Trashed:
         return putBack(st.to, st.from, true);
     case UndoStep::MadeDir:
         // В новую папку уже что-то положили — не трогаем
-        return !present(st.from) || QDir().rmdir(st.from);
+        if (!present(st.from))
+            return true;
+        if (!QDir().rmdir(st.from))
+            return false;
+        inverse.append({UndoStep::RemovedDir, st.from, {}});
+        return true;
     case UndoStep::RemovedDir:
-        return QDir().mkpath(st.from);
+        if (!QDir().mkpath(st.from))
+            return false;
+        inverse.append({UndoStep::MadeDir, st.from, {}});
+        return true;
+    case UndoStep::Uncopied: {
+        if (!present(st.to))
+            return false;
+        const QFileInfo fi(st.to);
+        const QString target = present(st.from) ? uniquePath(parentOf(st.from), QFileInfo(st.from).fileName(), realDir(fi)) : st.from;
+        if (!copyTree(st.to, target, ctx)) {
+            removeTree(target);
+            return false;
+        }
+        restored << target;
+        inverse.append({UndoStep::Created, target, st.to});
+        return true;
+    }
+    case UndoStep::Restored: {
+        QString where;
+        if (!QFile::moveToTrash(st.from, &where))
+            return false;
+        inverse.append({UndoStep::Trashed, st.from, where});
+        return true;
+    }
     }
     return false;
 }
@@ -657,36 +691,58 @@ QStringList FileOps::undoTargets() const
 
 void FileOps::undo()
 {
-    if (m_undo.isEmpty())
+    rollBack(false);
+}
+
+void FileOps::redo()
+{
+    rollBack(true);
+}
+
+void FileOps::rollBack(bool redo)
+{
+    QList<UndoEntry> &from = redo ? m_redo : m_undo;
+    if (from.isEmpty())
         return;
     if (m_busy) {
         emit failed(tr("Дождитесь окончания текущей операции"));
         return;
     }
-    const UndoEntry entry = m_undo.takeLast();
+    const UndoEntry entry = from.takeLast();
     emit undoChanged();
-    if (!startJob(tr("Отмена: %1…").arg(entry.label)))
+    const QString text = redo ? tr("Повтор: %1…").arg(entry.label) : tr("Отмена: %1…").arg(entry.label);
+    if (!startJob(text))
         return;
 
     auto cancel = m_cancel;
-    m_job = QtConcurrent::run([this, entry, cancel] {
+    m_job = QtConcurrent::run([this, entry, cancel, text, redo] {
         CopyCtx ctx{*cancel, 0, 0, [](const QString &) {}, {}};
         QStringList restored, failed;
+        QList<UndoStep> inverse;
         for (qsizetype i = entry.steps.size() - 1; i >= 0 && !cancel->load(); --i) {
             const UndoStep &st = entry.steps.at(i);
-            if (!undoStep(st, ctx, restored))
+            if (!undoStep(st, ctx, restored, inverse))
                 failed << QFileInfo(st.from).fileName();
             const double p = double(entry.steps.size() - i) / double(entry.steps.size());
-            QMetaObject::invokeMethod(this, [this, p, entry] { setProgress(p, tr("Отмена: %1…").arg(entry.label)); },
-                                      Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, [this, p, text] { setProgress(p, text); }, Qt::QueuedConnection);
         }
         const QString error = failed.isEmpty() ? QString()
-            : tr("Не удалось отменить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")));
+            : redo ? tr("Не удалось повторить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")))
+                   : tr("Не удалось отменить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")));
         const bool cancelled = cancel->load();
-        QMetaObject::invokeMethod(this, [this, restored, error, cancelled, label = entry.label] {
+        QMetaObject::invokeMethod(this, [this, restored, error, cancelled, entry, inverse, redo] {
+            // Откаченное (хотя бы частично) можно откатить обратно
+            if (!inverse.isEmpty()) {
+                (redo ? m_undo : m_redo).append({entry.kind, entry.label, inverse});
+                emit undoChanged();
+            }
             finishJob(restored, error, cancelled);
-            if (error.isEmpty() && !cancelled)
-                emit undone(label);
+            if (error.isEmpty() && !cancelled) {
+                if (redo)
+                    emit redone(entry.label);
+                else
+                    emit undone(entry.label);
+            }
         }, Qt::QueuedConnection);
     });
 }
@@ -767,6 +823,7 @@ void FileOps::record(const QString &kind, const QString &label, const QList<Undo
     if (steps.isEmpty())
         return;
     m_undo.append({kind, label, steps});
+    m_redo.clear();
     // Помним последние операции — дальше вряд ли кто-то отматывает
     while (m_undo.size() > 50)
         m_undo.removeFirst();

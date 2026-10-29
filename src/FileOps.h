@@ -13,11 +13,14 @@
 // Шаг операции, который можно откатить (Ctrl+Z)
 struct UndoStep {
     enum Kind {
-        Created,    // from — появился (копия): откат — удалить
+        Created,    // from — появился (копия с to): откат — удалить
         Moved,      // from → to (перемещение, переименование): откат — обратно
         Trashed,    // from убран в корзину, лежит в to: откат — вернуть
         MadeDir,    // from — новая пустая папка: откат — удалить, если пуста
         RemovedDir, // from — опустевшая папка после перемещения с объединением: откат — создать
+        // Только для повтора (Ctrl+Shift+Z) — обратные шаги отката:
+        Uncopied,   // копию from удалили: откат — снова скопировать to в from
+        Restored,   // from вернули из корзины: откат — снова в корзину
     };
     Kind kind;
     QString from;
@@ -42,6 +45,8 @@ class FileOps : public QObject
     Q_PROPERTY(QString undoText READ undoText NOTIFY undoChanged)
     // Что это за операция — для логики, текст undoText переведён: move, copy, trash, rename, mkdir
     Q_PROPERTY(QString undoKind READ undoKind NOTIFY undoChanged)
+    // Что вернёт redo() — отменённое последним; пусто — повторять нечего
+    Q_PROPERTY(QString redoText READ redoText NOTIFY undoChanged)
 
 public:
     explicit FileOps(QObject *parent = nullptr);
@@ -54,6 +59,7 @@ public:
     bool clipboardIsCut() const { return m_clipCut; }
     QString undoText() const { return m_undo.isEmpty() ? QString() : m_undo.last().label; }
     QString undoKind() const { return m_undo.isEmpty() ? QString() : m_undo.last().kind; }
+    QString redoText() const { return m_redo.isEmpty() ? QString() : m_redo.last().label; }
 
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
@@ -89,6 +95,8 @@ public:
     Q_INVOKABLE void cancel();
     // Откатить последнюю операцию из журнала — в фоне, как перенос
     Q_INVOKABLE void undo();
+    // Повторить последнее отменённое; новая операция забывает отменённое
+    Q_INVOKABLE void redo();
     // Что исчезнет при undo(): копии и перенесённое (для анимации «вылетают из папки»)
     Q_INVOKABLE QStringList undoTargets() const;
 
@@ -104,6 +112,8 @@ signals:
     void undoChanged();
     // Отмена закончилась без ошибок; label — что отменили
     void undone(const QString &label);
+    // Повтор закончился без ошибок
+    void redone(const QString &label);
 
 private:
     void readClipboard();
@@ -118,7 +128,11 @@ private:
         QString label;
         QList<UndoStep> steps;
     };
+    // Откатить запись в фоне; её обратные шаги уходят в другой журнал:
+    // из отмены — в повтор, из повтора — снова в отмену
+    void rollBack(bool redo);
     QList<UndoEntry> m_undo;
+    QList<UndoEntry> m_redo;
 
     bool m_busy = false;
     double m_progress = 0;

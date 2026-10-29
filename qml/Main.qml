@@ -248,7 +248,12 @@ Window {
             win.tab.pendingSelect = newPaths
             dir.reload()
         }
-        function onUndone(label) { win.toast(qsTr("Отменено: %1").arg(label)) }
+        // Передумали отменять — тут же «Повторить»
+        function onUndone(label) {
+            win.toast(qsTr("Отменено: %1").arg(label), qsTr("Повторить"),
+                      function () { if (FileOps.redoText === label) win.redo() })
+        }
+        function onRedone(label) { win.toast(qsTr("Повторено: %1").arg(label)) }
     }
 
     // ── Навигация ────────────────────────────────────────────────────
@@ -417,12 +422,17 @@ Window {
         if (cs.length === 0) go({})
         else conflictDlg.resolve(cs, dest, go)
     }
-    // ── Отмена (Ctrl+Z) ──────────────────────────────────────────────
+    // ── Отмена (Ctrl+Z) и повтор (Ctrl+Shift+Z, Ctrl+Y) ─────────────
     function undo() {
         moveToast = false
         if (!FileOps.undoText) { toast(qsTr("Отменять нечего")); return }
         pane.flyOut(FileOps.undoTargets())
         FileOps.undo()
+    }
+    function redo() {
+        moveToast = false
+        if (!FileOps.redoText) { toast(qsTr("Повторять нечего")); return }
+        FileOps.redo()
     }
     // Уведомление с кнопкой «Отменить» — только пока последней остаётся эта операция
     function undoToast(text) {
@@ -550,18 +560,19 @@ Window {
         }
         var undoItem = { text: FileOps.undoText ? qsTr("Отменить %1").arg(FileOps.undoText) : qsTr("Отменить"), icon: "\u{f0e2}",
                          shortcut: "Ctrl+Z", enabled: FileOps.undoText !== "" && !FileOps.busy, act: undo }
-        var top = inTrash ? [
-            undoItem,
+        // «Повторить» — только когда есть что: обычно отменённого нет
+        var undoItems = [undoItem].concat(FileOps.redoText ? [{ text: qsTr("Повторить %1").arg(FileOps.redoText), icon: "\u{f01e}",
+                         shortcut: "Ctrl+Shift+Z", enabled: !FileOps.busy, act: redo }] : [])
+        var top = inTrash ? undoItems.concat([
             { text: qsTr("Очистить корзину"), icon: "\u{f1f8}", danger: true, enabled: Places.trashFull, act: emptyTrash },
             { separator: true },
-        ] : [
-            undoItem,
+        ]) : undoItems.concat([
             { text: qsTr("Новая папка"), icon: "\u{f07b}", shortcut: "Ctrl+Shift+N", act: newFolder },
             { text: qsTr("Вставить"), icon: "\u{f0ea}", shortcut: "Ctrl+V", enabled: FileOps.clipboardHasFiles,
               act: function () { paste(dir.path) } },
             { text: qsTr("Открыть в терминале"), icon: "\u{f120}", shortcut: "F4", act: function () { FileOps.openTerminal(dir.path) } },
             { separator: true },
-        ]
+        ])
         menu.show(x, y, top.concat([
             sortItem(qsTr("По имени"), "name"), sortItem(qsTr("По дате"), "date"), sortItem(qsTr("По размеру"), "size"), sortItem(qsTr("По типу"), "type"),
             { separator: true },
@@ -606,6 +617,7 @@ Window {
     Shortcut { sequence: StandardKey.Paste; onActivated: win.paste(dir.path) }
     Shortcut { sequence: StandardKey.SelectAll; onActivated: pane.selectAll() }
     Shortcut { sequences: [StandardKey.Undo]; enabled: !win.picking; onActivated: win.undo() }
+    Shortcut { sequences: ["Ctrl+Shift+Z", "Ctrl+Y"]; enabled: !win.picking; onActivated: win.redo() }
     Shortcut { sequence: "Ctrl+Shift+N"; onActivated: win.newFolder() }
     Shortcut { sequence: "Ctrl+D"; onActivated: win.toggleBookmark(dir.path) }
     Shortcut { sequences: ["Alt+Return", "Alt+Enter"]; onActivated: win.showProperties() }
