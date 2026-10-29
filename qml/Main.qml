@@ -192,14 +192,19 @@ Window {
             // и проявляется уже потом, ровно, а не рывками поверх этого кадра.
             // Первая вкладка при запуске — сразу: окно и так появляется целиком
             property bool fresh: false
+            // Первая вкладка становится текущей уже после создания: без этого она проявлялась
+            // бы из нуля, а на холодном старте кадры долгие — и список «вплывал» секундами
+            property bool fades: false
             opacity: shown ? (fresh ? 0.01 : 1) : 0
             visible: opacity > 0
             z: shown ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.dur(140); easing.type: Easing.OutCubic } }
+            Behavior on opacity { enabled: t.fades; NumberAnimation { duration: Theme.dur(140); easing.type: Easing.OutCubic } }
+            onShownChanged: if (shown && !fades) Qt.callLater(function () { t.fades = true })
             title: t.dir.searchQuery ? qsTr("Поиск «%1»").arg(t.dir.searchQuery) : win.folderName(t.dir.path)
             onMessage: (m) => win.toast(m)
             Component.onCompleted: {
                 if (win.tabs.length > 0) {
+                    t.fades = true
                     t.fresh = true
                     Theme.afterFrame(t, function () { t.fresh = false })
                 }
