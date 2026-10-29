@@ -85,7 +85,7 @@ Rectangle {
                 if (n === "folder")
                     return ""
                 if (n === "trash")
-                    return Places.trashFull ? "trash-full" : "trash-can"
+                    return "trash"
                 if (n === "drive" || n === "usb")
                     return n
                 return "emblems/" + n
@@ -101,13 +101,27 @@ Rectangle {
             }
             // Корзина, диски и эмблемы мест — тот же оттенок палитры, что у папок
             Image {
-                visible: glyph.src !== "" && !glyph.emblem
+                visible: glyph.src !== "" && glyph.src !== "trash" && !glyph.emblem
                 anchors.fill: parent
                 source: visible ? Theme.glassIcon(glyph.src, Theme.groupTint("folder")) : ""
                 // Вдвое крупнее и со сглаживанием — края мягкие при любом масштабе экрана
                 sourceSize: Qt.size(width * 2, height * 2)
                 smooth: true
                 mipmap: true
+            }
+            // Корзина — пустая и полная друг на друге: при смене одна проявляется, другая гаснет
+            Repeater {
+                model: glyph.src === "trash" ? [false, true] : []
+                Image {
+                    required property bool modelData
+                    anchors.fill: parent
+                    source: Theme.glassIcon(modelData ? "trash-full" : "trash-can", Theme.groupTint("folder"))
+                    sourceSize: Qt.size(width * 2, height * 2)
+                    smooth: true
+                    mipmap: true
+                    opacity: Places.trashFull === modelData ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: Theme.dur(260); easing.type: Easing.InOutCubic } }
+                }
             }
             // Эмблема — та же вставка из матового стекла, что на папках в сетке:
             // мягкая маска без ступенек, вертикальная заливка, лёгкая тень
