@@ -135,6 +135,29 @@ FocusScope {
         selected = s
     }
     function clearSelection() { selected = ({}); anchorRow = -1 }
+
+    // Рамка выделения: тянуть по пустому месту. Углы — в координатах содержимого view,
+    // чтобы рамка держалась за файлы при прокрутке
+    property bool banding: false
+    property point bandFrom
+    property point bandTo
+    property point bandPointer // курсор в координатах view — для прокрутки у края
+    property var bandBase: ({}) // выделенное до рамки (с Ctrl рамка добавляет к нему)
+    function updateBand() {
+        bandTo = Qt.point(bandPointer.x + view.contentX, bandPointer.y + view.contentY)
+        var x0 = Math.min(bandFrom.x, bandTo.x), x1 = Math.max(bandFrom.x, bandTo.x)
+        var y0 = Math.min(bandFrom.y, bandTo.y) - view.originY, y1 = Math.max(bandFrom.y, bandTo.y) - view.originY
+        var cols = gridMode ? Math.max(1, Math.floor((view.width - 14) / view.cellWidth)) : 1
+        var c0 = Math.max(0, Math.floor(x0 / view.cellWidth)), c1 = Math.min(cols - 1, Math.floor(x1 / view.cellWidth))
+        var r0 = Math.max(0, Math.floor(y0 / view.cellHeight)), r1 = Math.floor(y1 / view.cellHeight)
+        var s = Object.assign({}, bandBase)
+        for (var r = r0; r <= r1 && r * cols < model.count; ++r)
+            for (var c = c0; c <= c1; ++c) {
+                var i = r * cols + c
+                if (i < model.count) s[model.pathAt(i)] = true
+            }
+        selected = s
+    }
     function selectPaths(paths) {
         var s = {}
         var first = -1
@@ -265,17 +288,71 @@ FocusScope {
         HeaderCell { label: qsTr("Размер"); key: "size"; x: parent.width - 90; width: 90; align: Text.AlignRight }
     }
 
-    // Клик по пустому месту: снять выделение / меню папки
+    // Клик по пустому месту: снять выделение / меню папки; потянуть — рамка выделения
     MouseArea {
         anchors.fill: view
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onPressed: { pane.commitRename(); view.forceActiveFocus() }
+        preventStealing: true
+        property bool banded: false
+        onPressed: (m) => {
+            pane.commitRename()
+            view.forceActiveFocus()
+            banded = false
+            pane.bandFrom = Qt.point(m.x + view.contentX, m.y + view.contentY)
+        }
+        onPositionChanged: (m) => {
+            if (!(m.buttons & Qt.LeftButton) || pane.singleSelect) return
+            pane.bandPointer = Qt.point(m.x, m.y)
+            if (!pane.banding) {
+                var from = Qt.point(pane.bandFrom.x - view.contentX, pane.bandFrom.y - view.contentY)
+                if (Math.abs(m.x - from.x) + Math.abs(m.y - from.y) < Application.styleHints.startDragDistance) return
+                pane.bandBase = m.modifiers & Qt.ControlModifier ? Object.assign({}, pane.selected) : {}
+                pane.banding = true
+                banded = true
+            }
+            pane.updateBand()
+        }
+        onReleased: pane.banding = false
+        onCanceled: pane.banding = false
         onClicked: (m) => {
+            if (banded) return
             if (!(m.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) pane.clearSelection()
             if (m.button === Qt.RightButton) {
                 var p = mapToItem(pane, m.x, m.y)
                 pane.contextMenuRequested(-1, p.x, p.y)
             }
+        }
+    }
+
+    // Рамка поверх списка; у верхнего и нижнего края список прокручивается,
+    // тем быстрее, чем дальше за край ушёл курсор
+    Item {
+        anchors.fill: view
+        z: 1
+        clip: true
+        visible: pane.banding
+        Rectangle {
+            x: Math.min(pane.bandFrom.x, pane.bandTo.x) - view.contentX
+            y: Math.min(pane.bandFrom.y, pane.bandTo.y) - view.contentY
+            width: Math.abs(pane.bandTo.x - pane.bandFrom.x)
+            height: Math.abs(pane.bandTo.y - pane.bandFrom.y)
+            radius: 4
+            color: Qt.alpha(Theme.accent, 0.14)
+            border.width: 1
+            border.color: Qt.alpha(Theme.accent, 0.7)
+        }
+    }
+    Timer {
+        readonly property int edge: 28
+        readonly property real over: pane.bandPointer.y < edge ? pane.bandPointer.y - edge
+                                   : pane.bandPointer.y > view.height - edge ? pane.bandPointer.y - view.height + edge : 0
+        interval: 16
+        repeat: true
+        running: pane.banding && over !== 0
+        onTriggered: {
+            var maxY = Math.max(view.originY, view.originY + view.contentHeight - view.height)
+            var step = Math.max(-40, Math.min(40, over * 0.35))
+            view.contentY = Math.max(view.originY, Math.min(view.contentY + step, maxY))
         }
     }
 
@@ -326,6 +403,8 @@ FocusScope {
         keyNavigationEnabled: false
         highlightFollowsCurrentItem: false
         reuseItems: true
+        // Прокрутили (колесом или у края) с рамкой — она тянется за содержимым
+        onContentYChanged: if (pane.banding) pane.updateBand()
 
         // При значке 56 — ячейка 112×118, остальные размеры — пропорционально значку
         readonly property int gridCell: Math.round(pane.iconShown) + 56
@@ -569,6 +648,8 @@ FocusScope {
             MouseArea {
                 id: ma
                 anchors.fill: parent
+                // Как плитка: промежутки между плитками — пустое место, с них тянется рамка
+                anchors.margins: pane.gridMode ? 3 : 0
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 property point pressPos
