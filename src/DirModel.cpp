@@ -542,6 +542,18 @@ QString DirModel::mimeCommentAt(int row) const
     return row >= 0 && row < m_rows.size() ? m_rows.at(row).mimeComment : QString();
 }
 
+QVariantMap DirModel::rowInfo(int row) const
+{
+    QVariantMap m;
+    if (row < 0 || row >= m_rows.size())
+        return m;
+    const QModelIndex i = index(row);
+    const auto roles = roleNames();
+    for (auto it = roles.begin(); it != roles.end(); ++it)
+        m[QString::fromLatin1(it.value())] = data(i, it.key());
+    return m;
+}
+
 QString DirModel::sizeOf(const QStringList &paths) const
 {
     qint64 total = 0;

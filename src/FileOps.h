@@ -102,6 +102,13 @@ public:
 
     Q_INVOKABLE QVariantMap info(const QString &path);
 
+    // Быстрый просмотр (Space): как показать файл — "image", "text", "dir" или "other"
+    Q_INVOKABLE QString previewKind(const QString &path, const QString &mimeType) const;
+    // Начало текстового файла — в фоне, ответ сигналом textPreview
+    Q_INVOKABLE void requestTextPreview(const QString &path);
+    // Первые limit байт как текст: { text, truncated, binary }
+    static QVariantMap readTextPreview(const QString &path, qint64 limit = 64 * 1024);
+
 signals:
     void busyChanged();
     void progressChanged();
@@ -114,6 +121,8 @@ signals:
     void undone(const QString &label);
     // Повтор закончился без ошибок
     void redone(const QString &label);
+    // Ответ на requestTextPreview; binary — внутри нули, это не текст
+    void textPreview(const QString &path, const QString &text, bool truncated, bool binary);
 
 private:
     void readClipboard();

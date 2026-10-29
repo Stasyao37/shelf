@@ -12,9 +12,12 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QImageReader>
 #include <QMimeData>
 #include <QMimeDatabase>
+#include <QPointer>
 #include <QProcess>
+#include <QStringDecoder>
 #include <QUrl>
 #include <QtConcurrent>
 
@@ -828,6 +831,47 @@ void FileOps::record(const QString &kind, const QString &label, const QList<Undo
     while (m_undo.size() > 50)
         m_undo.removeFirst();
     emit undoChanged();
+}
+
+QString FileOps::previewKind(const QString &path, const QString &mimeType) const
+{
+    if (QFileInfo(path).isDir())
+        return QStringLiteral("dir");
+    if (QImageReader::supportedMimeTypes().contains(mimeType.toLatin1()))
+        return QStringLiteral("image");
+    // Код, конфиги, json, скрипты — всё, что наследует text/plain
+    static const QMimeDatabase db;
+    return db.mimeTypeForName(mimeType).inherits(QStringLiteral("text/plain")) ? QStringLiteral("text")
+                                                                               : QStringLiteral("other");
+}
+
+QVariantMap FileOps::readTextPreview(const QString &path, qint64 limit)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return {{QStringLiteral("text"), QString()}, {QStringLiteral("truncated"), false}, {QStringLiteral("binary"), false}};
+    const QByteArray data = f.read(limit);
+    const bool truncated = !f.atEnd();
+    if (data.contains('\0'))
+        return {{QStringLiteral("text"), QString()}, {QStringLiteral("truncated"), truncated}, {QStringLiteral("binary"), true}};
+    // Без flush: оборванный на границе многобайтный символ остаётся в декодере, а не становится «�»
+    QStringDecoder utf8(QStringDecoder::Utf8);
+    const QString text = utf8(data);
+    return {{QStringLiteral("text"), text}, {QStringLiteral("truncated"), truncated}, {QStringLiteral("binary"), false}};
+}
+
+void FileOps::requestTextPreview(const QString &path)
+{
+    // Файл может быть на медленном диске или в сети — не держим интерфейс
+    QPointer<FileOps> self(this);
+    (void)QtConcurrent::run([self, path] {
+        const QVariantMap r = readTextPreview(path);
+        QMetaObject::invokeMethod(qApp, [self, path, r] {
+            if (self)
+                emit self->textPreview(path, r.value(QStringLiteral("text")).toString(),
+                                       r.value(QStringLiteral("truncated")).toBool(), r.value(QStringLiteral("binary")).toBool());
+        }, Qt::QueuedConnection);
+    });
 }
 
 void FileOps::finishJob(const QStringList &created, const QString &error, bool cancelled)

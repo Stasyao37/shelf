@@ -455,6 +455,53 @@ private slots:
         QVERIFY(ops.redoText().isEmpty());
     }
 
+    // ── Быстрый просмотр ──────────────────────────────────────────
+    void previewText()
+    {
+        write(m_dir + "/a.txt", "привет");
+        QVariantMap r = FileOps::readTextPreview(m_dir + "/a.txt");
+        QCOMPARE(r.value("text").toString(), QStringLiteral("привет"));
+        QCOMPARE(r.value("truncated").toBool(), false);
+        QCOMPARE(r.value("binary").toBool(), false);
+
+        // Обрезано посреди «и» (2 байта в UTF-8): половинка не превращается в «�»
+        write(m_dir + "/long.txt", QByteArray("ab") + QString("и").toUtf8() + "cd");
+        r = FileOps::readTextPreview(m_dir + "/long.txt", 3);
+        QCOMPARE(r.value("text").toString(), QStringLiteral("ab"));
+        QCOMPARE(r.value("truncated").toBool(), true);
+
+        write(m_dir + "/bin", QByteArray("ELF\0\1\2", 6));
+        r = FileOps::readTextPreview(m_dir + "/bin");
+        QCOMPARE(r.value("binary").toBool(), true);
+        QVERIFY(r.value("text").toString().isEmpty());
+    }
+
+    void previewKindAndRowInfo()
+    {
+        FileOps ops;
+        QDir().mkpath(m_dir + "/sub");
+        write(m_dir + "/a.py", "print()");
+        QCOMPARE(ops.previewKind(m_dir + "/sub", "inode/directory"), "dir");
+        QCOMPARE(ops.previewKind(m_dir + "/a.png", "image/png"), "image");
+        QCOMPARE(ops.previewKind(m_dir + "/a.py", "text/x-python"), "text");
+        QCOMPARE(ops.previewKind(m_dir + "/a.json", "application/json"), "text");
+        QCOMPARE(ops.previewKind(m_dir + "/a.pdf", "application/pdf"), "other");
+
+        QSignalSpy got(&ops, &FileOps::textPreview);
+        ops.requestTextPreview(m_dir + "/a.py");
+        QVERIFY(got.wait(5000));
+        QCOMPARE(got.first().at(0).toString(), m_dir + "/a.py");
+        QCOMPARE(got.first().at(1).toString(), QStringLiteral("print()"));
+
+        DirModel model;
+        model.setPath(m_dir);
+        const QVariantMap info = model.rowInfo(model.indexOfPath(m_dir + "/a.py"));
+        QCOMPARE(info.value("name").toString(), QStringLiteral("a.py"));
+        QCOMPARE(info.value("isDir").toBool(), false);
+        QVERIFY(!info.value("sizeText").toString().isEmpty());
+        QVERIFY(model.rowInfo(-1).isEmpty());
+    }
+
     // ── Язык ───────────────────────────────────────────────────────
     // Русские формы слов при числах — из ru.json, английский — из en.json,
     // и модель перечитывает свои строки сама, когда язык меняется

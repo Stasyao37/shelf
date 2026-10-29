@@ -43,6 +43,7 @@ FocusScope {
     // blur — поле закрыли кликом мимо: фокус уже у того, куда щёлкнули, не забираем его
     signal renameRequested(string path, string newName, bool blur)
     signal typed(string text)
+    signal quickLookRequested(int row)  // Space — быстрый просмотр
     signal filesDropped(var paths, string dest, bool move)
     signal springOpen(string path)   // держали файлы над папкой — открыть её
     signal openInNewTab(string path)  // средняя кнопка по папке
@@ -460,6 +461,10 @@ FocusScope {
             case Qt.Key_Return:
             case Qt.Key_Enter:
                 if (cur >= 0) pane.activated(cur)
+                e.accepted = true
+                return
+            case Qt.Key_Space:
+                if (cur >= 0) pane.quickLookRequested(cur)
                 e.accepted = true
                 return
             default:

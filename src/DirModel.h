@@ -91,6 +91,8 @@ public:
     Q_INVOKABLE QString iconAt(int row) const;
     Q_INVOKABLE QString mimeTypeAt(int row) const;
     Q_INVOKABLE QString mimeCommentAt(int row) const;
+    // Всё о строке сразу, по именам ролей (name, sizeText, dateText…) — для быстрого просмотра
+    Q_INVOKABLE QVariantMap rowInfo(int row) const;
     Q_INVOKABLE QString sizeOf(const QStringList &paths) const;
     Q_INVOKABLE static QString expandPath(const QString &path);
 

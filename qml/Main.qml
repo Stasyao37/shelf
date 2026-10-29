@@ -218,6 +218,7 @@ Window {
             Connections {
                 target: t.pane
                 function onActivated(row) { win.openRow(row) }
+                function onQuickLookRequested(row) { win.quickLookAt(row) }
                 function onZoomRequested(step) { win.zoom(step) }
                 function onContextMenuRequested(row, x, y) {
                     var pt = t.pane.mapToItem(win.contentItem, x, y)
@@ -353,6 +354,8 @@ Window {
         else if (picking) { pane.selectRow(row); pickAccept() }
         else openFile(row)
     }
+    // Быстрый просмотр (Space): клавиши приходят только в открытую вкладку
+    function quickLookAt(row) { quickLook.show(dir, row) }
     // Программой по умолчанию; если её для этого типа нет — спрашиваем, чем открыть
     function openFile(row) {
         if (!Apps.open(dir.pathAt(row), dir.mimeTypeAt(row)))
@@ -1204,6 +1207,13 @@ Window {
 
     ContextMenu { id: menu; parent: win.contentItem }
     PropertiesDialog { id: props; parent: win.contentItem }
+    QuickLook {
+        id: quickLook
+        parent: win.contentItem
+        onOpenRequested: (row) => win.openRow(row)
+        // Листают — выделение идёт следом: закрыли, и курсор на последнем просмотренном
+        onRowChanged: if (quickLook.visible && quickLook.model === win.dir) win.pane.selectRow(quickLook.row)
+    }
     ConfirmDialog {
         id: confirm
         parent: win.contentItem
