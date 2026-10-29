@@ -9,24 +9,39 @@ FocusScope {
 
     required property DirModel model
     property bool gridMode: true
-    // Сторона значка в сетке; iconShown — она же с анимацией, по ней раскладка.
+    // Сторона значка в сетке; iconShown — она же с анимацией, ею рисуются значки.
     // Миниатюры заказываем по iconSize, чтобы не дёргать кэш на каждом кадре
     property int iconSize: 56
     property real iconShown: iconSize
+    // Раскладка — по cellIcon: при зуме ячейки встают на новые места один раз,
+    // а видимые доезжают туда со старых (relayout), вместо перескоков на каждом кадре
+    property int cellIcon: 56
     // Вкладка получает сохранённые размер и вид уже после создания — это не зум и не смена вида.
     // Без ready значки при запуске росли из 56 в свой размер, а на холодном старте — секунду
     property bool ready: false
     Behavior on iconShown { enabled: pane.ready; NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
     // Ctrl+колесо: +1 крупнее, -1 мельче
     signal zoomRequested(int step)
-    // При масштабе держим на месте первый видимый значок
-    property int zoomAnchor: -1
-    onIconSizeChanged: zoomAnchor = view.indexAt(view.width / 2, view.contentY + 4)
-    onIconShownChanged: {
-        if (zoomAnchor >= 0 && gridMode)
-            view.positionViewAtIndex(zoomAnchor, GridView.Beginning)
-        if (iconShown === iconSize)
-            zoomAnchor = -1
+    onIconSizeChanged: relayout()
+    function relayout() {
+        if (cellIcon === iconSize) return
+        // При масштабе держим на месте первый видимый значок
+        var anchor = view.indexAt(view.width / 2, view.contentY + 4)
+        var glide = ready && gridMode && Theme.animations
+        // Где ячейки на экране сейчас — вместе с ещё не доехавшим прошлым сдвигом
+        var was = {}
+        var cells = view.contentItem.children
+        if (glide)
+            for (var i = 0; i < cells.length; ++i)
+                if (cells[i].glideFrom && cells[i].visible)
+                    was[cells[i].index] = cells[i].mapToItem(view, 0, 0)
+        cellIcon = iconSize
+        view.forceLayout()
+        if (anchor >= 0 && gridMode) view.positionViewAtIndex(anchor, GridView.Beginning)
+        if (!glide) return
+        cells = view.contentItem.children
+        for (var j = 0; j < cells.length; ++j)
+            if (cells[j].glideFrom) cells[j].glideFrom(was[cells[j].index])
     }
     property string renamingPath: ""
     // Окно выбора одного файла: Ctrl/Shift не добавляют к выделению
@@ -415,11 +430,11 @@ FocusScope {
         onContentYChanged: if (pane.banding) pane.updateBand()
 
         // При значке 56 — ячейка 112×118, остальные размеры — пропорционально значку
-        readonly property int gridCell: Math.round(pane.iconShown) + 56
+        readonly property int gridCell: pane.cellIcon + 56
         cellWidth: pane.gridMode
             ? Math.floor((width - 14) / Math.max(1, Math.floor((width - 14) / gridCell)))
             : width - 14
-        cellHeight: pane.gridMode ? Math.round(pane.iconShown) + 62 : 30
+        cellHeight: pane.gridMode ? pane.cellIcon + 62 : 30
 
         ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AsNeeded
@@ -527,7 +542,32 @@ FocusScope {
             property real appear: 1
             opacity: (isHidden ? 0.6 : 1.0) * appear
             // Делегаты переиспользуются: возвращаем то, что могла оставить анимация удаления
-            GridView.onReused: { appear = 1; scale = 1 }
+            GridView.onReused: { appear = 1; scale = 1; glideAnim.stop(); glide.x = 0; glide.y = 0 }
+            GridView.onPooled: { glideAnim.stop(); glide.x = 0; glide.y = 0 }
+
+            // Зум: с прежнего места на экране (from) на новое; кого раньше не было видно — проявляется
+            transform: Translate { id: glide }
+            function glideFrom(from) {
+                glideAnim.stop()
+                if (!from) {
+                    glide.x = 0; glide.y = 0
+                    appearAnim.restart()
+                    return
+                }
+                var now = mapToItem(view, 0, 0)
+                glide.x += from.x - now.x
+                glide.y += from.y - now.y
+                glideAnim.restart()
+            }
+            ParallelAnimation {
+                id: glideAnim
+                NumberAnimation { target: glide; property: "x"; to: 0; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+                NumberAnimation { target: glide; property: "y"; to: 0; duration: Theme.dur(220); easing.type: Easing.OutCubic }
+            }
+            NumberAnimation {
+                id: appearAnim
+                target: cell; property: "appear"; from: 0; to: 1; duration: Theme.dur(200); easing.type: Easing.OutCubic
+            }
 
             // Под вытянутой плиткой — сплошной фон: плитка снизу не просвечивает сквозь имя
             Rectangle {
