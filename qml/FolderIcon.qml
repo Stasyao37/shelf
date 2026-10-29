@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Shelf
 
 // Стеклянная папка (tools/gen_icons.py) вместо папок из темы иконок. У XDG-папок
@@ -64,28 +63,19 @@ Item {
     scale: open || swallowing ? 1.06 : 1.0
     Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2.5 } }
 
-    // Стенки подкрашиваются каждая своим слоем: между ними проходят листки, у них свой оттенок
-    component Tinted: Item {
-        anchors.fill: parent
-        layer.enabled: Theme.iconTinted("folder")
-        layer.effect: MultiEffect {
-            colorization: Theme.iconColorization("folder")
-            colorizationColor: Theme.iconColor("folder")
-            brightness: Theme.iconBrightness("folder")
-        }
-    }
+    // Стенки и эмблема приходят уже подкрашенными (image://glass): между стенками
+    // проходят листки, у них свой оттенок
+    readonly property string tint: Theme.groupTint("folder")
 
     // Задняя стенка неподвижна; передняя — отдельной картинкой в кадре своего
     // прямоугольника, откидывается тем же отображением, что и эмблема.
     // Двух наложенных картинок закрытой и открытой папки больше нет
-    Tinted {
-        Image {
-            anchors.fill: parent
-            source: Qt.resolvedUrl("icons/folder-back.svg")
-            sourceSize: Qt.size(root.size * 2, root.size * 2)
-            smooth: true
-            mipmap: true
-        }
+    Image {
+        anchors.fill: parent
+        source: Theme.glassIcon("folder-back", root.tint)
+        sourceSize: Qt.size(root.size * 2, root.size * 2)
+        smooth: true
+        mipmap: true
     }
 
     // Листки падают сверху и уходят за переднюю стенку; ниже дна папки их обрезает
@@ -155,32 +145,31 @@ Item {
         }
     }
 
-    Tinted {
-        // Кадр картинки — стенка с полями frontPad со всех сторон (см. folder-front.svg)
-        Image {
-            id: frontItem
-            width: (root.frontClosed[1][0] - root.frontClosed[0][0] + 2 * root.frontPad) * root.size / 24
-            height: (root.frontClosed[3][1] - root.frontClosed[0][1] + 2 * root.frontPad) * root.size / 24
-            source: Qt.resolvedUrl("icons/folder-front.svg")
-            sourceSize: Qt.size(width * 2, height * 2)
-            smooth: true
-            // Без mipmap: под перспективой GPU брал уменьшенную копию, и стенка мылилась
-            antialiasing: true
-            transform: Matrix4x4 { matrix: root.frontMatrix(root.openness) }
-        }
+    // Кадр картинки — стенка с полями frontPad со всех сторон (см. folder-front.svg)
+    Image {
+        id: frontItem
+        width: (root.frontClosed[1][0] - root.frontClosed[0][0] + 2 * root.frontPad) * root.size / 24
+        height: (root.frontClosed[3][1] - root.frontClosed[0][1] + 2 * root.frontPad) * root.size / 24
+        source: Theme.glassIcon("folder-front", root.tint)
+        sourceSize: Qt.size(width * 2, height * 2)
+        smooth: true
+        // Без mipmap: под перспективой GPU брал уменьшенную копию, и стенка мылилась
+        antialiasing: true
+        transform: Matrix4x4 { matrix: root.frontMatrix(root.openness) }
+    }
 
-        // Эмблема нарисована на передней стенке и откидывается вместе с ней:
-        // её углы переносятся проективным отображением «закрытая стенка → стенка
-        // сейчас», поэтому перспектива не ломается и эмблема не вылезает за стенку
-        GlassEmblem {
-            id: emblemItem
-            visible: root.emblem !== "" && root.size >= 32
-            width: Math.round(root.size * 0.46)
-            height: width
-            source: root.emblem ? Qt.resolvedUrl("icons/emblems/" + root.emblem + ".svg") : ""
-            antialiasing: true
-            transform: Matrix4x4 { matrix: root.emblemMatrix(root.openness) }
-        }
+    // Эмблема нарисована на передней стенке и откидывается вместе с ней:
+    // её углы переносятся проективным отображением «закрытая стенка → стенка
+    // сейчас», поэтому перспектива не ломается и эмблема не вылезает за стенку
+    GlassEmblem {
+        id: emblemItem
+        visible: root.emblem !== "" && root.size >= 32
+        width: Math.round(root.size * 0.46)
+        height: width
+        name: visible ? "emblems/" + root.emblem : ""
+        tint: root.tint
+        antialiasing: true
+        transform: Matrix4x4 { matrix: root.emblemMatrix(root.openness) }
     }
 
     // Передняя стенка в сетке 24 × 24 (как в tools/gen_icons.py): закрытая — прямоугольник,

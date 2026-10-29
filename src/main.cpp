@@ -1,5 +1,6 @@
 #include "DirModel.h"
 #include "Environment.h"
+#include "GlassIcons.h"
 #include "IconProvider.h"
 #include "Language.h"
 #include "Picker.h"
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("icon"), new IconProvider);
+    engine.addImageProvider(QStringLiteral("glass"), new GlassIcons);
     engine.setInitialProperties({{QStringLiteral("startPath"), start}, {QStringLiteral("startSelect"), select}});
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(1); },
                      Qt::QueuedConnection);

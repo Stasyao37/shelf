@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Effects
 import Shelf
 
 Rectangle {
@@ -80,17 +79,18 @@ Rectangle {
             x: 16; width: 22; height: 22
             anchors.verticalCenter: parent.verticalCenter
             // У XDG-мест — одна эмблема без папки: на 22 px внутри папки её не разглядеть
+            // Картинка icons/<src>.svg; "" — папка
             readonly property string src: {
                 const n = item.modelData.icon
                 if (n === "folder")
                     return ""
                 if (n === "trash")
-                    return Places.trashFull ? "icons/trash-full.svg" : "icons/trash-can.svg"
+                    return Places.trashFull ? "trash-full" : "trash-can"
                 if (n === "drive" || n === "usb")
-                    return "icons/" + n + ".svg"
-                return "icons/emblems/" + n + ".svg"
+                    return n
+                return "emblems/" + n
             }
-            readonly property bool emblem: src.indexOf("/emblems/") > 0
+            readonly property bool emblem: src.startsWith("emblems/")
 
             FolderIcon {
                 id: folderIcon
@@ -99,35 +99,24 @@ Rectangle {
                 size: 22
                 open: ma.containsMouse || item.current || item.dropHere
             }
-            // Корзина, диски и эмблемы мест — тот же оттенок палитры, что у папок.
-            // FolderIcon подкрашивает себя сам
-            Item {
+            // Корзина, диски и эмблемы мест — тот же оттенок палитры, что у папок
+            Image {
+                visible: glyph.src !== "" && !glyph.emblem
                 anchors.fill: parent
-                layer.enabled: Theme.iconTinted("folder")
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                    colorization: Theme.iconColorization("folder")
-                    colorizationColor: Theme.iconColor("folder")
-                    brightness: Theme.iconBrightness("folder")
-                }
-
-                Image {
-                    visible: glyph.src !== "" && !glyph.emblem
-                    anchors.fill: parent
-                    source: visible ? Qt.resolvedUrl(glyph.src) : ""
-                    // Вдвое крупнее и со сглаживанием — края мягкие при любом масштабе экрана
-                    sourceSize: Qt.size(width * 2, height * 2)
-                    smooth: true
-                    mipmap: true
-                }
-                // Эмблема — та же вставка из матового стекла, что на папках в сетке:
-                // мягкая маска без ступенек, вертикальная заливка, лёгкая тень
-                GlassEmblem {
-                    visible: glyph.emblem
-                    anchors.centerIn: parent
-                    width: 19; height: 19
-                    source: glyph.emblem ? Qt.resolvedUrl(glyph.src) : ""
-                }
+                source: visible ? Theme.glassIcon(glyph.src, Theme.groupTint("folder")) : ""
+                // Вдвое крупнее и со сглаживанием — края мягкие при любом масштабе экрана
+                sourceSize: Qt.size(width * 2, height * 2)
+                smooth: true
+                mipmap: true
+            }
+            // Эмблема — та же вставка из матового стекла, что на папках в сетке:
+            // мягкая маска без ступенек, вертикальная заливка, лёгкая тень
+            GlassEmblem {
+                visible: glyph.emblem
+                anchors.centerIn: parent
+                width: 19; height: 19
+                name: glyph.emblem ? glyph.src : ""
+                tint: Theme.groupTint("folder")
             }
         }
         Text {

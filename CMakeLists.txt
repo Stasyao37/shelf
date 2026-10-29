@@ -78,6 +78,7 @@ qt_add_qml_module(shelf
         src/ThemeSource.h src/ThemeSource.cpp
         src/WallpaperPalette.h src/WallpaperPalette.cpp
         src/IconProvider.h
+        src/GlassIcons.h src/GlassIcons.cpp
         src/FileEntry.h src/FileEntry.cpp
         src/Thumbnailer.h src/Thumbnailer.cpp
         src/Apps.h src/Apps.cpp
@@ -122,10 +123,11 @@ if(SHELF_TESTS)
     enable_testing()
     qt_add_executable(shelf_tests tests/tst_core.cpp
         src/DirModel.h src/DirModel.cpp src/FileOps.h src/FileOps.cpp src/FileEntry.h src/FileEntry.cpp
-        src/Trash.h src/Trash.cpp src/Terminal.h src/Terminal.cpp src/Language.h src/Language.cpp)
+        src/Trash.h src/Trash.cpp src/Terminal.h src/Terminal.cpp src/Language.h src/Language.cpp
+        src/GlassIcons.h src/GlassIcons.cpp)
     qt_add_resources(shelf_tests "i18n" PREFIX "/" FILES ${I18N_FILES})
     target_include_directories(shelf_tests PRIVATE src)
-    target_link_libraries(shelf_tests PRIVATE Qt6::Test Qt6::Gui Qt6::Qml Qt6::Concurrent)
+    target_link_libraries(shelf_tests PRIVATE Qt6::Test Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Concurrent)
     add_test(NAME core COMMAND shelf_tests)
     # Все строки интерфейса переведены, лишних в словарях нет
     find_package(Python3 COMPONENTS Interpreter)

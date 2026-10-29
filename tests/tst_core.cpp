@@ -1,7 +1,8 @@
-// Модель папки и операции с файлами — без QML, на временных папках.
+// Модель папки и операции с файлами — без QML, на временных папках; подкраска иконок.
 // Корзина и настройки — тоже во временной папке: HOME и XDG_* подменяются до первого обращения
 #include "DirModel.h"
 #include "FileOps.h"
+#include "GlassIcons.h"
 #include "Language.h"
 
 #include <QAbstractItemModelTester>
@@ -327,6 +328,39 @@ private slots:
 
         Language::apply(QStringLiteral("ru"));
         QCOMPARE(model.mimeCommentAt(model.indexOfPath(m_dir + "/sub")), QStringLiteral("Папка"));
+    }
+
+    // Подкраска иконок в C++ — формулы шейдера MultiEffect: premultiplied,
+    // сначала яркость, потом смешение с серым, умноженным на цвет
+    void glassTint()
+    {
+        QImage img(3, 1, QImage::Format_ARGB32_Premultiplied);
+        img.setPixel(0, 0, qRgba(255, 255, 255, 255));
+        img.setPixel(1, 0, qRgba(64, 64, 64, 128));
+        img.setPixel(2, 0, qRgba(0, 0, 0, 0));
+        QImage same = img;
+        GlassIcons::tint(same, QColor(200, 100, 0), 0, 0);
+        QCOMPARE(same, img);
+
+        GlassIcons::tint(img, QColor(200, 100, 0), 0.5, 0.1);
+        QCOMPARE(img.pixel(0, 0), qRgba(250, 195, 140, 255));
+        QCOMPARE(img.pixel(1, 0), qRgba(69, 53, 38, 128));
+        QCOMPARE(img.pixel(2, 0), qRgba(0, 0, 0, 0));
+    }
+
+    // Стеклянная эмблема: поля под тень, заливка плотнее сверху, тень снизу
+    void glassEmblem()
+    {
+        QImage shape(10, 10, QImage::Format_ARGB32_Premultiplied);
+        shape.fill(Qt::white);
+        const QImage g = GlassIcons::glass(shape, 1.0, 2.0);
+        QCOMPARE(g.size(), QSize(10 + 2 * GlassIcons::glassPad, 10 + 2 * GlassIcons::glassPad));
+        const int p = GlassIcons::glassPad;
+        QVERIFY(qAlpha(g.pixel(p + 5, p)) > qAlpha(g.pixel(p + 5, p + 9)));
+        QCOMPARE(qRed(g.pixel(p + 5, p)), qAlpha(g.pixel(p + 5, p))); // белое стекло
+        QCOMPARE(qAlpha(g.pixel(0, 0)), 0);
+        QVERIFY(qAlpha(g.pixel(p + 5, p + 11)) > 0); // тень под эмблемой
+        QCOMPARE(qRed(g.pixel(p + 5, p + 11)), 0);
     }
 };
 

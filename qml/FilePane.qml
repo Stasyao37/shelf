@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import QtQuick.Effects
 import Shelf
 
 // Список файлов (сетка или строки) с выделением и управлением с клавиатуры.
@@ -691,13 +690,8 @@ FocusScope {
         anchors.horizontalCenter: view.horizontalCenter
         anchors.bottom: emptyText.top
         anchors.bottomMargin: 14
-        source: Qt.resolvedUrl("icons/trash-can.svg")
+        source: Theme.glassIcon("trash-can", Theme.inkTint)
         sourceSize: Qt.size(96, 96)
-        layer.enabled: Theme.light
-        layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: Qt.darker(Theme.accent, 1.6)
-        }
     }
     Text {
         id: emptyText

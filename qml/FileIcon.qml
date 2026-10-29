@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Shelf
 
 // Стеклянная иконка файла, в том же стиле, что FolderIcon. У каждого
@@ -84,14 +83,8 @@ Item {
 
     Image {
         anchors.fill: parent
-        source: Qt.resolvedUrl("icons/" + root.kind[0] + ".svg")
+        source: Theme.glassIcon(root.kind[0], Theme.groupTint(root.group))
         sourceSize: Qt.size(root.size, root.size)
-        layer.enabled: Theme.iconTinted(root.group)
-        layer.effect: MultiEffect {
-            colorization: Theme.iconColorization(root.group)
-            colorizationColor: Theme.iconColor(root.group)
-            brightness: Theme.iconBrightness(root.group)
-        }
     }
 
     readonly property bool isLang: kind.length > 1 && kind[1].startsWith("lang/")
@@ -104,14 +97,9 @@ Item {
         height: width
         x: (root.size - width) / 2
         y: root.isLang ? root.size * 0.6 - height / 2 : 0
-        source: !visible ? "" : Qt.resolvedUrl(root.isLang ? "icons/" + root.kind[1] + ".svg"
-                                                           : "icons/emblems/" + root.kind[1] + ".svg")
+        name: !visible ? "" : root.isLang ? root.kind[1] : "emblems/" + root.kind[1]
+        tint: Theme.inkTint
         // У эмблемы во весь размер линии мельче — тень ниже
         depth: Math.max(1, root.isLang ? width / 22 : root.size / 48)
-        layer.enabled: Theme.light
-        layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: Qt.darker(Theme.accent, 1.6)
-        }
     }
 }

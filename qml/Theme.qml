@@ -119,6 +119,15 @@ QtObject {
         // Оттенок выключен — всё одной краской акцента, как до подкраски
         return c.a > 0 && iconTintAmount > 0 ? Qt.hsla(c.hslHue, c.hslSaturation * 0.7, 0.34, 1) : Qt.darker(accent, 1.6)
     }
+    // Картинка icons/<name>.svg, подкрашенная заранее в C++ (src/GlassIcons.h);
+    // tint — параметры подкраски: groupTint(группа), inkTint или ""
+    function glassIcon(name, tint) { return "image://glass/" + name + (tint ? "?" + tint : "") }
+    function groupTint(group) {
+        return iconTinted(group) ? _tint(iconColor(group), iconColorization(group), iconBrightness(group)) : ""
+    }
+    // Белые значки на светлом стекле — тёмной краской акцента; в тёмной теме как есть
+    readonly property string inkTint: light ? _tint(Qt.darker(accent, 1.6), 1.0, 0) : ""
+    function _tint(c, k, b) { return "tint=" + c.toString().slice(1) + "&k=" + k.toFixed(3) + "&b=" + b.toFixed(3) }
 
     // ── Размеры ─────────────────────────────────────────────────────
     readonly property int widgetRadius: material ? 12 : 8

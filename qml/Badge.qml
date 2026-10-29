@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Shelf
 
 // Значок в углу иконки (ссылка, замок): тёмная стеклянная таблетка
@@ -22,16 +21,11 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.round(root.size * 0.62)
         height: width
-        source: Qt.resolvedUrl("icons/badges/" + root.name + ".svg")
+        source: Theme.glassIcon("badges/" + root.name, Theme.inkTint)
         // Вдвое крупнее и со сглаживанием — на 11 px иначе края рвутся
         sourceSize: Qt.size(width * 2, height * 2)
         smooth: true
         mipmap: true
         opacity: 0.92
-        layer.enabled: Theme.light
-        layer.effect: MultiEffect {
-            colorization: 1.0
-            colorizationColor: Qt.darker(Theme.accent, 1.6)
-        }
     }
 }
