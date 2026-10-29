@@ -296,7 +296,9 @@ Window {
             t.history = t.history.slice(0, t.histIndex + 1).concat([p])
             t.histIndex = t.history.length - 1
         }
-        if (t.pane.selectedCount === 0) t.pane.selectRow(0)
+        // Ничего не выделяем: в окне сохранения выделенный файл подменил бы имя в поле,
+        // да и в обычной папке выделение первого мешает. Курсор — с первой стрелкой
+        if (t.pane.selectedCount === 0) t.pane.clearCurrent()
         if (shown) t.pane.focusView()
     }
     function back()    { if (tab.histIndex > 0) { tab.histIndex--; go(tab.history[tab.histIndex], false) } }

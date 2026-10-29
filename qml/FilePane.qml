@@ -32,6 +32,8 @@ FocusScope {
     // path → true; объект пересоздаётся при каждом изменении, чтобы сработали привязки
     property var selected: ({})
     property int anchorRow: -1
+    // Строка под курсором: с неё начинает первая стрелка, пока ничего не выбрано
+    property int hoveredRow: -1
     readonly property int currentRow: view.currentIndex
     readonly property int selectedCount: Object.keys(selected).length
     // Колонка «Тип» — только когда окну хватает ширины
@@ -136,6 +138,8 @@ FocusScope {
         selected = s
     }
     function clearSelection() { selected = ({}); anchorRow = -1 }
+    // Открыли папку — ни выделения, ни курсора: первая стрелка или наведение покажут, где мы
+    function clearCurrent() { view.currentIndex = -1 }
 
     // Рамка выделения: тянуть по пустому месту. Углы — в координатах содержимого view,
     // чтобы рамка держалась за файлы при прокрутке
@@ -450,7 +454,7 @@ FocusScope {
             var cur = view.currentIndex
             var target = -2
             switch (e.key) {
-            case Qt.Key_Left:     if (pane.gridMode && !(e.modifiers & Qt.AltModifier)) target = cur - 1; break
+            case Qt.Key_Left:     if (pane.gridMode && !(e.modifiers & Qt.AltModifier)) target = cur < 0 ? 0 : cur - 1; break
             case Qt.Key_Right:    if (pane.gridMode && !(e.modifiers & Qt.AltModifier)) target = cur + 1; break
             case Qt.Key_Up:       if (!(e.modifiers & Qt.AltModifier)) target = cur < 0 ? 0 : cur - cols; break
             case Qt.Key_Down:     target = cur < 0 ? 0 : cur + cols; break
@@ -476,6 +480,8 @@ FocusScope {
                 return
             }
             if (target === -2 || n === 0) return
+            // Курсора ещё нет — первое нажатие только ставит его: на файл под мышью или на первый
+            if (cur < 0) target = pane.hoveredRow >= 0 && pane.hoveredRow < n ? pane.hoveredRow : 0
             target = Math.max(0, Math.min(target, n - 1))
             if (e.modifiers & Qt.ShiftModifier) pane.selectRange(target)
             else pane.selectOnly(target)
@@ -505,6 +511,11 @@ FocusScope {
             readonly property bool renaming: pane.renamingPath === path
             readonly property bool searchMode: pane.model.searchQuery.length > 0
             readonly property bool dropHere: pane.dropFolder === path
+            // Выбранный файл под курсором клавиатуры — его длинное имя показываем целиком
+            readonly property bool focused: selected && view.currentIndex === index && !renaming
+            // В сетке плитка вытягивается вниз под имя и ложится поверх соседей снизу
+            readonly property bool tall: pane.gridMode && focused && nameLabel.implicitHeight > 40
+            z: tall ? 1 : 0
             readonly property FolderIcon folder: folderLoader.item as FolderIcon
 
             width: view.cellWidth
@@ -515,9 +526,19 @@ FocusScope {
             // Делегаты переиспользуются: возвращаем то, что могла оставить анимация удаления
             GridView.onReused: { appear = 1; scale = 1 }
 
+            // Под вытянутой плиткой — сплошной фон: плитка снизу не просвечивает сквозь имя
             Rectangle {
-                anchors.fill: parent
-                anchors.margins: pane.gridMode ? 3 : 1
+                visible: cell.tall
+                x: tile.x; y: tile.y; width: tile.width; height: tile.height
+                radius: tile.radius
+                color: Theme.base
+            }
+            Rectangle {
+                id: tile
+                readonly property int m: pane.gridMode ? 3 : 1
+                x: m; y: m
+                width: parent.width - 2 * m
+                height: (cell.tall ? nameLabel.y + nameLabel.height + 6 : parent.height) - 2 * m
                 radius: Theme.widgetRadius
                 color: cell.selected || cell.dropHere ? Theme.activeFill(Theme.accent)
                      : ma.containsMouse ? Theme.hoverFill : "transparent"
@@ -594,26 +615,31 @@ FocusScope {
             }
 
             // Имя: в сетке — под иконкой в две строки, в списке — колонкой
+            // У выбранного под курсором — целиком: в сетке во сколько угодно строк,
+            // в списке — поверх колонок «Тип» и «Изменён»
             Text {
+                id: nameLabel
+                readonly property real listWidth: parent.width - 38 - pane.nameRight - 6
+                readonly property bool listFull: !pane.gridMode && cell.focused && implicitWidth > listWidth
                 visible: !cell.renaming
                 text: cell.name
                 color: cell.selected ? Theme.activeFg(Theme.accent) : Theme.text
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize - 1
                 elide: pane.gridMode ? Text.ElideMiddle : Text.ElideRight
-                wrapMode: pane.gridMode ? Text.Wrap : Text.NoWrap
-                maximumLineCount: pane.gridMode ? 2 : 1
+                wrapMode: !pane.gridMode ? Text.NoWrap : cell.focused ? Text.WrapAtWordBoundaryOrAnywhere : Text.Wrap
+                maximumLineCount: !pane.gridMode ? 1 : cell.focused ? 12 : 2
                 horizontalAlignment: pane.gridMode ? Text.AlignHCenter : Text.AlignLeft
-                verticalAlignment: Text.AlignVCenter
+                verticalAlignment: pane.gridMode && cell.tall ? Text.AlignTop : Text.AlignVCenter
                 x: pane.gridMode ? 6 : 38
                 y: pane.gridMode ? iconBox.size + 16 : 0
-                width: pane.gridMode ? parent.width - 12 : parent.width - 38 - pane.nameRight - 6
-                height: pane.gridMode ? 40 : parent.height
+                width: pane.gridMode ? parent.width - 12 : listFull ? parent.width - 38 - 96 : listWidth
+                height: pane.gridMode ? (cell.tall ? implicitHeight : 40) : parent.height
             }
 
             // В поиске — где лежит файл (вместо типа в списке, подсказкой в сетке)
             Text {
-                visible: !pane.gridMode && pane.wideList
+                visible: !pane.gridMode && pane.wideList && !nameLabel.listFull
                 x: parent.width - 330; width: 116
                 height: parent.height
                 verticalAlignment: Text.AlignVCenter
@@ -626,7 +652,7 @@ FocusScope {
                 elide: showsPath ? Text.ElideLeft : Text.ElideRight
             }
             Text {
-                visible: !pane.gridMode
+                visible: !pane.gridMode && !nameLabel.listFull
                 x: parent.width - 210; width: 120
                 height: parent.height
                 leftPadding: 6
@@ -658,6 +684,10 @@ FocusScope {
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                 property point pressPos
+                onContainsMouseChanged: {
+                    if (containsMouse) pane.hoveredRow = cell.index
+                    else if (pane.hoveredRow === cell.index) pane.hoveredRow = -1
+                }
                 onPressed: (m) => { if (!cell.renaming) pane.commitRename(); view.forceActiveFocus(); pressPos = Qt.point(m.x, m.y) }
                 onPositionChanged: (m) => {
                     if (!(m.buttons & Qt.LeftButton) || cell.renaming || pane.dragPaths.length > 0) return
