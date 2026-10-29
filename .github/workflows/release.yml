@@ -28,8 +28,8 @@ jobs:
       version: ${{ steps.v.outputs.version }}
     steps:
       # Скрипты — из коммита workflow, исходники — из тега (у старых тегов скриптов ещё нет)
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
           path: src
@@ -45,7 +45,7 @@ jobs:
           curl -fsSL --retry 5 -o "shelf-$V.tar.gz" \
             "https://github.com/${{ github.repository }}/archive/$TAG/shelf-$V.tar.gz"
           sha256sum "shelf-$V.tar.gz"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: source
           path: shelf-*.tar.gz
@@ -55,10 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:43
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: source
       - name: Сборка RPM
@@ -73,7 +73,7 @@ jobs:
             echo "RPM зависит от закрытого API Qt"; exit 1
           fi
           mkdir out; cp "$TOP"/RPMS/x86_64/shelf-[0-9]*.rpm "$TOP"/SRPMS/*.src.rpm out/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rpm
           path: out/*
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     container: debian:trixie
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: source
       - name: Сборка .deb
@@ -102,7 +102,7 @@ jobs:
         run: |
           apt-get install -y -qq ./out/*.deb >/dev/null
           shelf --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: deb
           path: out/*
@@ -112,10 +112,10 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: source
       - name: Сборка пакета Arch
@@ -136,7 +136,7 @@ jobs:
           pacman -U --noconfirm shelf-fm-[0-9]*.pkg.tar.zst >/dev/null
           shelf --version
           mkdir ../out; cp shelf-fm-[0-9]*.pkg.tar.zst PKGBUILD ../out/; cp .SRCINFO ../out/SRCINFO
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: arch
           path: out/*
@@ -145,7 +145,7 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
       - uses: cachix/install-nix-action@v31
@@ -163,12 +163,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
           path: src
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

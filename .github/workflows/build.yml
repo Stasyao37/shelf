@@ -1,4 +1,4 @@
-# Каждый пуш и пул-реквест: сборка в Fedora, тесты и проверка QML
+# Каждый пуш и пул-реквест: сборка в Fedora, тесты, проверка QML и пакет Nix
 name: build
 
 on:
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container: fedora:43
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Зависимости
         run: dnf -y -q install cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel python3
       - name: Сборка
@@ -26,3 +26,16 @@ jobs:
         run: ctest --test-dir build --output-on-failure
       - name: qmllint
         run: /usr/lib64/qt6/bin/qmllint -I build qml/*.qml
+
+  # Пакет Nix из исходников ветки: забытые в lib.fileset файлы видны до релиза, а не на теге
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: Сборка flake
+        run: |
+          nix flake check
+          nix build .#shelf -L
+          ls result/libexec result/share/xdg-desktop-portal/portals
+          QT_QPA_PLATFORM=offscreen result/bin/shelf --version
