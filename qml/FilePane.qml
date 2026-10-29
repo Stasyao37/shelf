@@ -13,7 +13,10 @@ FocusScope {
     // Миниатюры заказываем по iconSize, чтобы не дёргать кэш на каждом кадре
     property int iconSize: 56
     property real iconShown: iconSize
-    Behavior on iconShown { NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
+    // Вкладка получает сохранённые размер и вид уже после создания — это не зум и не смена вида.
+    // Без ready значки при запуске росли из 56 в свой размер, а на холодном старте — секунду
+    property bool ready: false
+    Behavior on iconShown { enabled: pane.ready; NumberAnimation { duration: Theme.dur(160); easing.type: Easing.OutCubic } }
     // Ctrl+колесо: +1 крупнее, -1 мельче
     signal zoomRequested(int step)
     // При масштабе держим на месте первый видимый значок
@@ -247,7 +250,7 @@ FocusScope {
         onFinished: pane.navigating = false
     }
     // Сетка ↔ список — то же перетекание без сдвига
-    onGridModeChanged: playEnter(0)
+    onGridModeChanged: if (ready) playEnter(0)
 
     // ── Заголовок колонок (режим списка) ─────────────────────────────
     Item {

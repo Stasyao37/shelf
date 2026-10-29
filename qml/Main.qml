@@ -213,6 +213,7 @@ Window {
                 t.dir.showHidden = win.showHidden
                 t.dir.sortKey = win.sortKey
                 t.dir.sortDesc = win.sortDesc
+                t.pane.ready = true
             }
             // Сортировку меняют и щелчком по заголовку колонки — запоминаем для всех вкладок
             Connections {
