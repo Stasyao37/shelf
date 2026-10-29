@@ -41,6 +41,9 @@ Rectangle {
         return res
     }
 
+    // Сегменты сверяются по пути: при переходе меняются только отличающиеся
+    KeyedModel { id: keyed; source: bar.crumbs; keyRole: "path" }
+
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.IBeamCursor
@@ -62,16 +65,34 @@ Rectangle {
             id: row
             height: crumbView.height
             Repeater {
-                model: bar.crumbs
+                model: keyed.model
                 Row {
                     id: crumb
-                    required property var modelData
-                    required property int index
-                    readonly property bool last: index === bar.crumbs.length - 1
+                    required property string key
+                    required property bool entering
+                    required property bool leaving
+                    readonly property var modelData: { keyed.rev; return keyed.item(key) }
+                    readonly property bool last: key === bar.path
+                    // Новый сегмент раскрывается и проявляется, ушедший — сворачивается;
+                    // общая часть пути стоит на месте. Только ширина и прозрачность
+                    property real shown: entering ? 0 : 1
                     height: row.height
+                    width: implicitWidth * shown
+                    opacity: shown
+                    clip: shown < 1
+                    Component.onCompleted: if (entering) Theme.afterFrame(crumb, function () { enterAnim.start() })
+                    NumberAnimation {
+                        id: enterAnim
+                        target: crumb; property: "shown"; to: 1; duration: Theme.dur(220); easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        running: crumb.leaving
+                        target: crumb; property: "shown"; to: 0; duration: Theme.dur(180); easing.type: Easing.InCubic
+                    }
 
                     Text {
-                        visible: crumb.index > 0
+                        // Перед каждым сегментом, кроме первого: у первого («/» или «Домашняя») — значок
+                        visible: crumb.modelData.icon === ""
                         anchors.verticalCenter: parent.verticalCenter
                         text: "\u{f054}"
                         color: Theme.overlay1
@@ -90,7 +111,7 @@ Rectangle {
                             anchors.centerIn: parent
                             text: crumb.modelData.icon && crumb.modelData.name
                                 ? crumb.modelData.icon + "  " + crumb.modelData.name
-                                : (crumb.modelData.icon || crumb.modelData.name)
+                                : (crumb.modelData.icon || crumb.modelData.name || "")
                             color: crumb.last ? Theme.text : Theme.subtext0
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize - 1
@@ -101,7 +122,8 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: bar.navigate(crumb.modelData.path)
+                            enabled: !crumb.leaving
+                            onClicked: bar.navigate(crumb.key)
                         }
                     }
                 }
