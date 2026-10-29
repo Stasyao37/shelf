@@ -14,16 +14,19 @@ GlassDialog {
     property bool forAll: false
     property var answers: ({})
     property var doneFn: null
+    // Esc — ничего не делать; кому надо прибрать за собой (распаковка) — передаёт cancelled
+    property var cancelFn: null
     readonly property var cur: items[at] || ({})
     readonly property int left: items.length - at
 
-    function resolve(list, destPath, done) {
+    function resolve(list, destPath, done, cancelled) {
         items = list
         at = 0
         answers = {}
         forAll = false
         destName = destPath.substring(destPath.lastIndexOf("/") + 1) || "/"
         doneFn = done
+        cancelFn = cancelled || null
         open()
     }
     function answer(how) {
@@ -35,6 +38,7 @@ GlassDialog {
         answers = a
         if (last < items.length) { at = last; return }
         var f = doneFn
+        cancelFn = null
         close()
         if (f) f(a)
     }
@@ -44,7 +48,12 @@ GlassDialog {
     closePolicy: Popup.CloseOnEscape
     onOpened: (cur.canReplace ? replaceBtn : keepBtn).forceActiveFocus()
     onAtChanged: (cur.canReplace ? replaceBtn : keepBtn).forceActiveFocus()
-    onClosed: doneFn = null
+    onClosed: {
+        var c = cancelFn
+        doneFn = null
+        cancelFn = null
+        if (c) c()
+    }
 
     // Строка сравнения: «Новый  2,4 МБ · 28.10.2026 18:40  новее»
     component Version: Row {

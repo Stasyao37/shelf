@@ -29,6 +29,8 @@ Requires:       xdg-desktop-portal
 # Миниатюры картинок, PDF и видео
 Recommends:     tumbler
 Recommends:     ffmpegthumbnailer
+# Распаковка и сжатие архивов
+Recommends:     bsdtar
 
 %description
 Shelf is a simple file manager for Hyprland written in Qt 6 / QML, styled like

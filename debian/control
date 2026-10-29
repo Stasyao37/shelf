@@ -41,6 +41,8 @@ Depends:
 Recommends:
  tumbler,
  ffmpegthumbnailer,
+# Распаковка и сжатие архивов (bsdtar)
+ libarchive-tools,
 Description: glass file manager for Hyprland in Qt 6 / QML
  Shelf is a simple file manager for Hyprland styled after glassmorphism: a
  frosted-glass window blurred by the compositor, a hand-drawn glass icon set

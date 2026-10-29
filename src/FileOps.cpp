@@ -17,6 +17,9 @@
 #include <QMimeDatabase>
 #include <QPointer>
 #include <QProcess>
+#include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QStandardPaths>
 #include <QStringDecoder>
 #include <QUrl>
 #include <QtConcurrent>
@@ -56,6 +59,76 @@ qint64 treeSize(const QString &path, const std::atomic_bool &cancel)
     while (it.hasNext() && !cancel.load())
         total += it.nextFileInfo().size();
     return total;
+}
+
+// ── Архивы: внешней программой ────────────────────────────────────
+// Сколько архива path уже прочитал процесс pid — позиция его дескриптора в /proc
+qint64 readOffset(qint64 pid, const QString &path)
+{
+    const QString fdDir = QStringLiteral("/proc/%1/fd").arg(pid);
+    for (const QString &fd : QDir(fdDir).entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System)) {
+        if (QFile::symLinkTarget(fdDir + QLatin1Char('/') + fd) != path)
+            continue;
+        QFile info(QStringLiteral("/proc/%1/fdinfo/%2").arg(pid).arg(fd));
+        if (!info.open(QIODevice::ReadOnly))
+            return -1;
+        for (const QByteArray &line : info.readAll().split('\n'))
+            if (line.startsWith("pos:"))
+                return line.mid(4).trimmed().toLongLong();
+    }
+    return -1;
+}
+
+// Запустить программу и ждать; tick — раз в 100 мс, пока работает (накопленный вывод).
+// false — отменили (процесс убит) или ошибка (текст в error)
+bool runTool(const QString &program, const QStringList &args, const QString &workDir, const std::atomic_bool &cancel,
+             const std::function<void(qint64 pid, const QByteArray &out)> &tick, QString &error)
+{
+    QProcess p;
+    p.setProgram(program);
+    p.setArguments(args);
+    p.setWorkingDirectory(workDir);
+    p.setProcessChannelMode(QProcess::MergedChannels);
+    p.start();
+    if (!p.waitForStarted()) {
+        error = QCoreApplication::translate("FileOps", "Не удалось запустить %1").arg(QFileInfo(program).fileName());
+        return false;
+    }
+    // Пароль и прочие вопросы задать некому — пусть программа сразу завершится с ошибкой
+    p.closeWriteChannel();
+    QByteArray out;
+    while (!p.waitForFinished(100)) {
+        if (cancel.load()) {
+            p.kill();
+            p.waitForFinished();
+            return false;
+        }
+        out += p.readAll();
+        tick(p.processId(), out);
+    }
+    out += p.readAll();
+    // У 7z код 1 — предупреждение, архив при этом готов
+    const bool sevenZip = !program.endsWith(QLatin1String("bsdtar"));
+    if (p.exitStatus() == QProcess::NormalExit && (p.exitCode() == 0 || (sevenZip && p.exitCode() == 1)))
+        return true;
+    QString last;
+    for (const QByteArray &line : out.split('\n')) {
+        const QString l = QString::fromUtf8(line).trimmed();
+        if (!l.isEmpty())
+            last = l;
+        if (l.contains(QLatin1String("rror"))) {
+            last = l;
+            break;
+        }
+    }
+    error = last.isEmpty() ? QCoreApplication::translate("FileOps", "%1 завершился с ошибкой").arg(QFileInfo(program).fileName()) : last;
+    return false;
+}
+
+QString tarInside(const QString &name)
+{
+    static const QRegularExpression re(QStringLiteral("\\.(tar\\.[a-z0-9]+|tgz|tbz2?|txz|tzst)$"), QRegularExpression::CaseInsensitiveOption);
+    return re.match(name).hasMatch() ? name : QString();
 }
 
 struct CopyCtx {
@@ -265,6 +338,43 @@ bool mergeTree(const QString &src, const QString &dst, bool move, CopyCtx &ctx, 
     return true;
 }
 
+// sources → dest с ответами на совпадения имён (resolutions: имя → replace | skip | keep).
+// created — что появилось в dest, done — что из sources перенесено
+void placeAll(const QStringList &sources, const QString &dest, bool move, const QVariantMap &resolutions,
+              CopyCtx &ctx, QList<UndoStep> &steps, QStringList &created, QStringList &done)
+{
+    for (const QString &s : sources) {
+        if (ctx.cancel.load())
+            break;
+        const QString src = QDir::cleanPath(s);
+        const QFileInfo fi(src);
+        if (move && fi.absolutePath() == dest)
+            continue; // уже здесь
+        QString target = dest + QLatin1Char('/') + fi.fileName();
+        const QString how = present(target) && target != src && !src.startsWith(target + QLatin1Char('/'))
+            ? resolutions.value(fi.fileName()).toString() : QString();
+        if (how == QLatin1String("skip"))
+            continue;
+        if (how == QLatin1String("replace") && realDir(fi) && realDir(QFileInfo(target))) {
+            if (!mergeTree(src, target, move, ctx, steps))
+                break;
+        } else if (how == QLatin1String("replace")) {
+            if (!trashTarget(target, ctx, steps))
+                break;
+            if (!placeItem(src, target, move, ctx, steps)) {
+                untrashTarget(target, steps);
+                break;
+            }
+        } else {
+            target = uniquePath(dest, fi.fileName(), realDir(fi));
+            if (!placeItem(src, target, move, ctx, steps))
+                break;
+        }
+        created << target;
+        done << src;
+    }
+}
+
 // Откат одного шага; restored — где оказалось возвращённое, inverse — шаги,
 // которые откатят сам откат (для повтора), в порядке выполнения
 bool undoStep(const UndoStep &st, CopyCtx &ctx, QStringList &restored, QList<UndoStep> &inverse)
@@ -354,6 +464,9 @@ FileOps::~FileOps()
     if (m_cancel)
         m_cancel->store(true);
     m_job.waitForFinished();
+    // Закрыли окно, не ответив на вопрос о совпадениях, — распакованное не нужно
+    for (auto it = m_extracting.cbegin(); it != m_extracting.cend(); ++it)
+        removeTree(it.key());
 }
 
 void FileOps::openTerminal(const QString &dir)
@@ -636,36 +749,7 @@ void FileOps::transfer(const QStringList &sources, const QString &destDir, bool 
         };
 
         QStringList done;
-        for (const QString &s : sources) {
-            if (cancel->load())
-                break;
-            const QString src = QDir::cleanPath(s);
-            const QFileInfo fi(src);
-            if (move && fi.absolutePath() == dest)
-                continue; // уже здесь
-            QString target = dest + QLatin1Char('/') + fi.fileName();
-            const QString how = present(target) && target != src && !src.startsWith(target + QLatin1Char('/'))
-                ? resolutions.value(fi.fileName()).toString() : QString();
-            if (how == QLatin1String("skip"))
-                continue;
-            if (how == QLatin1String("replace") && realDir(fi) && realDir(QFileInfo(target))) {
-                if (!mergeTree(src, target, move, ctx, steps))
-                    break;
-            } else if (how == QLatin1String("replace")) {
-                if (!trashTarget(target, ctx, steps))
-                    break;
-                if (!placeItem(src, target, move, ctx, steps)) {
-                    untrashTarget(target, steps);
-                    break;
-                }
-            } else {
-                target = uniquePath(dest, fi.fileName(), realDir(fi));
-                if (!placeItem(src, target, move, ctx, steps))
-                    break;
-            }
-            created << target;
-            done << src;
-        }
+        placeAll(sources, dest, move, resolutions, ctx, steps, created, done);
 
         const QString label = (move ? tr("перемещение %1") : tr("копирование %1")).arg(subject(done));
         const QString error = ctx.error;
@@ -734,8 +818,10 @@ void FileOps::rollBack(bool redo)
                    : tr("Не удалось отменить для: %1 — его переместили или удалили").arg(failed.join(QStringLiteral(", ")));
         const bool cancelled = cancel->load();
         QMetaObject::invokeMethod(this, [this, restored, error, cancelled, entry, inverse, redo] {
-            // Откаченное (хотя бы частично) можно откатить обратно
-            if (!inverse.isEmpty()) {
+            // Откаченное (хотя бы частично) можно откатить обратно. Кроме архивов:
+            // удалённое при отмене распакованное повтором уже не вернуть
+            const bool noRedo = !redo && (entry.kind == QLatin1String("extract") || entry.kind == QLatin1String("compress"));
+            if (!inverse.isEmpty() && !noRedo) {
                 (redo ? m_undo : m_redo).append({entry.kind, entry.label, inverse});
                 emit undoChanged();
             }
@@ -870,6 +956,233 @@ void FileOps::requestTextPreview(const QString &path)
             if (self)
                 emit self->textPreview(path, r.value(QStringLiteral("text")).toString(),
                                        r.value(QStringLiteral("truncated")).toBool(), r.value(QStringLiteral("binary")).toBool());
+        }, Qt::QueuedConnection);
+    });
+}
+
+QString FileOps::archiver()
+{
+    // bsdtar (libarchive) умеет и zip, и tar.*, и 7z; 7z — запасной
+    static const QString path = [] {
+        for (const char *name : {"bsdtar", "7z", "7zz", "7za"}) {
+            const QString p = QStandardPaths::findExecutable(QString::fromLatin1(name));
+            if (!p.isEmpty())
+                return p;
+        }
+        return QString();
+    }();
+    return path;
+}
+
+QString FileOps::archiveBaseName(const QString &fileName)
+{
+    static const QMimeDatabase db;
+    const QString suffix = db.suffixForFileName(fileName);
+    return suffix.isEmpty() || suffix.size() + 1 >= fileName.size() ? fileName : fileName.chopped(suffix.size() + 1);
+}
+
+bool FileOps::canExtract(const QString &mimeType) const
+{
+    static const QRegularExpression re(QStringLiteral("zip|x-tar|compressed-tar|x-7z|x-rar|vnd\\.rar|x-xz|x-zstd|x-bzip|gzip|x-lzma|x-cpio|java-archive"));
+    return !archiver().isEmpty() && re.match(mimeType).hasMatch();
+}
+
+bool FileOps::canCompress(const QString &format) const
+{
+    const QString tool = QFileInfo(archiver()).fileName();
+    if (format == QLatin1String("zip"))
+        return !tool.isEmpty();
+    // 7z не умеет zstd
+    return format == QLatin1String("tar.zst") && tool == QLatin1String("bsdtar");
+}
+
+void FileOps::extract(const QString &archive, const QString &destDir, bool intoFolder)
+{
+    const QString tool = archiver();
+    if (tool.isEmpty()) {
+        emit failed(tr("Для архивов нужен bsdtar (libarchive) или 7z"));
+        return;
+    }
+    const QFileInfo fi(archive);
+    const QString dest = QDir::cleanPath(destDir);
+    const QString name = fi.fileName();
+    // Временная папка рядом с местом назначения: тот же диск, дальше — переименованием
+    const QString tmp = dest + QStringLiteral("/.shelf-extract-%1").arg(QRandomGenerator::global()->generate(), 0, 16);
+    if (!QDir().mkdir(tmp)) {
+        emit failed(tr("Не удалось создать папку в %1").arg(dest));
+        return;
+    }
+    if (!startJob(tr("Распаковка «%1»…").arg(name))) {
+        QDir().rmdir(tmp);
+        return;
+    }
+
+    auto cancel = m_cancel;
+    m_job = QtConcurrent::run([this, tool, archive = fi.canonicalFilePath(), size = fi.size(), name, dest, tmp, intoFolder, cancel] {
+        const bool bsd = tool.endsWith(QLatin1String("bsdtar"));
+        const auto args = [&](const QString &file) {
+            return bsd ? QStringList{QStringLiteral("-x"), QStringLiteral("-f"), file, QStringLiteral("-C"), tmp}
+                       : QStringList{QStringLiteral("x"), QStringLiteral("-y"), QStringLiteral("-bd"), QStringLiteral("-o") + tmp,
+                                     QStringLiteral("--"), file};
+        };
+        const auto tick = [&](qint64 pid, const QByteArray &) {
+            const qint64 off = readOffset(pid, archive);
+            if (off < 0 || size <= 0)
+                return;
+            const double p = qMin(1.0, double(off) / double(size));
+            const QString text = tr("Распаковка «%1» — %2 из %3").arg(name, formatSize(off), formatSize(size));
+            QMetaObject::invokeMethod(this, [this, p, text] { setProgress(p, text); }, Qt::QueuedConnection);
+        };
+        QString error;
+        bool ok = runTool(tool, args(archive), tmp, *cancel, tick, error);
+        // 7z снимает с .tar.gz только сжатие — внутри остаётся .tar, распаковываем и его
+        if (ok && !bsd && !tarInside(name).isEmpty()) {
+            const QStringList inner = QDir(tmp).entryList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden);
+            if (inner.size() == 1 && inner.first().endsWith(QLatin1String(".tar"))) {
+                const QString tar = tmp + QLatin1Char('/') + inner.first();
+                ok = runTool(tool, args(tar), tmp, *cancel, [](qint64, const QByteArray &) {}, error);
+                QFile::remove(tar);
+            }
+        }
+        const bool cancelled = cancel->load();
+        if (!ok)
+            removeTree(tmp);
+        QMetaObject::invokeMethod(this, [this, ok, error, cancelled, tmp, dest, name, intoFolder] {
+            if (!ok) {
+                finishJob({}, error, cancelled);
+                return;
+            }
+            if (intoFolder) {
+                const QString target = uniquePath(dest, archiveBaseName(name), true);
+                if (!QDir().rename(tmp, target)) {
+                    removeTree(tmp);
+                    finishJob({}, tr("Не удалось создать папку в %1").arg(dest), false);
+                    return;
+                }
+                record(QStringLiteral("extract"), tr("распаковывание «%1»").arg(name), {{UndoStep::Created, target, {}}});
+                finishJob({target}, {}, false);
+                return;
+            }
+            QStringList entries;
+            for (const QFileInfo &e : QDir(tmp).entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System))
+                entries << e.absoluteFilePath();
+            const QVariantList cs = conflicts(entries, dest);
+            m_extracting.insert(tmp, name);
+            finishJob({}, {}, false);
+            emit extracted(tmp, dest, cs);
+        }, Qt::QueuedConnection);
+    });
+}
+
+void FileOps::placeExtracted(const QString &tmpDir, const QString &destDir, const QVariantMap &resolutions)
+{
+    const QString tmp = QDir::cleanPath(tmpDir);
+    const QString dest = QDir::cleanPath(destDir);
+    if (!QFileInfo(tmp).fileName().startsWith(QLatin1String(".shelf-extract-")) || !startJob(tr("Распаковка…")))
+        return;
+    auto cancel = m_cancel;
+    const QString label = tr("распаковывание «%1»").arg(m_extracting.take(tmp));
+    m_job = QtConcurrent::run([this, tmp, dest, resolutions, cancel, label] {
+        QStringList entries, created, done;
+        for (const QFileInfo &e : QDir(tmp).entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System))
+            entries << e.absoluteFilePath();
+        QList<UndoStep> steps;
+        CopyCtx ctx{*cancel, 0, 0, [](const QString &) {}, {}};
+        placeAll(entries, dest, true, resolutions, ctx, steps, created, done);
+        // Перенесённое из временной папки для отката — просто появившееся: его удаляют, а не возвращают
+        QList<UndoStep> undo;
+        for (const UndoStep &st : steps) {
+            if (!st.from.startsWith(tmp + QLatin1Char('/')))
+                undo << st;
+            else if (st.kind == UndoStep::Moved || st.kind == UndoStep::Created)
+                undo << UndoStep{UndoStep::Created, st.kind == UndoStep::Moved ? st.to : st.from, {}};
+        }
+        removeTree(tmp); // пропущенное
+        const QString error = ctx.error;
+        const bool cancelled = cancel->load();
+        QMetaObject::invokeMethod(this, [this, created, error, cancelled, undo, label] {
+            if (!undo.isEmpty())
+                record(QStringLiteral("extract"), label, undo);
+            finishJob(created, error, cancelled);
+        }, Qt::QueuedConnection);
+    });
+}
+
+void FileOps::discardExtracted(const QString &tmpDir)
+{
+    if (!QFileInfo(tmpDir).fileName().startsWith(QLatin1String(".shelf-extract-")))
+        return;
+    m_extracting.remove(QDir::cleanPath(tmpDir));
+    removeTree(tmpDir);
+}
+
+void FileOps::compress(const QStringList &paths, const QString &format)
+{
+    if (paths.isEmpty() || !canCompress(format))
+        return;
+    const QString tool = archiver();
+    const QFileInfo first(paths.first());
+    const QString parent = first.absolutePath();
+    const QString base = paths.size() == 1 ? (first.isDir() ? first.fileName() : first.completeBaseName()) : tr("Архив");
+    QString target = parent + QLatin1Char('/') + base + QLatin1Char('.') + format;
+    for (int i = 2; present(target); ++i)
+        target = QStringLiteral("%1/%2 (%3).%4").arg(parent, base).arg(i).arg(format);
+    // Пишем во временный файл рядом: недописанный архив не выглядит готовым.
+    // Расширение то же — по нему bsdtar выбирает формат
+    const QString tmp = parent + QStringLiteral("/.shelf-%1.").arg(QRandomGenerator::global()->generate(), 0, 16) + format;
+    QStringList names;
+    for (const QString &p : paths)
+        names << QFileInfo(p).fileName();
+    const QString targetName = QFileInfo(target).fileName();
+    if (!startJob(tr("Сжатие в «%1»…").arg(targetName)))
+        return;
+
+    auto cancel = m_cancel;
+    m_job = QtConcurrent::run([this, tool, paths, names, parent, tmp, target, targetName, cancel] {
+        const bool bsd = tool.endsWith(QLatin1String("bsdtar"));
+        // Для bsdtar прогресс — по числу уложенных объектов (он печатает «a имя» на каждый)
+        qsizetype total = 0;
+        if (bsd)
+            for (const QString &p : paths) {
+                ++total;
+                QDirIterator it(p, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System, QDirIterator::Subdirectories);
+                while (it.hasNext() && !cancel->load()) {
+                    it.next();
+                    ++total;
+                }
+            }
+        const QStringList args = bsd
+            ? QStringList{QStringLiteral("-a"), QStringLiteral("-c"), QStringLiteral("-v"), QStringLiteral("-f"), tmp,
+                          QStringLiteral("-C"), parent, QStringLiteral("--")} + names
+            : QStringList{QStringLiteral("a"), QStringLiteral("-tzip"), QStringLiteral("-bsp1"), QStringLiteral("-bb0"),
+                          QStringLiteral("-y"), tmp, QStringLiteral("--")} + names;
+        const auto tick = [&](qint64, const QByteArray &out) {
+            double p = 0;
+            if (bsd) {
+                const qsizetype added = out.count("\na ") + (out.startsWith("a ") ? 1 : 0);
+                p = total > 0 ? qMin(1.0, double(added) / double(total)) : 0;
+            } else {
+                static const QRegularExpression pct(QStringLiteral("(\\d+)%"));
+                QRegularExpressionMatchIterator it = pct.globalMatch(QString::fromUtf8(out.right(200)));
+                while (it.hasNext())
+                    p = it.next().captured(1).toDouble() / 100.0;
+            }
+            const QString text = tr("Сжатие в «%1» — %2%").arg(targetName).arg(qRound(p * 100));
+            QMetaObject::invokeMethod(this, [this, p, text] { setProgress(p, text); }, Qt::QueuedConnection);
+        };
+        QString error;
+        bool ok = runTool(tool, args, parent, *cancel, tick, error);
+        if (ok && !QFile::rename(tmp, target)) {
+            ok = false;
+            error = tr("Не удалось сохранить %1").arg(targetName);
+        }
+        if (!ok)
+            QFile::remove(tmp);
+        const bool cancelled = cancel->load();
+        QMetaObject::invokeMethod(this, [this, ok, error, cancelled, target, targetName] {
+            if (ok)
+                record(QStringLiteral("compress"), tr("создание архива «%1»").arg(targetName), {{UndoStep::Created, target, {}}});
+            finishJob(ok ? QStringList{target} : QStringList{}, error, cancelled);
         }, Qt::QueuedConnection);
     });
 }

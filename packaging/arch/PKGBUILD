@@ -14,7 +14,8 @@ depends=('qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-wayland'
 makedepends=('cmake' 'ninja')
 optdepends=('tumbler: миниатюры картинок и PDF'
             'ffmpegthumbnailer: миниатюры видео'
-            'matugen: палитра из обоев')
+            'matugen: палитра из обоев'
+            'libarchive: распаковка и сжатие архивов (bsdtar)')
 # В AUR уже есть shelf-git — другая программа (закладки на файлы); -fm — чтобы не путать
 source=("$_name-$pkgver.tar.gz::$url/archive/v$pkgver/$_name-$pkgver.tar.gz")
 # Настоящую сумму архива тега подставляет сборка выпуска (.github/workflows/release.yml);

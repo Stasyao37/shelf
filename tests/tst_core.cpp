@@ -8,7 +8,10 @@
 #include <QAbstractItemModelTester>
 #include <QDir>
 #include <QFile>
+#include <QProcess>
+#include <QRandomGenerator>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -453,6 +456,133 @@ private slots:
         QVERIFY(!ops.redoText().isEmpty());
         QVERIFY(!ops.makeDir(m_dir, "x").isEmpty());
         QVERIFY(ops.redoText().isEmpty());
+    }
+
+    // ── Архивы (bsdtar или 7z — что найдётся) ─────────────────────
+    void archiveRoundTrip()
+    {
+        if (FileOps::archiver().isEmpty())
+            QSKIP("нет ни bsdtar, ни 7z");
+        write(m_dir + "/src/docs/a.txt", "a");
+        write(m_dir + "/src/docs/sub/b.txt", "b");
+        FileOps ops;
+        QVERIFY(ops.canCompress("zip"));
+        QVERIFY(ops.canExtract("application/zip"));
+        QVERIFY(!ops.canExtract("text/plain"));
+        QCOMPARE(FileOps::archiveBaseName("docs.tar.gz"), QStringLiteral("docs"));
+        QCOMPARE(FileOps::archiveBaseName("docs.zip"), QStringLiteral("docs"));
+
+        // Сжать — архив рядом, отмена убирает его
+        ops.compress({m_dir + "/src/docs"}, "zip");
+        QVERIFY(waitJob(ops));
+        const QString zip = m_dir + "/src/docs.zip";
+        QVERIFY(QFileInfo(zip).size() > 0);
+        QCOMPARE(names(m_dir + "/src"), QStringList({"docs", "docs.zip"})); // временного файла не осталось
+        QCOMPARE(ops.undoText(), QStringLiteral("создание архива «docs.zip»"));
+
+        // В папку с именем архива
+        QDir().mkpath(m_dir + "/dst");
+        ops.extract(zip, m_dir + "/dst", true);
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/dst/docs/docs/sub/b.txt"), "b");
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir + "/dst"), QStringList());
+        QVERIFY(ops.redoText().isEmpty()); // распакованное не вернуть повтором
+
+        // Сюда, с совпадением: сначала вопрос, потом замена; отмена возвращает старое
+        write(m_dir + "/dst/docs/a.txt", "old");
+        QSignalSpy got(&ops, &FileOps::extracted);
+        ops.extract(zip, m_dir + "/dst", false);
+        QVERIFY(waitJob(ops));
+        QCOMPARE(got.count(), 1);
+        const QString tmp = got.first().at(0).toString();
+        const QVariantList cs = got.first().at(2).toList();
+        QCOMPARE(cs.size(), 1);
+        QCOMPARE(cs.first().toMap().value("name").toString(), QStringLiteral("docs"));
+        ops.placeExtracted(tmp, m_dir + "/dst", {{"docs", "replace"}});
+        QVERIFY(waitJob(ops));
+        QVERIFY(!QFileInfo::exists(tmp));
+        QCOMPARE(read(m_dir + "/dst/docs/a.txt"), "a");
+        QCOMPARE(read(m_dir + "/dst/docs/sub/b.txt"), "b");
+        QCOMPARE(ops.undoText(), QStringLiteral("распаковывание «docs.zip»"));
+        ops.undo();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(read(m_dir + "/dst/docs/a.txt"), "old");
+        QVERIFY(!QFileInfo::exists(m_dir + "/dst/docs/sub"));
+
+        // Передумали на вопросе — временной папки нет
+        got.clear();
+        ops.extract(zip, m_dir + "/dst", false);
+        QVERIFY(waitJob(ops));
+        QCOMPARE(got.count(), 1);
+        ops.discardExtracted(got.first().at(0).toString());
+        QCOMPARE(names(m_dir + "/dst"), QStringList({"docs"}));
+
+        // Битый архив — ошибка, без мусора
+        write(m_dir + "/bad.zip", "not a zip");
+        QSignalSpy failed(&ops, &FileOps::failed);
+        ops.extract(m_dir + "/bad.zip", m_dir + "/dst", true);
+        QVERIFY(waitJob(ops));
+        QCOMPARE(failed.count(), 1);
+        QCOMPARE(names(m_dir + "/dst"), QStringList({"docs"}));
+    }
+
+    // Отмена посреди сжатия: ни архива, ни временного файла
+    void archiveCancel()
+    {
+        if (FileOps::archiver().isEmpty())
+            QSKIP("нет ни bsdtar, ни 7z");
+        QByteArray big(64 * 1024 * 1024, Qt::Uninitialized);
+        QRandomGenerator gen(42);
+        gen.fillRange(reinterpret_cast<quint32 *>(big.data()), big.size() / 4);
+        write(m_dir + "/big.bin", big);
+        FileOps ops;
+        ops.compress({m_dir + "/big.bin"}, "zip");
+        QTest::qWait(150);
+        QVERIFY(ops.busy());
+        ops.cancel();
+        QVERIFY(waitJob(ops));
+        QCOMPARE(names(m_dir), QStringList({"big.bin"}));
+        QVERIFY(ops.undoText().isEmpty());
+    }
+
+    void archiveTarFormats()
+    {
+        if (FileOps::archiver().isEmpty())
+            QSKIP("нет ни bsdtar, ни 7z");
+        write(m_dir + "/src/d/a.txt", "a");
+        FileOps ops;
+        // tar.gz — системным tar, как у большинства скачанных архивов
+        if (!QStandardPaths::findExecutable("tar").isEmpty()) {
+            QCOMPARE(QProcess::execute("tar", {"-czf", m_dir + "/d.tar.gz", "-C", m_dir + "/src", "d"}), 0);
+            QVERIFY(QDir().mkpath(m_dir + "/out"));
+            ops.extract(m_dir + "/d.tar.gz", m_dir + "/out", true);
+            QVERIFY(waitJob(ops));
+            QCOMPARE(read(m_dir + "/out/d/d/a.txt"), "a");
+        }
+        // .7z — создаём самим 7z, распаковываем тем, что выбрал Shelf
+        const QString sevenZip = QStandardPaths::findExecutable("7z");
+        if (!sevenZip.isEmpty()) {
+            QProcess p;
+            p.setWorkingDirectory(m_dir + "/src");
+            p.start(sevenZip, {"a", "-bd", m_dir + "/d.7z", "d"});
+            QVERIFY(p.waitForFinished(10000));
+            QCOMPARE(p.exitCode(), 0);
+            QVERIFY(QDir().mkpath(m_dir + "/seven"));
+            ops.extract(m_dir + "/d.7z", m_dir + "/seven", true);
+            QVERIFY(waitJob(ops));
+            QCOMPARE(read(m_dir + "/seven/d/d/a.txt"), "a");
+        }
+        if (ops.canCompress("tar.zst")) {
+            ops.compress({m_dir + "/src/d"}, "tar.zst");
+            QVERIFY(waitJob(ops));
+            QVERIFY(QFileInfo::exists(m_dir + "/src/d.tar.zst"));
+            QVERIFY(QDir().mkpath(m_dir + "/zst"));
+            ops.extract(m_dir + "/src/d.tar.zst", m_dir + "/zst", true);
+            QVERIFY(waitJob(ops));
+            QCOMPARE(read(m_dir + "/zst/d/d/a.txt"), "a");
+        }
     }
 
     // ── Быстрый просмотр ──────────────────────────────────────────

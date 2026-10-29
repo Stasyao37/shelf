@@ -1,6 +1,6 @@
 # Shelf для Nix: собирается CMake'ом, как и везде; wrapQtAppsHook подкладывает
 # плагины Qt (SVG, Wayland) и QML-модули, а в PATH добавляются gio и xdg-open —
-# через них Shelf открывает файлы и запускает программы
+# через них Shelf открывает файлы и запускает программы, — и bsdtar для архивов
 {
   lib,
   stdenv,
@@ -9,6 +9,7 @@
   qt6,
   glib,
   xdg-utils,
+  libarchive,
 }:
 
 stdenv.mkDerivation {
@@ -43,7 +44,8 @@ stdenv.mkDerivation {
   ];
 
   qtWrapperArgs = [
-    "--prefix PATH : ${lib.makeBinPath [ (lib.getBin glib) xdg-utils ]}"
+    # bsdtar из libarchive — распаковка и сжатие архивов
+    "--prefix PATH : ${lib.makeBinPath [ (lib.getBin glib) xdg-utils libarchive ]}"
   ];
 
   meta = {

@@ -255,6 +255,12 @@ Window {
                       function () { if (FileOps.redoText === label) win.redo() })
         }
         function onRedone(label) { win.toast(qsTr("Повторено: %1").arg(label)) }
+        // Распаковали во временную папку — совпадения имён решаем так же, как при переносе
+        function onExtracted(tmp, dest, conflicts) {
+            if (conflicts.length === 0) FileOps.placeExtracted(tmp, dest)
+            else conflictDlg.resolve(conflicts, dest, function (res) { FileOps.placeExtracted(tmp, dest, res) },
+                                     function () { FileOps.discardExtracted(tmp) })
+        }
     }
 
     // ── Навигация ────────────────────────────────────────────────────
@@ -544,6 +550,21 @@ Window {
             items.push({ text: qsTr("Вставить в папку"), icon: "\u{f0ea}", enabled: FileOps.clipboardHasFiles,
                          act: function () { paste(p) } })
         items.push({ text: qsTr("Копировать путь"), icon: "\u{f0c1}", act: function () { FileOps.copyText(paths.join("\n")); toast(qsTr("Путь скопирован")) } })
+        // Архивы — если есть чем (bsdtar или 7z). Сжимаем только лежащее в одной папке
+        var here = p.substring(0, p.lastIndexOf("/")) || "/"
+        var name = p.substring(p.lastIndexOf("/") + 1)
+        var archives = []
+        if (single && !isDir && FileOps.canExtract(dir.mimeTypeAt(row))) {
+            archives.push({ text: qsTr("Распаковать сюда"), icon: "\u{f187}", act: function () { FileOps.extract(p, here, false) } })
+            archives.push({ text: qsTr("Распаковать в «%1»").arg(FileOps.archiveBaseName(name)), icon: "\u{f187}",
+                            act: function () { FileOps.extract(p, here, true) } })
+        }
+        var oneDir = paths.every(function (q) { return (q.substring(0, q.lastIndexOf("/")) || "/") === here })
+        if (oneDir && FileOps.canCompress("zip"))
+            archives.push({ text: qsTr("Сжать в zip"), icon: "\u{f1c6}", act: function () { FileOps.compress(paths, "zip") } })
+        if (oneDir && FileOps.canCompress("tar.zst"))
+            archives.push({ text: qsTr("Сжать в tar.zst"), icon: "\u{f1c6}", act: function () { FileOps.compress(paths, "tar.zst") } })
+        if (archives.length > 0) items = items.concat([{ separator: true }], archives)
         items.push({ separator: true })
         items.push({ text: qsTr("Переименовать"), icon: "\u{f040}", shortcut: "F2", enabled: single, act: renameSelected })
         if (isDir)

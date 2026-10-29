@@ -142,6 +142,13 @@ QString Environment::installCommand(const QString &package) const
     auto is = [this](const char *id) {
         return m_distro == QLatin1String(id) || m_distroLike.split(QLatin1Char(' ')).contains(QLatin1String(id));
     };
+    // bsdtar в Arch и NixOS — часть libarchive, в Debian — отдельный libarchive-tools
+    if (package == QLatin1String("bsdtar")) {
+        if (m_distro == QLatin1String("nixos") || is("arch"))
+            return installCommand(QStringLiteral("libarchive"));
+        if (is("debian") || is("ubuntu"))
+            return installCommand(QStringLiteral("libarchive-tools"));
+    }
     if (m_distro == QLatin1String("nixos"))
         return package == QLatin1String("tumbler") ? QStringLiteral("services.tumbler.enable = true;")
                                                    : QStringLiteral("environment.systemPackages = [ pkgs.%1 ];").arg(package);

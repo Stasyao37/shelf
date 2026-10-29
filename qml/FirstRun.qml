@@ -205,6 +205,13 @@ GlassDialog {
                     hint: ok ? "" : Environment.installCommand("ffmpegthumbnailer")
                 }
                 Check {
+                    ok: FileOps.archiver !== ""
+                    optional: true
+                    label: ok ? qsTr("Архивы: %1").arg(FileOps.archiver.substring(FileOps.archiver.lastIndexOf("/") + 1))
+                              : qsTr("Нет bsdtar или 7z — без архивов")
+                    hint: ok ? "" : qsTr("Распаковка и сжатие — с bsdtar: %1").arg(Environment.installCommand("bsdtar") || "libarchive")
+                }
+                Check {
                     ok: Terminal.current !== ""
                     label: ok ? qsTr("Терминал: %1").arg(Terminal.current) : qsTr("Терминал не найден")
                     hint: ok ? "" : qsTr("«Открыть в терминале» не будет работать: %1").arg(Environment.installCommand("kitty") || qsTr("установите любой терминал"))

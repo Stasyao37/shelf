@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QFuture>
+#include <QHash>
 #include <QObject>
 #include <QStringList>
 #include <QUrl>
@@ -47,6 +48,8 @@ class FileOps : public QObject
     Q_PROPERTY(QString undoKind READ undoKind NOTIFY undoChanged)
     // Что вернёт redo() — отменённое последним; пусто — повторять нечего
     Q_PROPERTY(QString redoText READ redoText NOTIFY undoChanged)
+    // Чем работать с архивами: bsdtar (libarchive) или 7z; пусто — нечем
+    Q_PROPERTY(QString archiver READ archiver CONSTANT)
 
 public:
     explicit FileOps(QObject *parent = nullptr);
@@ -60,6 +63,7 @@ public:
     QString undoText() const { return m_undo.isEmpty() ? QString() : m_undo.last().label; }
     QString undoKind() const { return m_undo.isEmpty() ? QString() : m_undo.last().kind; }
     QString redoText() const { return m_redo.isEmpty() ? QString() : m_redo.last().label; }
+    static QString archiver();
 
     Q_INVOKABLE void openTerminal(const QString &dir);
     // Возвращают пустую строку при успехе, иначе текст ошибки
@@ -102,6 +106,23 @@ public:
 
     Q_INVOKABLE QVariantMap info(const QString &path);
 
+    // ── Архивы ──
+    // Архив ли это (по MIME-типу) и есть ли чем его распаковать
+    Q_INVOKABLE bool canExtract(const QString &mimeType) const;
+    // Умеем ли создать архив: "zip" или "tar.zst"
+    Q_INVOKABLE bool canCompress(const QString &format) const;
+    // В фоне. intoFolder — в новую папку с именем архива; иначе сюда: сначала во временную
+    // папку рядом, потом сигнал extracted — с вопросом о совпадениях имён, как при переносе
+    Q_INVOKABLE void extract(const QString &archive, const QString &destDir, bool intoFolder);
+    // Второй шаг «распаковать сюда»: из временной папки в destDir (resolutions — как у transfer)
+    Q_INVOKABLE void placeExtracted(const QString &tmpDir, const QString &destDir, const QVariantMap &resolutions = {});
+    // Передумали на вопросе о совпадениях — убрать временную папку
+    Q_INVOKABLE void discardExtracted(const QString &tmpDir);
+    // Архив format из paths (одна папка) рядом с ними, в фоне
+    Q_INVOKABLE void compress(const QStringList &paths, const QString &format);
+    // «отчёт.tar.gz» → «отчёт»
+    Q_INVOKABLE static QString archiveBaseName(const QString &fileName);
+
     // Быстрый просмотр (Space): как показать файл — "image", "text", "dir" или "other"
     Q_INVOKABLE QString previewKind(const QString &path, const QString &mimeType) const;
     // Начало текстового файла — в фоне, ответ сигналом textPreview
@@ -121,6 +142,8 @@ signals:
     void undone(const QString &label);
     // Повтор закончился без ошибок
     void redone(const QString &label);
+    // Распаковано во временную папку tmpDir; conflicts — как у conflicts(), пусто — можно класть
+    void extracted(const QString &tmpDir, const QString &destDir, const QVariantList &conflicts);
     // Ответ на requestTextPreview; binary — внутри нули, это не текст
     void textPreview(const QString &path, const QString &text, bool truncated, bool binary);
 
@@ -142,6 +165,8 @@ private:
     void rollBack(bool redo);
     QList<UndoEntry> m_undo;
     QList<UndoEntry> m_redo;
+    // Временная папка распаковки → имя архива, пока ждём ответа о совпадениях
+    QHash<QString, QString> m_extracting;
 
     bool m_busy = false;
     double m_progress = 0;
