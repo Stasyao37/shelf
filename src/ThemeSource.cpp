@@ -103,7 +103,6 @@ ThemeSource::ThemeSource(QObject *parent)
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, &m_debounce, qOverload<>(&QTimer::start));
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_debounce, qOverload<>(&QTimer::start));
 
-    readSystemScheme();
     portalBus().connect(kPortalService, kPortalPath, kPortalSettings, QStringLiteral("SettingChanged"),
                                           this, SLOT(portalSettingChanged(QString, QString, QDBusVariant)));
     m_wallTimer.setInterval(4000);
@@ -204,7 +203,7 @@ QVariantMap ThemeSource::paletteFor(const QString &id) const
         return builtin(true);
     if (id == QLatin1String("wallpaper") && !m_wall.palette.isEmpty())
         return m_wall.palette;
-    return builtin(m_systemDark);
+    return builtin(systemDark());
 }
 
 QVariantMap ThemeSource::glassSettings()
@@ -277,20 +276,30 @@ void ThemeSource::resetGlass()
     emit changed(); // флаг glassOverridden сменился, даже если стекло осталось тем же
 }
 
-void ThemeSource::readSystemScheme()
+bool ThemeSource::systemDark() const
 {
-    QDBusInterface portal(kPortalService, kPortalPath, kPortalSettings, portalBus());
-    portal.setTimeout(500);
+    if (!m_schemeKnown)
+        readSystemScheme();
+    return m_systemDark;
+}
+
+void ThemeSource::readSystemScheme() const
+{
+    m_schemeKnown = true;
+    // Прямой вызов, без QDBusInterface: тот перед вызовом ещё и интроспектирует объект
+    const auto call = [](const QString &method) {
+        QDBusMessage msg = QDBusMessage::createMethodCall(kPortalService, kPortalPath, kPortalSettings, method);
+        msg << QStringLiteral("org.freedesktop.appearance") << QStringLiteral("color-scheme");
+        return QDBusReply<QDBusVariant>(portalBus().call(msg, QDBus::Block, 500));
+    };
     // 1 — тёмная, 2 — светлая, 0 — без предпочтения (берём тёмную, как у шелла)
-    QDBusReply<QDBusVariant> one = portal.call(QStringLiteral("ReadOne"), QStringLiteral("org.freedesktop.appearance"),
-                                               QStringLiteral("color-scheme"));
+    QDBusReply<QDBusVariant> one = call(QStringLiteral("ReadOne"));
     uint scheme = 0;
     if (one.isValid()) {
         scheme = one.value().variant().toUInt();
     } else {
         // Старые порталы: Read и значение, завёрнутое в ещё один variant
-        QDBusReply<QDBusVariant> old = portal.call(QStringLiteral("Read"), QStringLiteral("org.freedesktop.appearance"),
-                                                   QStringLiteral("color-scheme"));
+        QDBusReply<QDBusVariant> old = call(QStringLiteral("Read"));
         if (old.isValid())
             scheme = qvariant_cast<QDBusVariant>(old.value().variant()).variant().toUInt();
     }
@@ -302,7 +311,9 @@ void ThemeSource::portalSettingChanged(const QString &ns, const QString &key, co
     if (ns != QLatin1String("org.freedesktop.appearance") || key != QLatin1String("color-scheme"))
         return;
     const bool dark = value.variant().toUInt() != 2;
-    if (dark == m_systemDark)
+    const bool known = m_schemeKnown;
+    m_schemeKnown = true;
+    if (known && dark == m_systemDark)
         return;
     m_systemDark = dark;
     if (wallpaperWanted())
@@ -328,7 +339,7 @@ void ThemeSource::refreshWallpaper(bool sync)
     if (m_wallBusy)
         return;
     m_wallChecked = true;
-    auto job = [dark = m_systemDark, old = m_wall]() {
+    auto job = [dark = systemDark(), old = m_wall]() {
         Wallpaper w;
         w.path = WallpaperPalette::current();
         if (w.path.isEmpty())

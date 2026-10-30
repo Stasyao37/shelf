@@ -71,7 +71,10 @@ private Q_SLOTS:
 private:
     void load();
     void rewatch();
-    void readSystemScheme();
+    void readSystemScheme() const;
+    // Тёмная ли тема в системе — спрашиваем портал только когда это понадобилось
+    // (встроенная палитра «как в системе», обои): синхронный D-Bus стоил запуску десятки мс
+    bool systemDark() const;
     QVariantMap paletteFor(const QString &id) const;
     QVariantMap glassSettings();
     bool fileUsable(const QString &id) const;
@@ -89,7 +92,8 @@ private:
     QVariantMap m_palette;
     QVariantMap m_settings;
     QString m_source;
-    bool m_systemDark = true;
+    mutable bool m_systemDark = true;
+    mutable bool m_schemeKnown = false;
     int m_hyprBlur = -1; // -1 — ещё не спрашивали hyprctl
     QFileSystemWatcher m_watcher;
     QTimer m_debounce;

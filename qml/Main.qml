@@ -1255,20 +1255,30 @@ Window {
         parent: win.contentItem
         onClosed: pane.focusView()
     }
-    SettingsDialog {
+    // Настройки и первая настройка создаются, только когда их открыли: их проверки
+    // (hyprctl, tumbler, программы в PATH) стоили каждому запуску десятки миллисекунд
+    Loader {
         id: settingsDlg
-        parent: win.contentItem
-        onClosed: pane.focusView()
-        onFirstRunRequested: firstRun.open()
-        onMessage: (text) => win.toast(text)
+        active: false
+        function open() { active = true; (item as SettingsDialog).open() }
+        sourceComponent: SettingsDialog {
+            parent: win.contentItem
+            onClosed: pane.focusView()
+            onFirstRunRequested: firstRun.open()
+            onMessage: (text) => win.toast(text)
+        }
     }
-    FirstRun {
+    Loader {
         id: firstRun
-        parent: win.contentItem
-        onFinished: (message) => {
-            setupState.done = true
-            if (message) win.toast(message)
-            pane.focusView()
+        active: false
+        function open() { active = true; (item as FirstRun).open() }
+        sourceComponent: FirstRun {
+            parent: win.contentItem
+            onFinished: (message) => {
+                setupState.done = true
+                if (message) win.toast(message)
+                pane.focusView()
+            }
         }
     }
     OpenWithDialog {
