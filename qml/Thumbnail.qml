@@ -10,6 +10,8 @@ Item {
 
     property string source
     property int size: 56
+    // Под какой размер декодировать (при зуме — целевой)
+    property int renderSize: size
     property bool video: false
     // Готова ли картинка: пока грузится или не смогла — снаружи показывают иконку
     readonly property bool ready: img.status === Image.Ready
@@ -21,7 +23,8 @@ Item {
         id: img
         anchors.fill: parent
         source: root.source
-        sourceSize: Qt.size(root.size * 2, root.size * 2)
+        // Под целевой размер: при зуме не декодируем картинку заново на каждом кадре
+        sourceSize: Qt.size(root.renderSize * 2, root.renderSize * 2)
         fillMode: Image.PreserveAspectFit
         asynchronous: true
         smooth: true
@@ -84,7 +87,7 @@ Item {
             width: Math.round(parent.width * 0.55)
             height: width
             source: Qt.resolvedUrl("icons/badges/play.svg")
-            sourceSize: Qt.size(width * 2, height * 2)
+            sourceSize: Qt.size(Math.round(Math.round(root.renderSize * 0.38) * 0.55) * 2, Math.round(Math.round(root.renderSize * 0.38) * 0.55) * 2)
             smooth: true
             opacity: 0.95
         }

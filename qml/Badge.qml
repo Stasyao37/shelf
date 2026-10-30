@@ -9,6 +9,8 @@ Rectangle {
 
     property string name
     property int size: 18
+    // Под какой размер рисовать значок (при зуме — целевой)
+    property int renderSize: size
 
     width: size
     height: size
@@ -17,13 +19,13 @@ Rectangle {
     border.width: 1
     border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(1, 1, 1, 0.22)
 
-    Image {
+    GlassImage {
         anchors.centerIn: parent
         width: Math.round(root.size * 0.62)
         height: width
         source: Theme.glassIcon("badges/" + root.name, Theme.inkTint)
         // Вдвое крупнее и со сглаживанием — на 11 px иначе края рвутся
-        sourceSize: Qt.size(width * 2, height * 2)
+        sourceSize: Qt.size(Math.round(root.renderSize * 0.62) * 2, Math.round(root.renderSize * 0.62) * 2)
         smooth: true
         mipmap: true
         opacity: 0.92

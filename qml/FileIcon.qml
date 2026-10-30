@@ -11,6 +11,9 @@ Item {
     // Нужно для конфигов: у .conf, .ini, .cfg, .env нет своего MIME-типа, они text/plain
     property string fileName: ""
     property int size: 48
+    // Под какой размер рисовать картинки. Во время зума size меняется каждый кадр,
+    // а renderSize — сразу целевой: картинка лишь масштабируется, а не рисуется заново
+    property int renderSize: size
 
     width: size
     height: size
@@ -81,10 +84,10 @@ Item {
         return ["file"]
     }
 
-    Image {
+    GlassImage {
         anchors.fill: parent
         source: Theme.glassIcon(root.kind[0], Theme.groupTint(root.group))
-        sourceSize: Qt.size(root.size, root.size)
+        sourceSize: Qt.size(root.renderSize, root.renderSize)
     }
 
     readonly property bool isLang: kind.length > 1 && kind[1].startsWith("lang/")
@@ -95,11 +98,12 @@ Item {
         // Логотип — на листе ниже загнутого угла; эмблема архива — во весь размер
         width: root.isLang ? Math.round(root.size * 0.4) : root.size
         height: width
+        renderWidth: root.isLang ? Math.round(root.renderSize * 0.4) : root.renderSize
         x: (root.size - width) / 2
         y: root.isLang ? root.size * 0.6 - height / 2 : 0
         name: !visible ? "" : root.isLang ? root.kind[1] : "emblems/" + root.kind[1]
         tint: Theme.inkTint
         // У эмблемы во весь размер линии мельче — тень ниже
-        depth: Math.max(1, root.isLang ? width / 22 : root.size / 48)
+        depthRatio: root.isLang ? 1 / 22 : 1 / 48
     }
 }

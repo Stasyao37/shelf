@@ -13,21 +13,28 @@ Item {
     property string name
     // Подкраска вместе с иконкой под эмблемой: Theme.groupTint(…), Theme.inkTint или ""
     property string tint: ""
-    // Глубина тени: 1 px на 22 px эмблемы (столько она занимает в папке 48 px)
-    property real depth: Math.max(1, width / 22)
+    // Под какую ширину рисовать (при зуме — целевая, см. renderSize у FileIcon)
+    property real renderWidth: width
+    // Глубина тени на точку ширины: 1 px на 22 px эмблемы (столько она занимает в папке 48 px)
+    property real depthRatio: 1 / 22
 
     // Картинка шире эмблемы на поля под тень — как автоотступ у MultiEffect
-    Image {
+    // Картинка нарисована под renderWidth; k — во сколько раз её растянуть под нынешнюю ширину
+    GlassImage {
         readonly property int pad: 12
-        x: -pad
-        y: -pad
-        width: root.width + 2 * pad
-        height: root.height + 2 * pad
+        readonly property real k: root.renderWidth > 0 ? root.width / root.renderWidth : 1
+        x: -pad * k
+        y: -pad * k
+        width: (root.renderWidth + 2 * pad) * k
+        height: (root.renderWidth + 2 * pad) * k
         visible: root.name !== ""
-        source: !visible ? "" : Theme.glassIcon(root.name, "glass=" + root.width + "&depth=" + root.depth.toFixed(2)
+        // Одним выражением из renderWidth: по отдельным привязкам адрес успевал собраться
+        // с промежуточной глубиной — и картинка рисовалась лишний раз
+        source: !visible ? "" : Theme.glassIcon(root.name, "glass=" + root.renderWidth
+                                                          + "&depth=" + Math.max(1, root.renderWidth * root.depthRatio).toFixed(2)
                                                           + (root.tint ? "&" + root.tint : ""))
         // Вдвое крупнее и со сглаживанием: края мягкие, без ступенек
-        sourceSize: Qt.size(width * 2, height * 2)
+        sourceSize: Qt.size((root.renderWidth + 2 * pad) * 2, (root.renderWidth + 2 * pad) * 2)
         smooth: true
         mipmap: true
     }

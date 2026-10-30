@@ -595,6 +595,8 @@ FocusScope {
             Item {
                 id: iconBox
                 readonly property int size: pane.gridMode ? Math.round(pane.iconShown) : 22
+                // Картинки — сразу под целевой размер зума, а не под каждый кадр анимации
+                readonly property int renderSize: pane.gridMode ? pane.iconSize : 22
                 width: size; height: size
                 x: pane.gridMode ? (parent.width - width) / 2 : 8
                 y: pane.gridMode ? 10 : (parent.height - height) / 2
@@ -607,6 +609,7 @@ FocusScope {
                     active: cell.isDir
                     sourceComponent: FolderIcon {
                         size: iconBox.size
+                        renderSize: iconBox.renderSize
                         iconName: cell.icon
                         open: ma.containsMouse || cell.selected || cell.dropHere
                     }
@@ -619,6 +622,7 @@ FocusScope {
                         FileIcon {
                             visible: !(thumbLoader.item as Thumbnail)?.ready
                             size: iconBox.size
+                            renderSize: iconBox.renderSize
                             mimeType: cell.mimeType
                             fileName: cell.name
                         }
@@ -631,6 +635,7 @@ FocusScope {
                             active: src !== ""
                             sourceComponent: Thumbnail {
                                 size: iconBox.size
+                                renderSize: iconBox.renderSize
                                 video: cell.mimeType.startsWith("video/")
                                 source: thumbLoader.src
                             }
@@ -645,6 +650,7 @@ FocusScope {
                     sourceComponent: Badge {
                         name: "link"
                         size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                        renderSize: pane.gridMode ? Math.round(iconBox.renderSize * 0.36) : 11
                     }
                 }
                 Loader {
@@ -653,6 +659,7 @@ FocusScope {
                     sourceComponent: Badge {
                         name: "lock"
                         size: pane.gridMode ? Math.round(iconBox.size * 0.36) : 11
+                        renderSize: pane.gridMode ? Math.round(iconBox.renderSize * 0.36) : 11
                     }
                 }
             }
