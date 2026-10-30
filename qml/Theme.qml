@@ -145,6 +145,8 @@ QtObject {
         property bool animations: true
     }
     readonly property bool animations: _motion.animations
+    // Значки грузить в фоне — включается после первого кадра окна (см. GlassImage)
+    property bool imagesInBackground: false
     function setAnimations(on) { _motion.animations = on }
     function dur(ms) { return _motion.animations ? ms : 0 }
 

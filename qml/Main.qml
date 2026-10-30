@@ -639,8 +639,10 @@ Window {
     Shortcut { sequences: ["F5", "Ctrl+R"]; onActivated: dir.reload() }
     Shortcut { sequence: "Ctrl+1"; onActivated: win.gridMode = true }
     Shortcut { sequence: "Ctrl+2"; onActivated: win.gridMode = false }
-    Shortcut { sequences: ["Ctrl+=", "Ctrl++", StandardKey.ZoomIn]; onActivated: win.zoom(1) }
-    Shortcut { sequences: ["Ctrl+-", StandardKey.ZoomOut]; onActivated: win.zoom(-1) }
+    // Без StandardKey.ZoomIn/ZoomOut: это те же Ctrl++ и Ctrl+-, а одинаковые сочетания
+    // в одном Shortcut Qt считает неоднозначными и вместо activated шлёт activatedAmbiguously
+    Shortcut { sequences: ["Ctrl+=", "Ctrl++"]; onActivated: win.zoom(1) }
+    Shortcut { sequences: ["Ctrl+-"]; onActivated: win.zoom(-1) }
     Shortcut { sequence: "Ctrl+0"; onActivated: win.zoom(0) }
     Shortcut { sequence: "F2"; onActivated: win.renameSelected() }
     Shortcut { sequence: "Delete"; onActivated: win.trashSelected() }
@@ -1253,20 +1255,30 @@ Window {
         parent: win.contentItem
         onClosed: pane.focusView()
     }
-    SettingsDialog {
+    // Настройки и первая настройка создаются, только когда их открыли: их проверки
+    // (hyprctl, tumbler, программы в PATH) стоили каждому запуску десятки миллисекунд
+    Loader {
         id: settingsDlg
-        parent: win.contentItem
-        onClosed: pane.focusView()
-        onFirstRunRequested: firstRun.open()
-        onMessage: (text) => win.toast(text)
+        active: false
+        function open() { active = true; (item as SettingsDialog).open() }
+        sourceComponent: SettingsDialog {
+            parent: win.contentItem
+            onClosed: pane.focusView()
+            onFirstRunRequested: firstRun.open()
+            onMessage: (text) => win.toast(text)
+        }
     }
-    FirstRun {
+    Loader {
         id: firstRun
-        parent: win.contentItem
-        onFinished: (message) => {
-            setupState.done = true
-            if (message) win.toast(message)
-            pane.focusView()
+        active: false
+        function open() { active = true; (item as FirstRun).open() }
+        sourceComponent: FirstRun {
+            parent: win.contentItem
+            onFinished: (message) => {
+                setupState.done = true
+                if (message) win.toast(message)
+                pane.focusView()
+            }
         }
     }
     OpenWithDialog {
@@ -1277,6 +1289,7 @@ Window {
     }
 
     Component.onCompleted: {
+        Theme.afterFrame(win.contentItem, function () { Theme.imagesInBackground = true })
         newTab(startPath || Places.places[0].path, true)
         if (startSelect) { tab.pendingSelect = [startSelect]; dir.reload() }
         if (picking) {

@@ -27,6 +27,7 @@ set(QML_FILES
     qml/FolderIcon.qml
     qml/FileIcon.qml
     qml/GlassEmblem.qml
+    qml/GlassImage.qml
     qml/Badge.qml
     qml/Thumbnail.qml
     qml/TextButton.qml

@@ -12,6 +12,9 @@ Item {
     // Имя иконки из DirModel: "folder-download,folder" и т.п.
     property string iconName: "folder"
     property int size: 48
+    // Под какой размер рисовать картинки. Во время зума size меняется каждый кадр,
+    // а renderSize — сразу целевой: картинка лишь масштабируется, а не рисуется заново
+    property int renderSize: size
     property bool open: false
 
     width: size
@@ -70,10 +73,10 @@ Item {
     // Задняя стенка неподвижна; передняя — отдельной картинкой в кадре своего
     // прямоугольника, откидывается тем же отображением, что и эмблема.
     // Двух наложенных картинок закрытой и открытой папки больше нет
-    Image {
+    GlassImage {
         anchors.fill: parent
         source: Theme.glassIcon("folder-back", root.tint)
-        sourceSize: Qt.size(root.size * 2, root.size * 2)
+        sourceSize: Qt.size(root.renderSize * 2, root.renderSize * 2)
         smooth: true
         mipmap: true
     }
@@ -146,12 +149,13 @@ Item {
     }
 
     // Кадр картинки — стенка с полями frontPad со всех сторон (см. folder-front.svg)
-    Image {
+    GlassImage {
         id: frontItem
         width: (root.frontClosed[1][0] - root.frontClosed[0][0] + 2 * root.frontPad) * root.size / 24
         height: (root.frontClosed[3][1] - root.frontClosed[0][1] + 2 * root.frontPad) * root.size / 24
         source: Theme.glassIcon("folder-front", root.tint)
-        sourceSize: Qt.size(width * 2, height * 2)
+        sourceSize: Qt.size((root.frontClosed[1][0] - root.frontClosed[0][0] + 2 * root.frontPad) * root.renderSize / 12,
+                            (root.frontClosed[3][1] - root.frontClosed[0][1] + 2 * root.frontPad) * root.renderSize / 12)
         smooth: true
         // Без mipmap: под перспективой GPU брал уменьшенную копию, и стенка мылилась
         antialiasing: true
@@ -166,6 +170,7 @@ Item {
         visible: root.emblem !== "" && root.size >= 32
         width: Math.round(root.size * 0.46)
         height: width
+        renderWidth: Math.round(root.renderSize * 0.46)
         name: visible ? "emblems/" + root.emblem : ""
         tint: root.tint
         antialiasing: true

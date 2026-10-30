@@ -95,9 +95,30 @@ QImage GlassIcons::glass(const QImage &silhouette, double scale, double depth)
     std::vector<float> shifted(alpha.size(), 0.0f);
     for (int y = dy; y < h; ++y)
         std::copy_n(alpha.begin() + size_t(y - dy) * w, w, shifted.begin() + size_t(y) * w);
-    const auto blur1 = gaussian(shifted, w, h, 1.4 * scale);
-    const auto blur2 = gaussian(shifted, w, h, 3.1 * scale);
+    // Размытое считаем в d раз мельче (примерно в логических точках) и растягиваем обратно:
+    // тень мягкая, разницы не видно, а работы в d³ раз меньше — её делают при каждом зуме
+    const int d = std::max(1, int(scale));
+    const int ws = (w + d - 1) / d, hs = (h + d - 1) / d;
+    std::vector<float> small(size_t(ws) * hs, 0.0f);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+            small[size_t(y / d) * ws + x / d] += shifted[size_t(y) * w + x] / float(d * d);
+    const auto blur1 = gaussian(small, ws, hs, 1.4 * scale / d);
+    const auto blur2 = gaussian(small, ws, hs, 3.1 * scale / d);
     constexpr float w0 = 0.795f, w1 = 0.805f, w2 = 0.405f, wsum = w0 + w1 + w2;
+    std::vector<float> soft(small.size());
+    for (size_t i = 0; i < soft.size(); ++i)
+        soft[i] = w1 * blur1[i] + w2 * blur2[i];
+    // Билинейно из мелкой сетки: центр клетки (i + 0.5) · d
+    const auto softAt = [&](int x, int y) {
+        const float fx = std::clamp((x + 0.5f) / d - 0.5f, 0.0f, float(ws - 1));
+        const float fy = std::clamp((y + 0.5f) / d - 0.5f, 0.0f, float(hs - 1));
+        const int x0 = int(fx), y0 = int(fy), x1 = std::min(x0 + 1, ws - 1), y1 = std::min(y0 + 1, hs - 1);
+        const float tx = fx - x0, ty = fy - y0;
+        const float top = soft[size_t(y0) * ws + x0] * (1 - tx) + soft[size_t(y0) * ws + x1] * tx;
+        const float bottom = soft[size_t(y1) * ws + x0] * (1 - tx) + soft[size_t(y1) * ws + x1] * tx;
+        return top * (1 - ty) + bottom * ty;
+    };
 
     // Стекло поверх тени (rgba(0, 0, 0, 0.28)) — формула шейдера MultiEffect
     QImage out(w, h, QImage::Format_ARGB32_Premultiplied);
@@ -106,7 +127,7 @@ QImage GlassIcons::glass(const QImage &silhouette, double scale, double depth)
         for (int x = 0; x < w; ++x) {
             const size_t i = size_t(y) * w + x;
             const float a = alpha[i];
-            const float shadow = (w0 * shifted[i] + w1 * blur1[i] + w2 * blur2[i]) / wsum;
+            const float shadow = (w0 * shifted[i] + softAt(x, y)) / wsum;
             const float aa = std::min(1.0f, a + (1 - a) * (1 - shadow));
             const int rgb = int(std::lround(a * aa * 255));
             line[x] = qRgba(rgb, rgb, rgb, int(std::lround((0.28f * (1 - aa) + a * aa) * 255)));
